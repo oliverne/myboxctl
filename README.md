@@ -1,0 +1,52 @@
+# myboxctl
+
+`myboxctl`은 NAVER MYBOX Open API를 사용하는 홈서버용 단방향 파일 관리 CLI다.
+로컬 에이전트가 subprocess와 JSON으로 안정적으로 호출하는 것을 우선하며, 양방향 sync는
+제공하지 않는다.
+
+현재 상태는 프로젝트 scaffold와 구현 계획 수립 단계다. 구현 상태는
+[`docs/PROGRESS.md`](docs/PROGRESS.md), 다음 작업은 [`docs/HANDOFF.md`](docs/HANDOFF.md)를
+확인한다.
+
+## 요구사항
+
+- Bun 1.4 이상
+- NAVER MYBOX PAT: 실제 integration test에서만 필요
+
+## 시작하기
+
+```bash
+bun install
+bun run check
+bun run build
+bun run dev -- --help
+```
+
+실제 PAT는 `.env` 또는 배포 환경의 secret 파일로 전달하고 커밋하지 않는다.
+
+```bash
+cp .env.example .env
+```
+
+## 문서 안내
+
+- [`PLAN.md`](PLAN.md): 전체 범위, phase 순서, 완료 정의
+- [`docs/README.md`](docs/README.md): 문서 탐색 안내
+- [`docs/PROGRESS.md`](docs/PROGRESS.md): phase 및 작업 상태의 단일 기준
+- [`docs/HANDOFF.md`](docs/HANDOFF.md): 다음 구현 에이전트가 이어서 할 작업
+- [`docs/architecture/overview.md`](docs/architecture/overview.md): 구조와 의존성 방향
+- [`docs/reference/cli-contract.md`](docs/reference/cli-contract.md): CLI/JSON/exit code 계약
+- [`docs/reference/mybox-api.md`](docs/reference/mybox-api.md): 검증된 API 사실과 미확인 항목
+
+## 일반 검증
+
+```bash
+bun run check
+bun run build
+```
+
+실제 계정을 사용하는 integration test는 명시적으로 opt-in한다.
+
+```bash
+MYBOX_PAT=... bun run test:integration
+```

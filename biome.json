@@ -1,0 +1,17 @@
+{
+  "files": {
+    "includes": ["**", "!!dist", "!!node_modules", "!!coverage"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended"
+    }
+  }
+}

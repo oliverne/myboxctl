@@ -1,0 +1,32 @@
+{
+  "name": "myboxctl",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.4.0",
+  "engines": {
+    "bun": ">=1.4.0"
+  },
+  "bin": {
+    "myboxctl": "./dist/cli.js"
+  },
+  "scripts": {
+    "dev": "bun run src/cli.ts",
+    "build": "bun build ./src/cli.ts --target=bun --outdir=dist",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "test": "bun test",
+    "test:integration": "MYBOX_INTEGRATION=1 bun test test/integration",
+    "check": "bun run typecheck && bun run lint && bun test"
+  },
+  "dependencies": {
+    "commander": "^15.0.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.10",
+    "@types/bun": "^1.4.0",
+    "typescript": "^7.0.2"
+  }
+}
