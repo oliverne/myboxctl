@@ -5,7 +5,7 @@
 
 ## 현재 상태
 
-- 현재 phase: `00-api-contract`
+- 현재 phase: `01-foundation`
 - 상태: `complete`
 - 다음 담당자: Luna
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
@@ -16,7 +16,7 @@
 | Phase               | 상태     | 완료 증거                                                                       | 문서                                                       |
 | ------------------- | -------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------- |
 | 00 API contract     | complete | contract test 4회 성공, resolver/upload 결과 및 미확정 항목을 API ledger에 기록 | [`phases/00-api-contract.md`](phases/00-api-contract.md)   |
-| 01 Foundation       | pending  | 없음                                                                            | [`phases/01-foundation.md`](phases/01-foundation.md)       |
+| 01 Foundation       | complete | config/error/output/client 및 fake HTTP test 통과, typecheck/lint/build 통과          | [`phases/01-foundation.md`](phases/01-foundation.md)       |
 | 02 Read commands    | pending  | 없음                                                                            | [`phases/02-read-commands.md`](phases/02-read-commands.md) |
 | 03 Ensure directory | pending  | 없음                                                                            | [`phases/03-ensure-dir.md`](phases/03-ensure-dir.md)       |
 | 04 Upload           | pending  | 없음                                                                            | [`phases/04-upload.md`](phases/04-upload.md)               |
@@ -38,6 +38,10 @@
 Phase 00 integration test를 구현하고 4회 성공시켰다. PAT 인증과 전용 `/myboxctl-integration-test/`
 prefix 존재를 확인했으며, resolver/upload 계약 및 미확정 항목을
 `docs/reference/mybox-api.md`에 기록했다.
+
+Phase 01 Foundation을 완료했다. config/PAT 보호, domain error와 exit code, JSON envelope/redaction,
+Zod 기반 API contract, GET 전용 retry/pagination transport, ephemeral fake HTTP server와 관련
+테스트를 추가했다. 명령 구현은 아직 시작하지 않았으며 다음 phase는 Phase 02 Read commands다.
 
 ## 상태 변경 규칙
 

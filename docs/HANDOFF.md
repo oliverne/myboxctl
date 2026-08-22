@@ -2,104 +2,86 @@
 
 ## 요약
 
-Phase 00 MYBOX API contract 검증을 완료했다. production client/feature command는 아직 구현하지
-않았고, probe 전용 integration test와 sanitized fixture만 추가했다.
+Phase 01 Foundation을 완료했다. 이후 vertical slice가 사용할 config, domain error, JSON output,
+Zod contract, MYBOX HTTP transport와 local fake HTTP server를 구현했으며 관련 테스트가 통과했다.
+`stat`/`ls`를 포함한 public command는 아직 구현하지 않았다.
 
 ## 현재 phase와 상태
 
-- Phase: `00-api-contract`
+- Phase: `01-foundation`
 - 상태: `complete`
 - `docs/PROGRESS.md`와 일치한다.
-- 다음 phase: Phase 01 Foundation (`pending`)
+- 다음 phase: Phase 02 Read commands (`pending`)
 
 ## 변경 파일
 
-- `test/integration/helpers.ts`
-  - PAT를 노출하지 않는 probe HTTP helper
-  - read-only GET의 timeout 및 429/5xx backoff
-  - multipart storage upload probe
-  - cursor pagination 및 응답 shape 검사
-- `test/integration/api-contract.test.ts`
-  - opt-in 안전장치
-  - unique child 생성 및 exact resourceId cleanup
-  - root/detail/search/folder/upload/overwrite/resume/error contract probe
-- `test/fixtures/mybox/api-contract.latest.json`
-  - upload URL/query/PAT/resource ID를 제외한 최신 sanitized 관찰 결과
-- `docs/reference/mybox-api.md`
-  - API-01~API-11 상태, resolver/upload 결정, 미확정 범위 기록
-- `docs/PROGRESS.md`
-  - Phase 00을 `complete`로 기록
-  - CLI 문서의 소비자를 특정 제품이 아닌 다양한 로컬 AI 에이전트로 일반화
-- `PLAN.md`, `README.md`, `docs/architecture/overview.md`, `docs/reference/cli-contract.md`,
-  `docs/phases/07-hardening.md`
-  - 특정 소비자 제품에 종속되지 않도록 AI 에이전트 대상 표현을 일반화
+- `src/config.ts`
+  - `MYBOX_PAT`가 있으면 원문을 그대로 사용하고, 없으면 XDG 기본 경로 또는 `HOME` 기반
+    credentials 파일의 단일 trimmed line을 사용한다.
+  - 빈 token, multiline credentials, POSIX group/other permission, 잘못된 timeout/base URL을
+    거부한다.
+  - `AppConfig`의 PAT는 private field와 getter로 보관하고 `JSON.stringify`/`toJSON`에는 포함하지
+    않는다.
+- `src/errors.ts`
+  - CLI contract의 10개 error kind와 exhaustive exit code mapping을 추가했다.
+  - HTTP status를 안정적인 domain message로 매핑하고 raw API message는 사용하지 않는다.
+  - config error와 timeout/network error를 domain error로 정규화하며 serialization 전에 credential
+    형태의 문자열을 redaction한다.
+- `src/output.ts`
+  - success/failure envelope, JSON renderer/writer, exit code helper를 추가했다.
+  - JSON은 하나의 document와 하나의 trailing newline을 출력한다.
+  - PAT prefix, Bearer/Authorization, `stoken`, URL, secret-shaped field를 redaction한다.
+  - `path` 필드는 PAT로 오인하지 않고 그대로 보존한다.
+- `src/mybox/contract.ts`
+  - Phase 00 관찰 결과를 기준으로 resource/detail, search resource/list, response metadata,
+    folder creation, upload reservation/content, MYBOX error schema와 `z.infer` 타입을 추가했다.
+  - root/detail resource는 fixture의 필드를 필수로 검증하고 search resource는 API 문서상 optional
+    필드를 허용한다. 모든 schema는 unknown field를 보존한다.
+- `src/mybox/client.ts`
+  - public method: `requestJson`, `request`, `getResource`, `listRootPage`, `listRoot`,
+    `searchFoldersPage`, `searchFolders`, `searchFilesPage`, `searchFiles`, `createFolder`,
+    `createUpload`.
+  - URL query는 `URL.searchParams`로 encoding하고 Bearer auth, JSON body, timeout signal을
+    사용한다. client의 PAT도 private field로 보관한다.
+  - GET만 network failure, 429, 500, 502, 503을 최대 4회까지 재시도한다. 기본 delay는 500ms,
+    1s, 2s에 주입된 random 기반 jitter를 더하며 유효한 `Retry-After` seconds/date가 우선한다.
+    mutation은 generic retry하지 않는다.
+  - root/search pagination은 cursor cycle을 감지하고 최대 1,000 page에서 중단한다.
+  - response body가 비어 있으면 `undefined`, non-JSON이면 text로 처리한 뒤 JSON schema endpoint에서
+    `api-unavailable`로 변환한다.
+- `src/runtime.ts`
+  - config와 `MyboxClient`를 조립하는 runtime factory를 추가했다.
+- `test/http/server.ts`
+  - 고정 port를 사용하지 않는 Bun ephemeral fake server를 추가했다. request method/path/query/
+    headers/body를 기록하고 scripted response sequence 또는 handler를 제공한다.
+- 테스트
+  - `src/config.test.ts`, `src/errors.test.ts`, `src/output.test.ts`,
+    `src/mybox/contract.test.ts`, `test/http/client.test.ts`를 추가했다.
 
-기존에 수정되어 있던 `AGENTS.md`는 그대로 유지했다.
+## Phase 00 fixture와 schema 차이
+
+- `test/fixtures/mybox/api-contract.latest.json`은 secret을 제거한 key/status 관찰 fixture라서
+  실제 resource body 전체를 담지 않는다.
+- fixture와 Phase 00 integration assertion에서 root/detail resource의 metadata 필드가 확인되어
+  `resourceItemSchema`/`resourceDetailSchema`에서는 이를 필수로 뒀다.
+- Phase 00 문서가 search result 필드를 optional로 기록했으므로 search 전용 schema를 분리했다.
+- `nextCursor`는 API 응답의 absent/null뿐 아니라 empty string도 종료 값으로 수용한다.
+- upload content transfer 자체는 아직 `src/mybox/upload.ts`로 구현하지 않았다. reservation
+  schema와 `createUpload`만 foundation 범위에서 제공한다.
 
 ## 검증
 
 성공:
 
+- `bun run typecheck`
+- `bun test src/config.test.ts src/errors.test.ts src/output.test.ts test/http`
+  - 19 pass, 0 fail
+- `bun run lint`
 - `bun run check`
-  - typecheck 통과
-  - Biome 통과
-  - unit test 1 pass, integration suite는 opt-in으로 skip
-- `bun run build` 통과
-- `bun run test:integration` 성공 4회
-  - 매 실행 unique child 생성
-  - 매 실행 exact child folder cleanup `204`
-  - cleanup되지 않은 test resource 없음
+  - 23 pass, 3 integration skip, 0 fail
+- `bun run build`
+- build 결과 `dist/cli.js`에서 `mbx_pat_`, `authorization:`, `stoken=` secret-like 문자열 미검출
 
-실제 관찰:
-
-- PAT 인증 및 전용 prefix 사용 가능
-- root `count=1` cursor pagination에서 3개 page와 `nextCursor` 관찰
-- resource detail folder 응답에 `fileCount`, `subFolderCount`가 있으나 children 배열은 없음
-- 폴더 생성 `POST /v1/drive/folders` → `201`, response keys `name`, `resourceId`
-- exact folder search 및 file `q + parentPath` search 결과를 post-filter하여 resolve 가능
-- unique folder와 small file은 latest run에서 첫 `0ms` probe에 검색됨
-- upload reservation `POST /v1/drive/files` → `201`, response keys `offset`, `uploadUrl`
-- storage content transfer는 `POST multipart/form-data`, `Content-Length`, exact `Filedata` part,
-  `application/octet-stream`이며 PAT Authorization header를 보내지 않음
-- storage 성공 응답 `200`, keys `resourceId`, `name`, `fileSize`
-- 0-byte와 소형 파일 업로드 성공
-- overwrite 전후 resourceId 유지 및 size 변경 확인
-- 중복 folder/file 및 file/folder type conflict는 `409`
-- no-auth `401 PLAT-401`, valid-shape missing resource `404 PLAT-404`, invalid folder request
-  `400 PLAT-400`; error body keys는 `code`, `message`, `requestId`, `timestamp`
-- 자연적인 rate limit `429 PLAT-429`는 초기 probe에서 관찰했으나 Retry-After 값은 보존하지 못함
-
-## 결정
-
-1. CLI 문서와 public contract는 특정 소비자 제품이 아니라 다양한 AI 에이전트를 대상으로 표현한다.
-2. resolver는 folder exact `path` search, file `q + parentPath` search 후
-   `path`/`parentPath`/`name` exact filter를 사용한다.
-3. search/root GET만 cursor pagination과 operation-specific backoff 대상이다. mutation은 generic
-   retry하지 않는다.
-4. storage upload은 `POST multipart/form-data` + exact `Filedata` part + exact
-   `Content-Length`로 구현한다. upload URL query credential과 PAT는 서로 다른 trust boundary이며
-   storage host에 PAT를 전달하지 않는다.
-5. overwrite는 `isOverwrite: true` 예약 후 같은 upload protocol을 사용하며 resourceId가 유지되는
-   것을 확인했다.
-6. direct children endpoint, 100MB bounded-memory 전송, 실제 연결 중단 후 non-zero resume offset,
-   429 Retry-After 형식, 423 해제 특성은 확정하지 않았다. 이 항목들은 production에서 추측으로
-   채우지 않는다.
-
-## 다음 작업
-
-1. Phase 01 문서의 진입 조건을 확인한다.
-2. `docs/PROGRESS.md`에서 Phase 01을 `in_progress`로 변경한다.
-3. config/PAT 보호, domain error, JSON envelope/exit code, MYBOX transport를 구현한다.
-4. 실제 API probe가 아닌 local fake HTTP server test를 먼저 추가한다.
-5. integration helper는 production client로 재사용하지 않는다.
-6. Phase 01의 `bun run check`, `bun run build` 및 관련 test를 실행한다.
-
-## 미확정/차단 요소
-
-- `ls`의 direct-child exact contract는 아직 별도 확정하지 않았다. Phase 02에서 `parentPath`
-  search 결과의 직접 자식 필터를 검증하거나, 불가능하면 범위를 축소/blocked로 기록해야 한다.
-- resume interruption은 실제 raw connection interruption을 재현해야 한다. Phase 04에서
-  non-zero offset과 `Content-Range`를 별도 검증하기 전에는 resume을 완전 지원한다고 표시하지
-  않는다.
-- 대용량 bounded-memory는 아직 검증하지 않았다. production 구현은 multipart body 전체를
-  메모리에 만들지 않아야 한다.
+Integration test는 Foundation의 required check가 아니므로 이번 phase에서 실행하지 않았다. 실제
+MYBOX 미확정 사항은 Phase 00 ledger와 동일하다: direct children endpoint, 100MB bounded-memory
+probe, 실제 interruption 후 non-zero resume, `Retry-After` live 형식, 423 해제 특성.

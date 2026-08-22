@@ -1,0 +1,164 @@
+import { afterEach, describe, expect, test } from "bun:test";
+
+import { MyboxClient } from "../../src/mybox/client.ts";
+import { createFakeHttpServer, type FakeHttpServer } from "./server.ts";
+
+type TestResource = {
+  resourceId: string;
+  name: string;
+  type: string;
+};
+
+function listPage(resources: TestResource[], nextCursor?: string) {
+  const completeResources = resources.map((resource) => ({
+    parentId: "parent-1",
+    size: 0,
+    createdAt: "2026-08-22T10:00:00Z",
+    modifiedAt: "2026-08-22T10:00:00Z",
+    accessedAt: "2026-08-22T10:00:00Z",
+    isFavorite: false,
+    isHidden: false,
+    lastModifiedBy: "tester",
+    ...resource,
+  }));
+  return {
+    resources: completeResources,
+    responseMetaData: nextCursor === undefined ? {} : { nextCursor },
+    fileCount: resources.filter((resource) => resource.type === "file").length,
+    subFolderCount: resources.filter((resource) => resource.type === "folder").length,
+  };
+}
+
+const servers: FakeHttpServer[] = [];
+
+afterEach(() => {
+  for (const server of servers.splice(0)) {
+    server.close();
+  }
+});
+
+describe("MyboxClient transport", () => {
+  test("encodes query values, sends Bearer auth, and retries GET only", async () => {
+    const server = await createFakeHttpServer([
+      { status: 503, body: { code: "PLAT-503", message: "temporary" } },
+      {
+        status: 429,
+        headers: { "Retry-After": "2" },
+        body: { code: "PLAT-429", message: "slow down" },
+      },
+      {
+        body: listPage([{ resourceId: "folder-1", name: "한글 폴더", type: "folder" }], "cursor 2"),
+      },
+      { body: listPage([{ resourceId: "file-1", name: "report #1.txt", type: "file" }]) },
+    ]);
+    servers.push(server);
+    const sleeps: number[] = [];
+    const client = new MyboxClient(
+      { pat: "raw-pat", baseUrl: server.baseUrl, timeoutMs: 5_000 },
+      {
+        sleep: async (ms) => {
+          sleeps.push(ms);
+        },
+        random: () => 0,
+      },
+    );
+
+    const resources = await client.listRoot({ count: 1 });
+
+    expect(resources.map((resource) => resource.resourceId)).toEqual(["folder-1", "file-1"]);
+    expect(sleeps).toEqual([500, 2_000]);
+    expect(server.requests).toHaveLength(4);
+    expect(server.requests[0]?.method).toBe("GET");
+    expect(server.requests[0]?.query.get("count")).toBe("1");
+    expect(server.requests[0]?.query.has("cursor")).toBe(false);
+    expect(server.requests[0]?.headers.authorization).toBe("Bearer raw-pat");
+    expect(server.requests[3]?.query.get("cursor")).toBe("cursor 2");
+  });
+
+  test("does not retry mutations", async () => {
+    const server = await createFakeHttpServer([
+      { status: 503, body: { code: "PLAT-503", message: "temporary" } },
+    ]);
+    servers.push(server);
+    const sleeps: number[] = [];
+    const client = new MyboxClient(
+      { pat: "token", baseUrl: server.baseUrl, timeoutMs: 5_000 },
+      {
+        sleep: async (ms) => {
+          sleeps.push(ms);
+        },
+      },
+    );
+
+    await expect(client.createFolder({ folderName: "reports" })).rejects.toMatchObject({
+      kind: "api-unavailable",
+      code: "PLAT-503",
+    });
+    expect(server.requests).toHaveLength(1);
+    expect(sleeps).toEqual([]);
+  });
+
+  test("maps a schema mismatch to api-unavailable without raw Zod details", async () => {
+    const server = await createFakeHttpServer([{ body: { resources: [] } }]);
+    servers.push(server);
+    const client = new MyboxClient({ pat: "token", baseUrl: server.baseUrl, timeoutMs: 5_000 });
+
+    await expect(client.listRootPage()).rejects.toMatchObject({
+      kind: "api-unavailable",
+      code: "API_RESPONSE_INVALID",
+    });
+  });
+
+  test("detects repeated cursors", async () => {
+    const server = await createFakeHttpServer([
+      { body: listPage([], "same") },
+      { body: listPage([], "same") },
+    ]);
+    servers.push(server);
+    const client = new MyboxClient({ pat: "token", baseUrl: server.baseUrl, timeoutMs: 5_000 });
+
+    await expect(client.listRoot()).rejects.toMatchObject({
+      kind: "api-unavailable",
+      message: "MYBOX returned a repeated pagination cursor.",
+    });
+    expect(server.requests).toHaveLength(2);
+  });
+
+  test("validates mutation response contracts and request body", async () => {
+    const server = await createFakeHttpServer([
+      { body: { name: "reports", resourceId: "folder-1", extra: true }, status: 201 },
+      { body: { uploadUrl: "https://upload.example.test/storage", offset: 0 }, status: 201 },
+    ]);
+    servers.push(server);
+    const client = new MyboxClient({ pat: "token", baseUrl: server.baseUrl, timeoutMs: 5_000 });
+
+    await expect(
+      client.createFolder({ folderName: "reports", parentId: "root" }),
+    ).resolves.toMatchObject({
+      resourceId: "folder-1",
+    });
+    await expect(
+      client.createUpload({
+        fileName: "report.md",
+        fileSize: 12,
+        parentId: "folder-1",
+        isOverwrite: true,
+        resume: true,
+        modifiedTime: "2026-08-22T10:00:00Z",
+      }),
+    ).resolves.toMatchObject({ offset: 0 });
+
+    expect(JSON.parse(server.requests[0]?.bodyText ?? "{}")).toEqual({
+      folderName: "reports",
+      parentId: "root",
+    });
+    expect(JSON.parse(server.requests[1]?.bodyText ?? "{}")).toEqual({
+      fileName: "report.md",
+      fileSize: 12,
+      parentId: "folder-1",
+      isOverwrite: true,
+      resume: true,
+      modifiedTime: "2026-08-22T10:00:00Z",
+    });
+  });
+});

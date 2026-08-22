@@ -4,9 +4,8 @@
 로컬 AI 에이전트 등 자동화된 호출자가 subprocess와 JSON으로 안정적으로 사용할 수 있도록 하는 것을
 우선하며, 양방향 sync는 제공하지 않는다.
 
-현재 상태는 프로젝트 scaffold와 구현 계획 수립 단계다. 구현 상태는
-[`docs/PROGRESS.md`](docs/PROGRESS.md), 다음 작업은 [`docs/HANDOFF.md`](docs/HANDOFF.md)를
-확인한다.
+현재 Phase 01 Foundation까지 구현했다. 명령 구현 상태와 다음 작업은
+[`docs/PROGRESS.md`](docs/PROGRESS.md), [`docs/HANDOFF.md`](docs/HANDOFF.md)를 확인한다.
 
 ## 요구사항
 
