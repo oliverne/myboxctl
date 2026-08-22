@@ -2,8 +2,9 @@
 
 ## 목적
 
-Hermes가 subprocess와 JSON으로 호출할 수 있는 단방향 MYBOX CLI를 구현한다. 핵심 품질은
-correctness, deterministic behavior, 단순한 구조, agent-friendly output 순이다.
+다양한 AI 에이전트가 subprocess와 JSON으로 호출할 수 있는 단방향 MYBOX CLI를 구현한다.
+특정 에이전트에 종속되지 않으며, 핵심 품질은 correctness, deterministic behavior, 단순한
+구조, agent-friendly output 순이다.
 
 ## 의존성 방향
 

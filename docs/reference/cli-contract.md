@@ -1,12 +1,12 @@
 # CLI contract
 
-이 문서는 Hermes와 `myboxctl` 사이의 안정적인 public contract다. API 응답 구조가 달라져도
-이 계약은 명시적인 version change 없이 바꾸지 않는다.
+이 문서는 AI 에이전트와 `myboxctl` 사이의 안정적인 public contract다. 특정 에이전트에 종속되지
+않으며, API 응답 구조가 달라져도 이 계약은 명시적인 version change 없이 바꾸지 않는다.
 
 ## 공통 규칙
 
 - 모든 remote path는 `/`로 시작해야 한다.
-- 모든 agent용 명령은 `--json`을 지원한다.
+- 모든 명령은 자동화된 호출자를 위해 `--json`을 지원한다.
 - JSON mode에서 stdout에는 정확히 하나의 JSON document와 마지막 newline만 출력한다.
 - JSON mode의 예상 가능한 실패도 stdout에 JSON으로 출력하고 non-zero exit code를 사용한다.
 - stderr는 `--verbose` diagnostics와 process-level 예외에만 사용한다.

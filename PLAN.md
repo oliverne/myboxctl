@@ -3,7 +3,7 @@
 > 대상 구현 에이전트: GPT 5.6 Luna
 > 운영 환경: Ubuntu Server 24.04, macOS Latest, Windows 11
 > 런타임: Bun 1.4+, TypeScript, ESM
-> 주 호출자: 로컬 에이전트 Hermes 등
+> 주 호출자: 다양한 로컬 AI 에이전트
 
 ## 1. 목표
 
@@ -14,7 +14,7 @@ NAVER MYBOX Open API를 이용하여 다음 작업을 결정적으로 수행하�
 3. 로컬 파일의 신규 업로드와 명시적 덮어쓰기
 4. 로컬/원격 메타데이터를 비교하는 조건부 `put`
 5. 원격 파일과 폴더를 MYBOX 휴지통으로 이동
-6. Hermes가 파싱할 수 있는 안정적인 JSON과 exit code 제공
+6. 다양한 AI 에이전트가 파싱할 수 있는 안정적인 JSON과 exit code 제공
 
 예상 사용 방식:
 
@@ -173,7 +173,7 @@ bun run test:integration
 
 추가 조건:
 
-- stdout JSON만으로 Hermes가 결과를 판정할 수 있다.
+- stdout JSON만으로 호출한 AI 에이전트가 결과를 판정할 수 있다.
 - 정상적인 대용량 업로드에서 메모리가 파일 크기에 비례해 증가하지 않는다.
 - PAT, Authorization header, upload/download URL이 출력과 로그에 나타나지 않는다.
 - 원격 mutation은 unique integration-test prefix 밖에서 실행되지 않는다.

@@ -29,6 +29,10 @@ Phase 00 MYBOX API contract 검증을 완료했다. production client/feature co
   - API-01~API-11 상태, resolver/upload 결정, 미확정 범위 기록
 - `docs/PROGRESS.md`
   - Phase 00을 `complete`로 기록
+  - CLI 문서의 소비자를 특정 제품이 아닌 다양한 로컬 AI 에이전트로 일반화
+- `PLAN.md`, `README.md`, `docs/architecture/overview.md`, `docs/reference/cli-contract.md`,
+  `docs/phases/07-hardening.md`
+  - 특정 소비자 제품에 종속되지 않도록 AI 에이전트 대상 표현을 일반화
 
 기존에 수정되어 있던 `AGENTS.md`는 그대로 유지했다.
 
@@ -67,16 +71,17 @@ Phase 00 MYBOX API contract 검증을 완료했다. production client/feature co
 
 ## 결정
 
-1. resolver는 folder exact `path` search, file `q + parentPath` search 후
+1. CLI 문서와 public contract는 특정 소비자 제품이 아니라 다양한 AI 에이전트를 대상으로 표현한다.
+2. resolver는 folder exact `path` search, file `q + parentPath` search 후
    `path`/`parentPath`/`name` exact filter를 사용한다.
-2. search/root GET만 cursor pagination과 operation-specific backoff 대상이다. mutation은 generic
+3. search/root GET만 cursor pagination과 operation-specific backoff 대상이다. mutation은 generic
    retry하지 않는다.
-3. storage upload은 `POST multipart/form-data` + exact `Filedata` part + exact
+4. storage upload은 `POST multipart/form-data` + exact `Filedata` part + exact
    `Content-Length`로 구현한다. upload URL query credential과 PAT는 서로 다른 trust boundary이며
    storage host에 PAT를 전달하지 않는다.
-4. overwrite는 `isOverwrite: true` 예약 후 같은 upload protocol을 사용하며 resourceId가 유지되는
+5. overwrite는 `isOverwrite: true` 예약 후 같은 upload protocol을 사용하며 resourceId가 유지되는
    것을 확인했다.
-5. direct children endpoint, 100MB bounded-memory 전송, 실제 연결 중단 후 non-zero resume offset,
+6. direct children endpoint, 100MB bounded-memory 전송, 실제 연결 중단 후 non-zero resume offset,
    429 Retry-After 형식, 423 해제 특성은 확정하지 않았다. 이 항목들은 production에서 추측으로
    채우지 않는다.
 

@@ -8,6 +8,7 @@
 - 현재 phase: `00-api-contract`
 - 상태: `complete`
 - 다음 담당자: Luna
+- CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
 - 마지막 갱신: 2026-08-22
 
 ## Phase 상태

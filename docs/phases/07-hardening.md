@@ -55,11 +55,12 @@ README 또는 별도 how-to에 다음을 작성하고 Ubuntu 24.04 환경에서 
 - `bun install --frozen-lockfile`
 - build와 설치 경로
 - `MYBOX_PAT` 환경 변수 또는 0600 credentials file
-- Hermes subprocess 예시
+- AI 에이전트의 subprocess 호출 예시
 - timeout/retry/exit code 운영 지침
 - upgrade와 rollback 절차
 
-MVP는 daemon/systemd service를 구현하지 않는다. 단발 CLI를 Hermes가 호출한다.
+MVP는 daemon/systemd service를 구현하지 않는다. AI 에이전트가 필요할 때 단발 CLI를 호출하는
+방식을 사용한다.
 
 ### 5. Acceptance flow
 
