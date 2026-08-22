@@ -1,0 +1,150 @@
+{
+  "contract": "mybox-api",
+  "generatedAt": "2026-08-22T14:34:46.899Z",
+  "root": {
+    "pages": 3,
+    "resourceCount": 2,
+    "responseKeys": ["fileCount", "resources", "responseMetaData", "subFolderCount"],
+    "cursorObserved": true
+  },
+  "resolver": {
+    "folderDetailStatus": 200,
+    "folderDetailKeys": [
+      "accessedAt",
+      "createdAt",
+      "fileCount",
+      "isFavorite",
+      "isHidden",
+      "lastModifiedBy",
+      "modifiedAt",
+      "name",
+      "parentId",
+      "resourceId",
+      "size",
+      "subFolderCount",
+      "type"
+    ],
+    "folderType": "folder",
+    "directChildrenCountsPresent": true,
+    "directChildrenCandidate1": {
+      "endpoint": "/v1/drive/resources/{resourceId}/children",
+      "status": 404,
+      "bodyKeys": ["code", "message", "requestId", "timestamp"]
+    },
+    "directChildrenCandidate2": {
+      "endpoint": "/v1/drive/resources/{resourceId}/resources",
+      "status": 404,
+      "bodyKeys": ["code", "message", "requestId", "timestamp"]
+    },
+    "directChildrenEndpoint": "not-found-in-probes",
+    "specialName": {
+      "created": true,
+      "searched": true,
+      "responseKeys": ["name", "resourceId"]
+    }
+  },
+  "folderCreation": {
+    "status": 201,
+    "responseKeys": ["name", "resourceId"],
+    "parentWasPrefix": true
+  },
+  "uploadReservation": {
+    "small": {
+      "status": 201,
+      "responseKeys": ["offset", "uploadUrl"],
+      "offset": 0,
+      "urlReturned": true
+    }
+  },
+  "uploadContent": {
+    "small": {
+      "method": "POST",
+      "requestHeaders": ["Content-Length", "Content-Type"],
+      "partName": "Filedata",
+      "authorizationHeaderSent": false,
+      "responseKeys": ["fileSize", "name", "resourceId"],
+      "status": 200,
+      "responseHeaderNames": [
+        "content-length",
+        "content-type",
+        "date",
+        "referrer-policy",
+        "server",
+        "x-envoy-upstream-service-time"
+      ]
+    },
+    "zeroByte": {
+      "method": "POST",
+      "requestHeaders": ["Content-Length", "Content-Type"],
+      "contentType": "multipart/form-data",
+      "partName": "Filedata",
+      "contentLength": 0,
+      "responseKeys": ["fileSize", "name", "resourceId"],
+      "status": 200
+    }
+  },
+  "visibility": {
+    "folderFirstVisibleAfterMs": 0,
+    "folderProbeCount": 4,
+    "smallFileFirstVisibleAfterMs": 0,
+    "smallFileProbeCount": 4,
+    "modifiedAtPrecision": "second-precision"
+  },
+  "overwrite": {
+    "reservationStatus": 201,
+    "uploadStatus": 200,
+    "resourceIdPreserved": true,
+    "size": 32,
+    "modifiedAtPrecision": "second-precision"
+  },
+  "resume": {
+    "reservation": {
+      "status": 201,
+      "bodyKeys": ["offset", "uploadUrl"]
+    },
+    "modifiedTimeSent": true,
+    "interruptedTransferAttempted": false,
+    "offset": 0,
+    "contentStatus": 200,
+    "responseHeaderNames": [
+      "content-length",
+      "content-type",
+      "date",
+      "referrer-policy",
+      "server",
+      "x-envoy-upstream-service-time"
+    ]
+  },
+  "duplicates": {
+    "duplicateFolderStatus": 409,
+    "duplicateFileReservationStatus": 409,
+    "duplicateFileUploadStatus": null,
+    "fileFolderConflictReservationStatus": 409,
+    "fileFolderConflictUploadStatus": null
+  },
+  "errors": {
+    "unauthenticated": {
+      "status": 401,
+      "code": "PLAT-401"
+    },
+    "missingResource": {
+      "status": 404,
+      "bodyKeys": ["code", "message", "requestId", "timestamp"],
+      "code": "PLAT-404"
+    },
+    "invalidArguments": {
+      "status": 400,
+      "bodyKeys": ["code", "message", "requestId", "timestamp"],
+      "code": "PLAT-400"
+    },
+    "retryAfter": {
+      "status429Observed": false,
+      "status423Observed": false,
+      "retryAfterObserved": false
+    }
+  },
+  "cleanup": {
+    "status": 204,
+    "exactResourceOnly": true
+  }
+}

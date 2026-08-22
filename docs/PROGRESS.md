@@ -6,7 +6,7 @@
 ## 현재 상태
 
 - 현재 phase: `00-api-contract`
-- 상태: `pending`
+- 상태: `complete`
 - 다음 담당자: Luna
 - 마지막 갱신: 2026-08-22
 
@@ -14,7 +14,7 @@
 
 | Phase | 상태 | 완료 증거 | 문서 |
 | --- | --- | --- | --- |
-| 00 API contract | pending | 없음 | [`phases/00-api-contract.md`](phases/00-api-contract.md) |
+| 00 API contract | complete | contract test 4회 성공, resolver/upload 결과 및 미확정 항목을 API ledger에 기록 | [`phases/00-api-contract.md`](phases/00-api-contract.md) |
 | 01 Foundation | pending | 없음 | [`phases/01-foundation.md`](phases/01-foundation.md) |
 | 02 Read commands | pending | 없음 | [`phases/02-read-commands.md`](phases/02-read-commands.md) |
 | 03 Ensure directory | pending | 없음 | [`phases/03-ensure-dir.md`](phases/03-ensure-dir.md) |
@@ -34,7 +34,9 @@
 - [x] `bun run check` — typecheck, Biome, Bun test 통과
 - [x] `bun run build` — `dist/cli.js` 생성 및 help 실행 확인
 
-Phase 00 integration test는 PAT가 필요한 다음 구현 작업이므로 아직 실행하지 않았다.
+Phase 00 integration test를 구현하고 4회 성공시켰다. PAT 인증과 전용 `/myboxctl-integration-test/`
+prefix 존재를 확인했으며, resolver/upload 계약 및 미확정 항목을
+`docs/reference/mybox-api.md`에 기록했다.
 
 ## 상태 변경 규칙
 
