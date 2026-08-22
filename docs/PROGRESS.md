@@ -12,16 +12,16 @@
 
 ## Phase 상태
 
-| Phase | 상태 | 완료 증거 | 문서 |
-| --- | --- | --- | --- |
-| 00 API contract | complete | contract test 4회 성공, resolver/upload 결과 및 미확정 항목을 API ledger에 기록 | [`phases/00-api-contract.md`](phases/00-api-contract.md) |
-| 01 Foundation | pending | 없음 | [`phases/01-foundation.md`](phases/01-foundation.md) |
-| 02 Read commands | pending | 없음 | [`phases/02-read-commands.md`](phases/02-read-commands.md) |
-| 03 Ensure directory | pending | 없음 | [`phases/03-ensure-dir.md`](phases/03-ensure-dir.md) |
-| 04 Upload | pending | 없음 | [`phases/04-upload.md`](phases/04-upload.md) |
-| 05 Put | pending | 없음 | [`phases/05-put.md`](phases/05-put.md) |
-| 06 Delete | pending | 없음 | [`phases/06-delete.md`](phases/06-delete.md) |
-| 07 Hardening | pending | 없음 | [`phases/07-hardening.md`](phases/07-hardening.md) |
+| Phase               | 상태     | 완료 증거                                                                       | 문서                                                       |
+| ------------------- | -------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| 00 API contract     | complete | contract test 4회 성공, resolver/upload 결과 및 미확정 항목을 API ledger에 기록 | [`phases/00-api-contract.md`](phases/00-api-contract.md)   |
+| 01 Foundation       | pending  | 없음                                                                            | [`phases/01-foundation.md`](phases/01-foundation.md)       |
+| 02 Read commands    | pending  | 없음                                                                            | [`phases/02-read-commands.md`](phases/02-read-commands.md) |
+| 03 Ensure directory | pending  | 없음                                                                            | [`phases/03-ensure-dir.md`](phases/03-ensure-dir.md)       |
+| 04 Upload           | pending  | 없음                                                                            | [`phases/04-upload.md`](phases/04-upload.md)               |
+| 05 Put              | pending  | 없음                                                                            | [`phases/05-put.md`](phases/05-put.md)                     |
+| 06 Delete           | pending  | 없음                                                                            | [`phases/06-delete.md`](phases/06-delete.md)               |
+| 07 Hardening        | pending  | 없음                                                                            | [`phases/07-hardening.md`](phases/07-hardening.md)         |
 
 ## 초기화 상태
 

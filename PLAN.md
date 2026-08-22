@@ -52,14 +52,14 @@ myboxctl delete /agents/output/old-report.md --json
 
 ## 4. 문서 구조와 상태 관리
 
-| 문서 | 역할 | 갱신 시점 |
-| --- | --- | --- |
-| `PLAN.md` | 범위, phase 순서, 프로젝트 완료 정의 | 범위나 phase가 바뀔 때 |
-| `docs/PROGRESS.md` | phase/task 상태의 단일 기준 | 작업 시작/완료/차단 시 |
-| `docs/HANDOFF.md` | 다음 에이전트가 즉시 이어받을 현재 문맥 | 모든 작업 종료 전 |
-| `docs/phases/*.md` | 각 phase의 실행 가능한 상세 계획 | 해당 phase 계획 변경 시 |
-| `docs/architecture/*.md` | 설계 원칙과 트레이드오프 | 설계 결정 변경 시 |
-| `docs/reference/*.md` | CLI/API 등 안정적인 계약 | 관찰/계약 변경 시 |
+| 문서                     | 역할                                    | 갱신 시점               |
+| ------------------------ | --------------------------------------- | ----------------------- |
+| `PLAN.md`                | 범위, phase 순서, 프로젝트 완료 정의    | 범위나 phase가 바뀔 때  |
+| `docs/PROGRESS.md`       | phase/task 상태의 단일 기준             | 작업 시작/완료/차단 시  |
+| `docs/HANDOFF.md`        | 다음 에이전트가 즉시 이어받을 현재 문맥 | 모든 작업 종료 전       |
+| `docs/phases/*.md`       | 각 phase의 실행 가능한 상세 계획        | 해당 phase 계획 변경 시 |
+| `docs/architecture/*.md` | 설계 원칙과 트레이드오프                | 설계 결정 변경 시       |
+| `docs/reference/*.md`    | CLI/API 등 안정적인 계약                | 관찰/계약 변경 시       |
 
 상태 값은 `pending`, `in_progress`, `blocked`, `complete`만 사용한다. 동시에 하나의
 phase만 `in_progress`일 수 있다. phase 완료는 코드 작성 여부가 아니라 해당 phase 문서의

@@ -24,15 +24,15 @@ test/integration/delete.test.ts
 
 ## 테스트 우선 matrix
 
-| 상황 | 기본 | `--strict` |
-| --- | --- | --- |
-| file 존재, 204 | deleted/0 | deleted/0 |
-| folder 존재, 204 | deleted/0 | deleted/0 |
-| resolve 시 없음 | already-absent/0 | not-found/4 |
-| resolve 후 DELETE 404 | already-absent/0 | not-found/4 |
-| `/` | invalid-arguments/2 | invalid-arguments/2 |
-| DELETE timeout 후 ID 조회 404 | deleted/0 | deleted/0 |
-| DELETE timeout 후 같은 ID 존재 | retryable failure | retryable failure |
+| 상황                           | 기본                | `--strict`          |
+| ------------------------------ | ------------------- | ------------------- |
+| file 존재, 204                 | deleted/0           | deleted/0           |
+| folder 존재, 204               | deleted/0           | deleted/0           |
+| resolve 시 없음                | already-absent/0    | not-found/4         |
+| resolve 후 DELETE 404          | already-absent/0    | not-found/4         |
+| `/`                            | invalid-arguments/2 | invalid-arguments/2 |
+| DELETE timeout 후 ID 조회 404  | deleted/0           | deleted/0           |
+| DELETE timeout 후 같은 ID 존재 | retryable failure   | retryable failure   |
 
 ## 구현 절차
 

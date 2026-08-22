@@ -56,17 +56,17 @@ JSON에 넣지 않는다.
 
 ## Exit code
 
-| Code | 의미 |
-| --- | --- |
-| 0 | 성공, `skipped`, `existing`, `already-absent` 포함 |
-| 2 | 잘못된 argument/config/remote path |
-| 3 | 인증 또는 권한 실패 |
-| 4 | strict not found |
-| 5 | remote path/type/newer-resource conflict |
-| 6 | network 또는 MYBOX API 실패 |
-| 7 | 로컬 파일 시스템 실패 또는 업로드 중 파일 변경 |
-| 8 | rate limit/retry exhausted |
-| 70 | 분류하지 못한 내부 오류 |
+| Code | 의미                                               |
+| ---- | -------------------------------------------------- |
+| 0    | 성공, `skipped`, `existing`, `already-absent` 포함 |
+| 2    | 잘못된 argument/config/remote path                 |
+| 3    | 인증 또는 권한 실패                                |
+| 4    | strict not found                                   |
+| 5    | remote path/type/newer-resource conflict           |
+| 6    | network 또는 MYBOX API 실패                        |
+| 7    | 로컬 파일 시스템 실패 또는 업로드 중 파일 변경     |
+| 8    | rate limit/retry exhausted                         |
+| 70   | 분류하지 못한 내부 오류                            |
 
 ## 명령
 

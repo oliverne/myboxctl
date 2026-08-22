@@ -41,17 +41,17 @@ type PutDecision =
 
 다음 우선순서를 고정한다.
 
-| Force | Remote | 비교 | 결정 |
-| --- | --- | --- | --- |
-| true | absent | 무관 | upload/forced |
-| true | file | 무관 | overwrite/forced |
-| true | folder | 무관 | conflict/type |
-| false | absent | 무관 | upload/absent |
-| false | folder | 무관 | conflict/type |
-| false | file | remote가 tolerance 초과 최신 | conflict/remote-newer |
-| false | file | size 다름 | overwrite/size-different |
-| false | file | local이 tolerance 초과 최신 | overwrite/local-newer |
-| false | file | 나머지 | skip/current |
+| Force | Remote | 비교                         | 결정                     |
+| ----- | ------ | ---------------------------- | ------------------------ |
+| true  | absent | 무관                         | upload/forced            |
+| true  | file   | 무관                         | overwrite/forced         |
+| true  | folder | 무관                         | conflict/type            |
+| false | absent | 무관                         | upload/absent            |
+| false | folder | 무관                         | conflict/type            |
+| false | file   | remote가 tolerance 초과 최신 | conflict/remote-newer    |
+| false | file   | size 다름                    | overwrite/size-different |
+| false | file   | local이 tolerance 초과 최신  | overwrite/local-newer    |
+| false | file   | 나머지                       | skip/current             |
 
 boundary는 정확히 `±tolerance`, 1ms 안/밖, 동일 size/mtime을 포함한다. invalid/NaN/negative size는
 호출 전에 config/local/API validation에서 거부한다.

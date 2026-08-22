@@ -114,19 +114,19 @@ DELETE /v1/drive/resources/{resourceId}
 
 아래 항목은 확인 전까지 production code에 고정하지 않는다.
 
-| ID | 미확인 항목 | 필요한 증거 |
-| --- | --- | --- |
-| API-01 | 하위 폴더 direct children 목록 endpoint | 공식 문서 URL 또는 sanitized request/response |
-| API-02 | 검색 기반 exact resolve의 read-after-write 가시성 | 생성 직후 반복 조회 latency 기록 |
-| API-03 | upload URL의 method/header | 성공하는 최소 request fixture |
-| API-04 | upload content 성공 status/body | sanitized response fixture |
-| API-05 | Bun stream body와 Content-Length 요구 | 0B/소형/100MB test 결과 |
-| API-06 | resume offset의 단위와 required headers | 중단 후 재개 재현 결과 |
-| API-07 | overwrite 후 resourceId 유지 여부 | 전/후 stat 비교 |
-| API-08 | modifiedTime 반영 및 timestamp precision | local/remote epoch 비교 |
-| API-09 | duplicate name/type 허용 여부 | 같은 parent에서 생성 matrix |
-| API-10 | 429 Retry-After 형식 | 실제 또는 문서화된 응답 fixture |
-| API-11 | 423의 해제 및 retry 특성 | 실제 응답과 후속 성공 관찰 |
+| ID     | 미확인 항목                                       | 필요한 증거                                   |
+| ------ | ------------------------------------------------- | --------------------------------------------- |
+| API-01 | 하위 폴더 direct children 목록 endpoint           | 공식 문서 URL 또는 sanitized request/response |
+| API-02 | 검색 기반 exact resolve의 read-after-write 가시성 | 생성 직후 반복 조회 latency 기록              |
+| API-03 | upload URL의 method/header                        | 성공하는 최소 request fixture                 |
+| API-04 | upload content 성공 status/body                   | sanitized response fixture                    |
+| API-05 | Bun stream body와 Content-Length 요구             | 0B/소형/100MB test 결과                       |
+| API-06 | resume offset의 단위와 required headers           | 중단 후 재개 재현 결과                        |
+| API-07 | overwrite 후 resourceId 유지 여부                 | 전/후 stat 비교                               |
+| API-08 | modifiedTime 반영 및 timestamp precision          | local/remote epoch 비교                       |
+| API-09 | duplicate name/type 허용 여부                     | 같은 parent에서 생성 matrix                   |
+| API-10 | 429 Retry-After 형식                              | 실제 또는 문서화된 응답 fixture               |
+| API-11 | 423의 해제 및 retry 특성                          | 실제 응답과 후속 성공 관찰                    |
 
 ## Phase 00 실측 결과
 
@@ -239,16 +239,16 @@ DELETE /v1/drive/resources/{resourceId}
 
 ## 오류 mapping 초안
 
-| HTTP | Domain kind | Retry 기본값 |
-| --- | --- | --- |
-| 400, 422 | invalid-arguments | false |
-| 401, 403 | authentication | false |
-| 404 | not-found | false |
-| 409 | conflict | false, operation reconcile 가능 |
-| 423 | api-unavailable | 미확정 |
-| 429 | rate-limit | GET true, mutation별 정책 |
-| 500, 502, 503 | api-unavailable | GET true, mutation별 정책 |
-| 507 | conflict 또는 api-unavailable | false |
+| HTTP          | Domain kind                   | Retry 기본값                    |
+| ------------- | ----------------------------- | ------------------------------- |
+| 400, 422      | invalid-arguments             | false                           |
+| 401, 403      | authentication                | false                           |
+| 404           | not-found                     | false                           |
+| 409           | conflict                      | false, operation reconcile 가능 |
+| 423           | api-unavailable               | 미확정                          |
+| 429           | rate-limit                    | GET true, mutation별 정책       |
+| 500, 502, 503 | api-unavailable               | GET true, mutation별 정책       |
+| 507           | conflict 또는 api-unavailable | false                           |
 
 raw API message는 public JSON에 그대로 노출하지 않는다. `code`, `requestId`, status는 sanitized
 context로 유지한다.

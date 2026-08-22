@@ -23,17 +23,17 @@ test/cli/ensure-dir.test.ts
 
 ## 테스트 우선 matrix
 
-| 상황 | 기대 결과 |
-| --- | --- |
-| `/a/b` 모두 존재 | `existing`, 생성 요청 0회 |
-| `/a`만 존재 | `/a/b` 생성, `created` |
-| 모두 없음 | parent부터 순차 생성 |
-| 중간 `/a`가 file | conflict, 생성 요청 0회 |
-| create가 409 후 folder 발견 | 동시 생성으로 reconcile 성공 |
-| create가 409 후 file 발견 | conflict |
-| create가 timeout 후 folder 발견 | 성공으로 reconcile |
-| create가 timeout 후 상태 불명 | retryable API failure, POST 반복 없음 |
-| path `/` | `existing`, 생성 요청 0회 |
+| 상황                            | 기대 결과                             |
+| ------------------------------- | ------------------------------------- |
+| `/a/b` 모두 존재                | `existing`, 생성 요청 0회             |
+| `/a`만 존재                     | `/a/b` 생성, `created`                |
+| 모두 없음                       | parent부터 순차 생성                  |
+| 중간 `/a`가 file                | conflict, 생성 요청 0회               |
+| create가 409 후 folder 발견     | 동시 생성으로 reconcile 성공          |
+| create가 409 후 file 발견       | conflict                              |
+| create가 timeout 후 folder 발견 | 성공으로 reconcile                    |
+| create가 timeout 후 상태 불명   | retryable API failure, POST 반복 없음 |
+| path `/`                        | `existing`, 생성 요청 0회             |
 
 ## 구현 절차
 
