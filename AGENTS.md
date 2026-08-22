@@ -61,3 +61,58 @@ Integration tests are opt-in and require explicit credentials:
 ```bash
 bun run test:integration
 ```
+
+---
+
+## Using Bun v1.4
+
+> The Bun 1.4 release notes also summarize features added since 1.3. The list below focuses on practical capabilities agents should know about when working in a Bun 1.4 environment.
+
+### Built-in APIs
+
+Before adding a new npm dependency, first check whether Bun already provides the required functionality.
+
+- **Image** — `Bun.Image`: decode, resize, rotate, and encode images. Consider it before adding `sharp` for simple image processing.
+- **Browser** — `Bun.WebView`: built-in headless browser automation. Consider it before Puppeteer/Playwright for simple automation tasks.
+- **Markdown** — `Bun.markdown.html()`, `.react()`, `.render()`.
+  - **Warning:** HTML output is not sanitized. Sanitize untrusted Markdown separately.
+- **Cron** — `Bun.cron()`: OS-level or in-process scheduling.
+  - Uses the local timezone by default. Set `{ tz: "UTC" }` when UTC is required.
+- **PTY** — `Bun.Terminal` + `Bun.spawn({ terminal })`: can replace `node-pty` for many use cases.
+- **Data formats** — `Bun.XML` (1.4.0), `Bun.JSON5`, `Bun.JSONC`, `Bun.JSONL`, `Bun.TOML`.
+- **Archive / terminal utilities** — `Bun.Archive`, `Bun.stringWidth()`, `Bun.sliceAnsi()`, `Bun.wrapAnsi()`.
+- **Memory pressure** — handle OS low-memory events with `process.on("memoryPressure", ...)`.
+
+#### CLI / Tooling
+
+```bash
+# Run package.json scripts in parallel
+bun run --parallel build test
+bun run --parallel "build:*"
+
+# Run test files in parallel
+bun test --parallel
+bun test --parallel=4
+
+# Package maintenance added in v1.4.0
+bun audit fix --dry-run
+bun dedupe --check
+bun prune --production
+
+# Markdown profiler/build output, useful for terminal/LLM analysis
+bun --cpu-prof-md ./app.ts
+bun --heap-prof-md ./app.ts
+bun build ./src/index.ts --outdir ./dist --metafile-md=./dist/meta.md
+```
+
+### Compatibility / Agent Rules
+
+- Node.js compatibility has improved significantly, including better Playwright, Vitest, OpenTelemetry, and `dd-trace` support.
+- Bun is **not yet 100% Node.js compatible**. When compatibility issues are suspected, check Bun-vs-Node behavior first.
+- Do not rewrite stable external dependencies just because Bun has a built-in alternative. **Prefer Bun built-ins when adding new dependencies or implementing simple functionality.**
+
+### References
+
+- Bun 1.4 release notes: <https://bun.com/blog/bun-v1.4>
+- Bun API reference: <https://bun.com/reference/bun>
+- Bun XML docs: <https://bun.com/docs/runtime/xml>

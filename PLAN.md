@@ -1,9 +1,9 @@
 # myboxctl 구현 계획
 
-> 대상 구현 에이전트: Luna
-> 운영 환경: Ubuntu Server 24.04
+> 대상 구현 에이전트: GPT 5.6 Luna
+> 운영 환경: Ubuntu Server 24.04, macOS Latest, Windows 11
 > 런타임: Bun 1.4+, TypeScript, ESM
-> 주 호출자: 로컬 에이전트 Hermes
+> 주 호출자: 로컬 에이전트 Hermes 등
 
 ## 1. 목표
 
