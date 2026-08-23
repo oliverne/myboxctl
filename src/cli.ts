@@ -5,6 +5,7 @@ import { Command, CommanderError } from "commander";
 import { DomainError, normalizeError } from "./errors.ts";
 import { runEnsureDir } from "./features/ensure-dir.ts";
 import { runLs } from "./features/ls.ts";
+import { runPut } from "./features/put/command.ts";
 import { runStat } from "./features/stat.ts";
 import { runUpload } from "./features/upload.ts";
 import { exitCodeForError, redactSecrets, writeFailure, writeSuccess } from "./output.ts";
@@ -21,12 +22,17 @@ type UploadOutputOptions = OutputOptions & {
   mkdir?: boolean;
 };
 
+type PutOutputOptions = OutputOptions & {
+  force?: boolean;
+  mkdir?: boolean;
+};
+
 function displayValue(value: unknown): string {
   return redactSecrets(String(value));
 }
 
 function writeCommandSuccess(
-  command: "stat" | "ls" | "ensure-dir" | "upload",
+  command: "stat" | "ls" | "ensure-dir" | "upload" | "put",
   result: { action: string; data: unknown },
   options: OutputOptions,
 ): void {
@@ -57,15 +63,16 @@ function writeCommandSuccess(
     return;
   }
 
-  if (command === "upload") {
+  if (command === "upload" || command === "put") {
     const data = result.data as {
       path: string;
       resourceId: string;
       size: number;
       modifiedAt: string;
+      reason?: string;
     };
     process.stdout.write(
-      `${displayValue(result.action)}\t${displayValue(data.path)}\t${displayValue(data.resourceId)}\t${displayValue(data.size)}\t${displayValue(data.modifiedAt)}\n`,
+      `${displayValue(result.action)}\t${displayValue(data.path)}\t${displayValue(data.resourceId)}\t${displayValue(data.size)}\t${displayValue(data.modifiedAt)}${data.reason === undefined ? "" : `\t${displayValue(data.reason)}`}\n`,
     );
     return;
   }
@@ -149,6 +156,34 @@ export function createProgram(runtimeFactory: RuntimeFactory = createRuntime): C
           },
         );
         writeCommandSuccess("upload", result, options);
+      }),
+  );
+
+  addJsonOption(
+    program
+      .command("put")
+      .description("Upload a local file when metadata requires it")
+      .argument("<local-path>")
+      .argument("<remote-path>")
+      .option("--force", "Overwrite regardless of file metadata")
+      .option("--mkdir", "Create missing remote parent directories")
+      .action(async (localPath: string, remotePath: string, options: PutOutputOptions) => {
+        const runtime = await runtimeFactory();
+        const result = await runPut(
+          localPath,
+          remotePath,
+          {
+            ...(options.force === undefined ? {} : { force: options.force }),
+            ...(options.mkdir === undefined ? {} : { mkdir: options.mkdir }),
+          },
+          {
+            client: runtime.client,
+            resolver: runtime.resolver,
+            uploader: runtime.uploader,
+            timeoutMs: runtime.config.timeoutMs,
+          },
+        );
+        writeCommandSuccess("put", result, options);
       }),
   );
 

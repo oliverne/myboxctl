@@ -166,7 +166,7 @@ content 전송이 retryable하게 실패하면 동일한 파일 identity로 예�
 
 원격이 명확히 더 최신이면 기본 exit 5다. `--force`는 이를 overwrite한다.
 
-`data.reason`은 다음 안정적인 값 중 하나다.
+성공 응답의 `data.reason`은 다음 안정적인 값 중 하나다.
 
 ```text
 remote-absent
@@ -174,9 +174,10 @@ size-different
 local-newer
 forced
 remote-is-current
-remote-newer
-remote-type-conflict
 ```
+
+원격 파일이 2초 tolerance를 초과해 최신이면 conflict의 `error.code`는 `REMOTE_NEWER`다. 원격 대상이
+folder이면 `REMOTE_TYPE_CONFLICT`다. 두 경우 모두 mutation을 수행하지 않는다.
 
 ### `delete <remote-path>`
 

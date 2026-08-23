@@ -5,7 +5,7 @@
 
 ## 현재 상태
 
-- 현재 phase: `04-upload`
+- 현재 phase: `05-put`
 - 상태: `complete`
 - 다음 담당자: 미정
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
@@ -20,7 +20,7 @@
 | 02 Read commands    | complete | path/resolver/stat/ls 구현, fake HTTP/subprocess 및 실제 MYBOX smoke 통과       | [`phases/02-read-commands.md`](phases/02-read-commands.md) |
 | 03 Ensure directory | complete | ensure-dir, 공유 검색 limiter, fake/subprocess/실제 MYBOX acceptance 통과       | [`phases/03-ensure-dir.md`](phases/03-ensure-dir.md)       |
 | 04 Upload           | complete | 실제 소형 acceptance와 100MiB bounded-memory resume 완료 전송 통과              | [`phases/04-upload.md`](phases/04-upload.md)               |
-| 05 Put              | pending  | 없음                                                                            | [`phases/05-put.md`](phases/05-put.md)                     |
+| 05 Put              | complete | 순수 decision, CLI/fake HTTP, 실제 metadata policy flow 및 cleanup 통과         | [`phases/05-put.md`](phases/05-put.md)                     |
 | 06 Delete           | pending  | 없음                                                                            | [`phases/06-delete.md`](phases/06-delete.md)               |
 | 07 Hardening        | pending  | 없음                                                                            | [`phases/07-hardening.md`](phases/07-hardening.md)         |
 
@@ -102,6 +102,19 @@ hard-kill한 최초 전송의 재예약은 `offset: 0`을 반환했고, producti
 재전송해 postcondition을 만족했다. peak RSS 증가는 23,609,344 bytes로 파일 크기 104,857,600
 bytes의 절반 미만이었으며 unique file/folder cleanup도 통과했다. Phase 04 완료 조건을 모두 충족해
 상태를 `complete`로 변경했다.
+
+Phase 05 Put을 완료했다. I/O 없는 decision 함수에 2초 mtime tolerance와 force/type/absent/file
+우선순위를 고정했고 table-driven unit test 12개가 통과했다. command는 exact remote detail을 읽어
+`uploaded`, `overwritten`, `skipped`를 반환하며 remote-newer와 folder conflict에서는 mutation을
+수행하지 않는다. upload/overwrite는 Phase 04 `runUpload`를 재사용해 resume, postcondition,
+`--mkdir`, 공유 search limiter 정책을 그대로 유지한다.
+
+fake HTTP와 subprocess에서 skip/conflict POST 0회, absent upload, force overwrite, stable JSON reason과
+conflict code를 확인했다. 실제 MYBOX 단독 put acceptance는 1 pass, 0 fail이었고, 전체
+`bun run test:integration`은 5 pass, 6 opt-in skip, 0 fail로 완료됐다. unique 경로에서
+uploaded → skipped → size-different overwrite → remote-newer conflict → force overwrite와 missing
+parent → `--mkdir`를 검증하고 file/folder cleanup을 완료했다. `bun run check`는 107 pass, 15 skip,
+0 fail이었고 build와 diff check도 통과했다.
 
 ## 상태 변경 규칙
 

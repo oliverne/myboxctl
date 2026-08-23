@@ -2,7 +2,7 @@
 
 ## 요약
 
-Phase 03 Ensure directory와 Phase 04 Upload를 완료했다. `upload`는 같은 file handle의
+Phase 03 Ensure directory, Phase 04 Upload, Phase 05 Put을 완료했다. `upload`는 같은 file handle의
 `fstat` 결과를 기준으로 multipart body를 streaming하며, retryable content failure 뒤 서버 offset을
 기준으로 정확히 한 번 복구한다. 실제 probe에서 관찰된 `offset: 0`은 전체 파일 재전송으로 처리하고,
 향후 non-zero가 반환되면 해당 지점부터 남은 byte만 보낸다.
@@ -14,7 +14,7 @@ lock으로 여러 CLI process에 공유한다. `Retry-After`가 없는 429는 60
 
 ## 현재 phase와 상태
 
-- Phase: `04-upload`
+- Phase: `05-put`
 - 상태: `complete`
 - `docs/PROGRESS.md`와 일치한다.
 - 수정된 probe를 실제 MYBOX에서 실행했다. 동일 resume identity로 64MiB를 읽은 뒤 in-process stream
@@ -23,9 +23,25 @@ lock으로 여러 CLI process에 공유한다. `Retry-After`가 없는 429는 60
 - 각 실행 후 `/myboxctl-integration-test/`를 조회해 잔여 리소스가 없음을 확인했다.
 - 사용자가 server-returned offset 0부터 전체 파일을 한 번 재전송하는 정책을 승인했다.
 - production command의 실제 MYBOX acceptance와 100MiB bounded-memory 완료 전송이 통과했다.
-  Phase 04를 완료 처리했으며 Phase 05는 아직 시작하지 않았다.
+- Phase 05의 decision/command/integration flow도 통과했으며 Phase 06은 아직 시작하지 않았다.
 
 ## 변경 파일
+
+- `src/features/put/decision.ts`, `src/features/put/decision.test.ts`
+  - 2초 mtime tolerance를 사용하는 I/O 없는 decision table을 구현했다.
+  - force, absent, folder, remote-newer, size-different, local-newer, current와 경계 ±1ms를 검증한다.
+- `src/features/put/command.ts`, `src/cli.ts`
+  - `put <local-path> <remote-path> [--force] [--mkdir] [--json]` vertical slice를 추가했다.
+  - skip/conflict는 mutation 없이 반환하고 upload/overwrite는 Phase 04 `runUpload`를 재사용한다.
+  - remote-newer는 `REMOTE_NEWER`, folder conflict는 `REMOTE_TYPE_CONFLICT` code를 반환한다.
+- `test/http/put.test.ts`, `test/cli/put.test.ts`
+  - skip/conflict POST 0회, absent upload, force overwrite와 JSON reason/code를 검증한다.
+- `test/integration/put.test.ts`
+  - unique prefix에서 uploaded, skipped, size overwrite, remote-newer conflict, force overwrite,
+    missing parent와 `--mkdir`, exact cleanup을 검증한다.
+- `README.md`, `docs/reference/cli-contract.md`
+  - 같은 size와 2초 이내 mtime의 다른 content가 skip될 수 있는 metadata 비교 한계와 public
+    reason/conflict code를 기록했다.
 
 - `src/mybox/upload.ts`
   - 1MiB 단위 file-handle read로 multipart `Filedata` body를 streaming한다.
@@ -131,6 +147,10 @@ lock으로 여러 CLI process에 공유한다. `Retry-After`가 없는 429는 60
   100MiB 완료, peak RSS 증가 23,609,344 bytes, postcondition 및 exact cleanup 통과
 - `bun run build` — `dist/cli.js` 생성
 - `git diff --check` — 통과
+- Phase 05 decision/HTTP/CLI 집중 테스트 — 18 pass, 0 fail
+- Phase 05 실제 MYBOX 단독 acceptance — 1 pass, 0 fail, exact cleanup 통과
+- `bun run test:integration` — 5 pass, 6 opt-in skip, 0 fail, 모든 unique resource cleanup 통과
+- Phase 05 포함 `bun run check` — 107 pass, 15 opt-in skip, 0 fail
 
 확인하지 않은 항목:
 
@@ -151,10 +171,10 @@ Phase 00에서 기록한 다음 항목은 여전히 미확정이다.
 - 릴리스 비차단, 자연 관찰만 수행: 429 `Retry-After` live 형식
 - 릴리스 비차단, 자연 관찰만 수행: 423 해제 및 retry 특성
 
-다음 담당자는 upload probe를 반복하지 않는다. 같은 identity, 64MiB read, process hard-kill,
+다음 담당자는 upload probe나 put acceptance를 반복하지 않는다. 같은 identity, 64MiB read, process hard-kill,
 pre-kill drain, post-kill settle 뒤 offset 0이 재현됐고, production uploader의 100MiB 전체 재전송,
-bounded-memory, postcondition, cleanup까지 확인했다. 다음 작업은 Phase 05 `put` 시작 여부를 결정하는
-것이다.
+bounded-memory, postcondition, cleanup까지 확인했다. Phase 05도 전체 metadata policy와 cleanup을
+확인했다. 다음 작업은 Phase 06 `delete` 시작 여부를 결정하는 것이다.
 
 upload의 parent/target/postcondition 검색에는 기존 공유 search limiter를 재사용한다. reservation과
 content mutation에는 generic retry를 추가하지 않고 probe로 확인한 resume/reconcile만 사용한다.
