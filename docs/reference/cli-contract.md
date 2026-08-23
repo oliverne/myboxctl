@@ -136,6 +136,24 @@ reconcile한 경우에는 상태를 안전하게 `existing`으로 보고한다.
 
 성공 action은 `uploaded` 또는 `overwritten`이다.
 
+```json
+{
+  "ok": true,
+  "command": "upload",
+  "action": "uploaded",
+  "data": {
+    "path": "/agents/report.md",
+    "resourceId": "...",
+    "size": 12345,
+    "modifiedAt": "2026-08-23T10:00:00+09:00"
+  }
+}
+```
+
+content 전송이 retryable하게 실패하면 동일한 파일 identity로 예약을 정확히 한 번 재발급한다.
+재예약 응답의 offset이 0이면 전체 파일을 한 번 다시 보내고, non-zero면 해당 지점부터 남은 byte만
+보낸다. 두 번째 전송 실패 뒤에는 세 번째 시도를 하지 않는다.
+
 ### `put <local-path> <remote-path>`
 
 지원 옵션은 `--force`, `--mkdir`, `--json`이다.

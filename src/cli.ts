@@ -6,6 +6,7 @@ import { DomainError, normalizeError } from "./errors.ts";
 import { runEnsureDir } from "./features/ensure-dir.ts";
 import { runLs } from "./features/ls.ts";
 import { runStat } from "./features/stat.ts";
+import { runUpload } from "./features/upload.ts";
 import { exitCodeForError, redactSecrets, writeFailure, writeSuccess } from "./output.ts";
 import { createRuntime, type Runtime } from "./runtime.ts";
 
@@ -15,12 +16,17 @@ type OutputOptions = {
   json?: boolean;
 };
 
+type UploadOutputOptions = OutputOptions & {
+  overwrite?: boolean;
+  mkdir?: boolean;
+};
+
 function displayValue(value: unknown): string {
   return redactSecrets(String(value));
 }
 
 function writeCommandSuccess(
-  command: "stat" | "ls" | "ensure-dir",
+  command: "stat" | "ls" | "ensure-dir" | "upload",
   result: { action: string; data: unknown },
   options: OutputOptions,
 ): void {
@@ -51,11 +57,20 @@ function writeCommandSuccess(
     return;
   }
 
-  const data = result.data as {
-    path: string;
-    resourceId: string | null;
-    createdPaths: string[];
-  };
+  if (command === "upload") {
+    const data = result.data as {
+      path: string;
+      resourceId: string;
+      size: number;
+      modifiedAt: string;
+    };
+    process.stdout.write(
+      `${displayValue(result.action)}\t${displayValue(data.path)}\t${displayValue(data.resourceId)}\t${displayValue(data.size)}\t${displayValue(data.modifiedAt)}\n`,
+    );
+    return;
+  }
+
+  const data = result.data as { path: string; resourceId: string | null; createdPaths: string[] };
   process.stdout.write(
     `${displayValue(result.action)}\t${displayValue(data.path)}\t${displayValue(data.resourceId ?? "-")}\t${displayValue(data.createdPaths.join(",") || "-")}\n`,
   );
@@ -106,6 +121,34 @@ export function createProgram(runtimeFactory: RuntimeFactory = createRuntime): C
         const runtime = await runtimeFactory();
         const result = await runEnsureDir(remotePath, runtime.resolver);
         writeCommandSuccess("ensure-dir", result, options);
+      }),
+  );
+
+  addJsonOption(
+    program
+      .command("upload")
+      .description("Upload a local file to an exact remote path")
+      .argument("<local-path>")
+      .argument("<remote-path>")
+      .option("--overwrite", "Overwrite an existing remote file")
+      .option("--mkdir", "Create missing remote parent directories")
+      .action(async (localPath: string, remotePath: string, options: UploadOutputOptions) => {
+        const runtime = await runtimeFactory();
+        const result = await runUpload(
+          localPath,
+          remotePath,
+          {
+            ...(options.overwrite === undefined ? {} : { overwrite: options.overwrite }),
+            ...(options.mkdir === undefined ? {} : { mkdir: options.mkdir }),
+          },
+          {
+            client: runtime.client,
+            resolver: runtime.resolver,
+            uploader: runtime.uploader,
+            timeoutMs: runtime.config.timeoutMs,
+          },
+        );
+        writeCommandSuccess("upload", result, options);
       }),
   );
 

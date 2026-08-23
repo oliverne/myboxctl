@@ -4,9 +4,9 @@
 로컬 AI 에이전트 등 자동화된 호출자가 subprocess와 JSON으로 안정적으로 사용할 수 있도록 하는 것을
 우선하며, 양방향 sync는 제공하지 않는다.
 
-현재 Phase 03 Ensure directory까지 완료했다. 원격 경로의 exact `stat`, direct-child `ls`,
-누락 계층을 만드는 `ensure-dir`를 제공하며, 명령 구현 상태와 다음 작업은 [`docs/PROGRESS.md`](docs/PROGRESS.md),
-[`docs/HANDOFF.md`](docs/HANDOFF.md)를 확인한다.
+현재 Phase 04 Upload까지 완료했다. 원격 경로의 exact `stat`, direct-child `ls`, 누락 계층을 만드는
+`ensure-dir`와 bounded-memory streaming `upload`를 제공하며, 명령 구현 상태와 다음 작업은
+[`docs/PROGRESS.md`](docs/PROGRESS.md), [`docs/HANDOFF.md`](docs/HANDOFF.md)를 확인한다.
 
 ## 요구사항
 
@@ -22,6 +22,7 @@ bun run build
 bun run dev -- --help
 bun run dev -- stat /agents/output/report.md --json
 bun run dev -- ls /agents/output --json
+bun run dev -- upload ./report.md /agents/output/report.md --mkdir --json
 ```
 
 실제 PAT는 `.env` 또는 배포 환경의 secret 파일로 전달하고 커밋하지 않는다.
@@ -52,8 +53,11 @@ bun run build
 ```bash
 MYBOX_PAT=... bun run test:integration
 MYBOX_PAT=... bun run test:contract
+MYBOX_PAT=... bun run test:upload-probe
 ```
 
 `test:integration`은 command acceptance를 실행한다. `test:contract`는 endpoint/schema/protocol
 변경 또는 기존 API ledger와 모순되는 관찰을 조사할 때만 실행하며, 일반 phase 검증에는 포함하지
-않는다.
+않는다. `test:upload-probe`는 Phase 04의 100MiB streaming과 interruption resume 계약을 검증할
+때만 실행한다. 일반 `upload` acceptance는 `test:integration`에 포함되며 격리 prefix 아래의 0-byte,
+Unicode, conflict, explicit overwrite를 확인한다.

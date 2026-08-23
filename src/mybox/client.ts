@@ -65,14 +65,15 @@ export type CreateFolderInput = {
   parentId?: string;
 };
 
-export type CreateUploadInput = {
+type BaseCreateUploadInput = {
   fileName: string;
   fileSize: number;
   parentId?: string;
   isOverwrite?: boolean;
-  resume?: boolean;
-  modifiedTime?: string;
 };
+
+export type CreateUploadInput = BaseCreateUploadInput &
+  ({ resume: true; modifiedTime: string } | { resume?: false; modifiedTime?: never });
 
 const defaultDependencies: ClientDependencies = {
   fetch: globalThis.fetch,

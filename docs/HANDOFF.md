@@ -2,10 +2,10 @@
 
 ## 요약
 
-Phase 03 Ensure directory 구현을 완료했다. `ensure-dir`가 normalized remote path의 component를
-root부터 순회하며 누락된 폴더를 parent ID와 함께 순차적으로 생성하고, 이미 존재하는 경로에는
-idempotent 성공을 반환한다. create mutation은 generic retry하지 않으며, 409 또는 응답 유실 가능
-오류 뒤에는 bounded exact resolve로 reconcile한다.
+Phase 03 Ensure directory와 Phase 04 Upload를 완료했다. `upload`는 같은 file handle의
+`fstat` 결과를 기준으로 multipart body를 streaming하며, retryable content failure 뒤 서버 offset을
+기준으로 정확히 한 번 복구한다. 실제 probe에서 관찰된 `offset: 0`은 전체 파일 재전송으로 처리하고,
+향후 non-zero가 반환되면 해당 지점부터 남은 byte만 보낸다.
 
 검색 API는 문서상 최저 한도인 10회/분 sliding window를 local state 파일과 atomic directory
 lock으로 여러 CLI process에 공유한다. `Retry-After`가 없는 429는 60초 + jitter 뒤 GET을 한 번만
@@ -14,12 +14,37 @@ lock으로 여러 CLI process에 공유한다. `Retry-After`가 없는 429는 60
 
 ## 현재 phase와 상태
 
-- Phase: `03-ensure-dir`
+- Phase: `04-upload`
 - 상태: `complete`
 - `docs/PROGRESS.md`와 일치한다.
-- 다음 phase: `04-upload`는 아직 `pending`이며 시작하지 않았다.
+- 수정된 probe를 실제 MYBOX에서 실행했다. 동일 resume identity로 64MiB를 읽은 뒤 in-process stream
+  error, 즉시 worker `SIGKILL`, 2초 client-buffer drain 뒤 worker `SIGKILL`을 각각 시도했지만 모두
+  resume reservation이 `201 / offset: 0`을 반환했다.
+- 각 실행 후 `/myboxctl-integration-test/`를 조회해 잔여 리소스가 없음을 확인했다.
+- 사용자가 server-returned offset 0부터 전체 파일을 한 번 재전송하는 정책을 승인했다.
+- production command의 실제 MYBOX acceptance와 100MiB bounded-memory 완료 전송이 통과했다.
+  Phase 04를 완료 처리했으며 Phase 05는 아직 시작하지 않았다.
 
 ## 변경 파일
+
+- `src/mybox/upload.ts`
+  - 1MiB 단위 file-handle read로 multipart `Filedata` body를 streaming한다.
+  - 정확한 `Content-Length`와 resume `Content-Range: offset-end/size`를 생성한다.
+  - signed upload URL에는 PAT `Authorization` header를 보내지 않으며 오류에도 URL을 포함하지 않는다.
+- `src/features/upload.ts`
+  - local open/fstat, parent resolve/`--mkdir`, exact target conflict, reservation, content transfer,
+    postcondition, local stability 검사를 하나의 vertical slice로 구현했다.
+  - retryable content failure 뒤 같은 reservation identity로 한 번만 재예약한다. offset 0/non-zero와
+    offset==fileSize를 처리하고 두 번째 실패 뒤에는 세 번째 시도를 하지 않는다.
+- `src/mybox/client.ts`, `src/runtime.ts`, `src/cli.ts`
+  - `resume: true`일 때 `modifiedTime`을 필수로 만든 upload request type, uploader runtime dependency,
+    `upload <local-path> <remote-path> [--overwrite] [--mkdir] [--json]` command를 추가했다.
+- `test/http/upload.test.ts`, `test/cli/upload.test.ts`
+  - remaining-byte range, offset 0 재시작, 복구 1회 상한, 0-byte, secret header/URL 보호, conflict,
+    explicit overwrite, `--mkdir`, local-file-changed와 JSON subprocess 성공을 검증한다.
+- `test/integration/upload.test.ts`
+  - `/myboxctl-integration-test/` 아래 unique child에서 0-byte Unicode 신규 upload, 기본 conflict,
+    explicit overwrite와 exact cleanup을 검증하는 opt-in acceptance다.
 
 - `src/features/ensure-dir.ts`
   - root `/`는 API를 호출하지 않고 `existing`과 `resourceId: null`을 반환한다.
@@ -62,7 +87,20 @@ lock으로 여러 CLI process에 공유한다. `Retry-After`가 없는 429는 60
   - mutation은 generic retry하지 않는다.
 - `package.json`, `test/integration/`
   - `test:integration`은 command acceptance, `test:contract`는 Phase 00 probe로 분리했다.
+  - `test:upload-probe`는 100MiB streaming/interruption/resume 계약 전용 opt-in probe다.
   - direct integration helper와 실제 CLI process가 같은 rate-limit state를 사용한다.
+- `test/integration/upload-contract.test.ts`
+  - unique folder 아래 sparse 100MiB 파일을 file handle과 `ReadableStream`으로 전송한다.
+  - 최초/재예약에 동일한 `resume`, `modifiedTime`, overwrite policy를 사용한다.
+  - signed URL을 출력하지 않는 worker가 64MiB를 읽고 pause한 뒤 parent가 `SIGKILL`한다.
+  - worker는 PAT를 상속하지 않으며, hard-kill 전 client buffer drain과 kill 후 storage settle에 각각
+    2초를 둔다.
+  - non-zero offset이면 기존 실측 `offset-end/total` Content-Range로 이어 올린다.
+  - multipart `Content-Length`, `Filedata` part, offset, postcondition을 확인하며 PAT와 signed upload
+    URL을 출력하지 않는다.
+- `test/integration/upload-interrupt-worker.ts`
+  - signed URL과 local file metadata를 transient environment로만 받아 multipart body를 전송한다.
+  - 64MiB read를 IPC로 알린 뒤 pause하며, URL이나 오류 원문을 stdout/stderr에 기록하지 않는다.
 - `docs/reference/cli-contract.md`
   - ensure-dir root의 `resourceId: null`과 reconcile 결과의 `existing` semantics를 기록했다.
 - `README.md`, `docs/PROGRESS.md`
@@ -83,14 +121,16 @@ lock으로 여러 CLI process에 공유한다. `Retry-After`가 없는 429는 60
 
 ## 검증
 
-성공:
+이번 수정에서 성공:
 
-- `bun run check` — 76 pass, 6 integration skip, 0 fail
+- `bun run check` — 89 pass, 12 opt-in skip, 0 fail
+- upload HTTP/CLI 집중 테스트 — 11 pass, 0 fail
+- `MYBOX_INTEGRATION=1 bun test test/integration/upload.test.ts` — 실제 MYBOX 1 pass, 0 fail;
+  0-byte Unicode 신규 upload, 기본 conflict, explicit overwrite, exact cleanup 통과
+- `bun run test:upload-probe` — 3 pass, 0 fail; 중단 후 `offset: 0`부터 production uploader로
+  100MiB 완료, peak RSS 증가 23,609,344 bytes, postcondition 및 exact cleanup 통과
 - `bun run build` — `dist/cli.js` 생성
-- rate-limit/read/ensure-dir 집중 테스트 — 53 pass, 0 fail
-- `bun run test:integration` — contract 3 skip, ensure-dir acceptance 1 pass, 0 fail
-  - 전체 60.96초, acceptance body 2.05초
-  - Unicode 계층 첫 호출 `created`, 두 번째 호출 `existing`, cleanup 완료
+- `git diff --check` — 통과
 
 확인하지 않은 항목:
 
@@ -100,22 +140,21 @@ lock으로 여러 CLI process에 공유한다. `Retry-After`가 없는 429는 60
   분리하는 것이 이번 변경의 목적이다.
 
 PAT, Authorization header, upload URL은 테스트 출력이나 문서에 기록하지 않았다. 새 integration
-test는 unique child path의 folder ID만 cleanup하며 prefix parent는 삭제하지 않는다.
+test는 unique child의 file과 folder만 exact ID로 cleanup하며 prefix parent는 삭제하지 않는다.
 
 ## 남은 API 미확정 사항
 
 Phase 00에서 기록한 다음 항목은 여전히 미확정이다.
 
-- Phase 04 완료 차단: 100MB bounded-memory upload
-- Phase 04 완료 차단: 실제 interruption 후 non-zero resume
-- Phase 04 완료 차단: resume file identity에 필요한 API-08 `modifiedTime` literal/instant 규칙
+- 비차단 자연 관찰: 실제 interruption 후 non-zero checkpoint
+- 비차단 자연 관찰: API-08 동일 instant의 다른 `modifiedTime` literal 규칙
 - 릴리스 비차단, 자연 관찰만 수행: 429 `Retry-After` live 형식
 - 릴리스 비차단, 자연 관찰만 수행: 423 해제 및 retry 특성
 
-다음 담당자는 `docs/phases/04-upload.md`를 읽고 Phase 04를 시작할 때만 `pending → in_progress`로
-변경한다. 먼저 broad `test:contract`가 아니라 opt-in `test:upload-probe`를 구현·실행하고
-API-05/API-06과 resume 관련 API-08 결과를 API ledger에 기록한다. 셋 중 하나라도 재현되지 않으면
-Phase 04를 `blocked`로 남기고 guessed fallback을 구현하지 않는다.
+다음 담당자는 upload probe를 반복하지 않는다. 같은 identity, 64MiB read, process hard-kill,
+pre-kill drain, post-kill settle 뒤 offset 0이 재현됐고, production uploader의 100MiB 전체 재전송,
+bounded-memory, postcondition, cleanup까지 확인했다. 다음 작업은 Phase 05 `put` 시작 여부를 결정하는
+것이다.
 
 upload의 parent/target/postcondition 검색에는 기존 공유 search limiter를 재사용한다. reservation과
 content mutation에는 generic retry를 추가하지 않고 probe로 확인한 resume/reconcile만 사용한다.

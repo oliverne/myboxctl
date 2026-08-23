@@ -1,18 +1,21 @@
 import { type AppConfig, type ConfigOptions, loadConfig } from "./config.ts";
 import { type ClientDependencies, MyboxClient } from "./mybox/client.ts";
 import { defaultRateLimitStatePath, SharedRateLimiter } from "./mybox/rate-limit.ts";
+import { MyboxUploader, type UploaderDependencies } from "./mybox/upload.ts";
 import { RemoteResolver } from "./remote/resolver.ts";
 
 export type Runtime = {
   config: AppConfig;
   client: MyboxClient;
   resolver: RemoteResolver;
+  uploader: MyboxUploader;
 };
 
 export type RuntimeOptions = {
   config?: AppConfig;
   configOptions?: ConfigOptions;
   clientDependencies?: Partial<ClientDependencies>;
+  uploaderDependencies?: Partial<UploaderDependencies>;
 };
 
 export async function createRuntime(options: RuntimeOptions = {}): Promise<Runtime> {
@@ -25,5 +28,6 @@ export async function createRuntime(options: RuntimeOptions = {}): Promise<Runti
     config,
     client,
     resolver: new RemoteResolver(client),
+    uploader: new MyboxUploader(options.uploaderDependencies),
   };
 }

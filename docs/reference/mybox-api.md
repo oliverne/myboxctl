@@ -211,18 +211,29 @@ sliding window 또는 endpoint별 상세 동작은 확인하지 못했다.
 
 ### API-05 — Bun stream, Content-Length, 크기
 
-- 상태: 0-byte/소형 confirmed; 100MB blocked
+- 상태: confirmed
 - `fileSize`와 multipart body의 실제 byte length를 일치시킨 0-byte 및 소형 파일이 성공했다.
-- 현재 contract probe는 100MB payload를 전송하지 않았으므로 대용량 bounded-memory 주장은 아직
-  확정하지 않는다. production upload는 전체 multipart body를 메모리에 만들지 않고 stream해야 한다.
+- production `MyboxUploader`로 sparse 100MiB 파일을 offset 0부터 완료 전송했다. 파일 크기는
+  104,857,600 bytes, 전송 중 peak RSS 증가는 23,609,344 bytes였다. 전체 multipart body를 메모리에
+  만들지 않는 1MiB file-handle read 방식이 실제 MYBOX postcondition까지 성공했다.
 
 ### API-06 — resume offset과 required headers
 
-- 상태: resume 예약/offset confirmed; 실제 interruption blocked
+- 상태: interruption recovery at offset 0 confirmed; non-zero offset not observed
 - `resume: true`, `modifiedTime`을 포함한 예약이 `201`로 성공했고 latest run의 `offset`은 `0`이었다.
 - offset에 맞춰 remaining bytes를 보내는 multipart upload도 `200`으로 성공했다.
-- 실제 연결 중단 후 재예약하여 non-zero offset을 얻는 흐름은 이번 probe에서 시도하지 않았다.
-  따라서 interruption/recovery와 `Content-Range`의 live contract는 Phase 04 전 별도 검증이 필요하다.
+- 최초 2026-08-23 Phase 04 targeted probe에서 body stream 중단 뒤 `resume` 예약 응답은
+  `offset: 0`이었다. 그러나 이 probe는 임의 fetch 오류도 중단 성공으로 취급했고, 최초 reservation에
+  resume identity가 없었으며, 8MiB read 직후 settle delay 없이 재예약했다. 결과는 inconclusive이며
+  MYBOX가 partial data를 checkpoint하지 않았다고 단정하지 않는다.
+- 수정된 probe는 최초/재예약 모두 같은 `resume: true`, `modifiedTime`, `isOverwrite`를 사용했다.
+  64MiB read 뒤 in-process stream error, 즉시 worker `SIGKILL`, 2초 client-buffer drain 뒤 worker
+  `SIGKILL` 세 조건을 실행했고, 각 조건에서 2초 settle 뒤 재예약했지만 모두 `201 / offset: 0`이었다.
+- worker는 PAT를 상속하지 않고 signed URL을 transient environment로만 받았으며, URL과 오류 원문을
+  명령행/stdout/stderr에 기록하지 않았다.
+- production 정책은 재예약 응답의 offset을 권위 있는 값으로 사용한다. 0이면 전체 파일을 한 번
+  다시 보내고, non-zero면 해당 지점부터 남은 byte만 보낸다. 복구 예약/전송은 한 번으로 제한하며
+  guessed offset과 세 번째 시도는 사용하지 않는다.
 
 ### API-07 — overwrite 후 resourceId
 
@@ -233,11 +244,38 @@ sliding window 또는 endpoint별 상세 동작은 확인하지 못했다.
 
 ### API-08 — modifiedAt과 timestamp precision
 
-- 상태: metadata confirmed; local `modifiedTime` matching blocked
+- 상태: metadata와 canonical resume identity confirmed; alternate literal not observed
 - resource detail의 `modifiedAt`은 offset을 포함한 ISO 형태였으며 fractional second 없이
   second precision으로 관찰했다.
-- resume 예약에 ISO `modifiedTime`을 보낸 것은 성공했지만, 동일 instant의 timezone 표기 차이와
-  exact literal matching은 확인하지 않았다. `put`의 기본 tolerance는 계속 2초로 둔다.
+- 최초 2026-08-23 probe의 `offset: 0`은 probe 설계 결함 때문에 timestamp matching 증거로 사용할
+  수 없다. 수정된 probe는 같은 canonical ISO literal을 재사용했다. 동일 instant의 `+09:00` 표기
+  비교는 별도 자연 관찰 항목이며 `put`의 기본 tolerance는 계속 2초로 둔다.
+- 수정된 probe에서 최초/재예약에 같은 canonical ISO literal을 사용한 예약은 모두 `201`이었다.
+  다른 offset 표기의 동일 instant가 같은 identity로 취급되는지는 관찰하지 않았으며 production은
+  최초 예약에 사용한 literal을 그대로 재사용한다.
+
+## 2026-08-23 Phase 04 targeted upload probe
+
+- 상태: offset 0 recovery와 100MiB bounded-memory completion confirmed; non-zero checkpoint not
+  observed
+- 실행: `bun run test:upload-probe` (실제 MYBOX에서 interruption 관찰 후 production completion까지
+  재실행)
+- 환경: Bun 1.4.0, macOS 개발 환경, `/myboxctl-integration-test/` 아래 unique child
+- 요청: 100MiB sparse local file을 file handle 기반 `ReadableStream` multipart body로 전송하고,
+  중단 후 `resume: true`와 `modifiedTime`을 포함한 reservation을 재발급했다.
+- 최초 결과: fetch는 실패했고 resume reservation은 `201`과 `offset: 0`을 반환했다. 다만 의도한
+  중단 여부, server-accepted byte, checkpoint 정착을 확인하지 못했으므로 결과는 inconclusive다.
+- 수정 후 실행: 동일 identity와 64MiB read를 사용해 in-process stream error, 즉시 worker
+  `SIGKILL`, 2초 drain 뒤 worker `SIGKILL`을 순서대로 실행했다. kill 뒤에는 2초 settle 후 한 번만
+  재예약했다. 세 실행 모두 resume reservation은 `201 / offset: 0`이었다.
+- cleanup: 각 실행 후 CLI `ls /myboxctl-integration-test/ --json`이 빈 `resources`를 반환했다.
+- 정책 반영 후 결과: 재예약은 `201 / offset: 0`이었고 production `MyboxUploader`가 해당 offset부터
+  100MiB 전체를 완료했다. storage response와 resource detail의 이름, 크기, ID postcondition이
+  일치했다. peak RSS 증가는 23,609,344 bytes였으며 file/folder cleanup도 성공했다.
+- 구현 영향: production은 server-returned offset 0부터 전체 파일을 한 번 재전송하고, 향후
+  non-zero가 반환되면 남은 byte만 전송한다. guessed offset이나 세 번째 시도는 사용하지 않는다.
+- 보안/정리: PAT, Authorization header, signed upload URL은 출력/문서에 기록하지 않았다.
+  probe가 만든 unique resource의 cleanup은 종료 단계에서 오류 없이 수행됐다.
 
 ### API-09 — duplicate name/type
 
@@ -264,17 +302,18 @@ sliding window 또는 endpoint별 상세 동작은 확인하지 못했다.
 
 미확정 항목은 필요한 phase와 안전한 검증 방법을 기준으로 다음처럼 처리한다.
 
-| 항목                                     | 영향               | 해소 방법                                          |
-| ---------------------------------------- | ------------------ | -------------------------------------------------- |
-| API-05 100MB streaming                   | Phase 04 완료 차단 | `test:upload-probe`의 bounded-memory 전송          |
-| API-06 실제 interruption/non-zero resume | Phase 04 완료 차단 | `test:upload-probe`의 실제 중단·재예약·완료        |
-| API-08 resume용 `modifiedTime` 규칙      | Phase 04 완료 차단 | 같은 file identity의 literal/instant 재예약 비교   |
-| API-10 live `Retry-After` 형식           | 릴리스 비차단      | 자연 발생 시 sanitized 형식만 기록                 |
-| API-11 423 해제 특성                     | 릴리스 비차단      | 자연 발생하거나 실제 command가 요구할 때 별도 조사 |
+| 항목                                    | 영향             | 해소 방법                                          |
+| --------------------------------------- | ---------------- | -------------------------------------------------- |
+| API-05 100MB 완료 streaming             | confirmed        | production uploader의 bounded-memory 완료 전송     |
+| API-06 non-zero checkpoint              | 비차단 자연 관찰 | 서버가 반환할 때 remaining-byte 경로 확인          |
+| API-08 alternate `modifiedTime` literal | 비차단 자연 관찰 | 동일 instant의 다른 offset 표기가 필요할 때 확인   |
+| API-10 live `Retry-After` 형식          | 릴리스 비차단    | 자연 발생 시 sanitized 형식만 기록                 |
+| API-11 423 해제 특성                    | 릴리스 비차단    | 자연 발생하거나 실제 command가 요구할 때 별도 조사 |
 
-Phase 04는 API-05/API-06과 resume 관련 API-08을 targeted upload probe로 확정하기 전까지 완료할 수
-없다. API-10은 seconds, HTTP-date, invalid, absent fixture와 보수적 fallback으로 동작을 고정하므로
-live header 미관찰만으로 phase나 릴리스를 막지 않는다. API-11도 423을 고의로 유발하지 않는다.
+Phase 04는 API-05의 완료된 100MB bounded-memory 전송까지 확인해 완료됐다. API-06 non-zero
+checkpoint와 API-08 alternate literal은 현재 서버가 제공하지 않거나 production에 필요하지 않으므로
+자연 관찰 항목으로 둔다. API-10은 fixture와 보수적 fallback으로 동작을 고정하며 API-11도 423을
+고의로 유발하지 않는다.
 
 `test:contract` 전체 재실행은 endpoint/schema/upload protocol 변경 또는 API ledger와 모순되는
 관찰이 있을 때만 수행한다. 한두 항목의 미확정 계약은 해당 항목 전용 opt-in probe로 검증한다.

@@ -61,9 +61,10 @@ classifier, 429 `blockedUntil`, 여러 limiter instance의 slot 공유를 unit t
 
 - `createFolder`: 실패 후 같은 exact path를 조회한다. 폴더가 있으면 성공으로 reconcile하고,
   파일이면 conflict를 반환한다. 확인되지 않은 상태에서 POST를 반복하지 않는다.
-- `createUpload`: Phase 00에서 같은 file identity에 대한 재호출 의미를 확인하기 전까지 자동
-  재시도하지 않는다.
-- `uploadContent`: 일반 재전송이 아니라 검증된 `resume + modifiedTime + offset` 흐름을 사용한다.
+- `createUpload`: 최초 예약 자체는 자동 재시도하지 않는다. content 전송이 retryable하게 실패한
+  경우에만 동일한 `resume + modifiedTime + overwrite` identity로 예약을 한 번 더 발급한다.
+- `uploadContent`: 재예약에서 서버가 반환한 offset만 권위 있는 값으로 사용한다. non-zero면 남은
+  byte만, 0이면 전체 파일을 다시 보내며 이 복구 전송이 실패해도 세 번째 예약/전송은 하지 않는다.
 - `deleteResource`: 429는 같은 `resourceId`를 조회해 먼저 reconcile한다. ID가 남아 있을 때만
   `Retry-After` 후 같은 ID로 한 번 재시도하며, 404는 이미 삭제된 성공 상태로 처리한다.
   timeout/5xx 뒤 ID가 남아 있으면 DELETE를 자동 반복하지 않는다.

@@ -11,9 +11,9 @@
 - Phase 00에서 upload reservation과 소형 content method/header/status가 confirmed 상태다.
 - `docs/PROGRESS.md`의 Phase 04가 `in_progress`다.
 
-100MB streaming과 실제 interruption 후 non-zero resume는 아직 미확정이다. Phase를 시작한 뒤 아래
-targeted preflight probe를 먼저 수행하며, 결과 전에는 uploader/resume 최종 인터페이스를 고정하지
-않는다.
+실제 interruption probe에서는 같은 file identity로 재예약해도 서버가 `offset: 0`을 반환했다.
+구현은 이 서버 응답을 권위 있는 resume 지점으로 사용한다. production uploader의 100MiB 완료
+전송에서 peak RSS 증가는 23,609,344 bytes로 측정됐다.
 
 ## 구현 파일
 
@@ -42,7 +42,9 @@ test/integration/upload.test.ts
 probe는 `/myboxctl-integration-test/` 아래 unique child만 사용하고 다음 항목만 검증한다.
 
 1. file 전체를 buffer로 만들지 않는 100MB 이상 stream transfer와 정확한 `Content-Length`
-2. 전송 일부를 실제로 중단한 뒤 같은 file identity와 `modifiedTime`으로 resume reservation 재발급
+2. 최초 reservation부터 `resume: true`, `modifiedTime`, overwrite policy를 고정하고, 64MiB를 읽은
+   worker를 paused 상태로 2초 유지한 뒤 `SIGKILL`하여 실제 연결을 중단하고 같은 file identity로
+   resume reservation 재발급
 3. 동일 instant의 `modifiedTime` 표기 규칙, 서버가 반환한 non-zero `offset`의 단위와
    `Content-Range`
 4. resume 완료 후 type, size, `resourceId`, `modifiedAt`
@@ -50,9 +52,14 @@ probe는 `/myboxctl-integration-test/` 아래 unique child만 사용하고 다�
 
 PAT, Authorization, upload URL 원문은 fixture나 출력에 저장하지 않는다. 결과는
 API-05/API-06과 resume에 필요한 API-08 항목으로 `docs/reference/mybox-api.md`에 기록한다. 100MB
-bounded streaming, non-zero resume 또는 안정적인 `modifiedTime` file identity가 재현되지 않으면
-Phase 04를 `blocked`로 바꾸고, 처음부터 재업로드하거나 guessed offset을 쓰는 fallback을 구현하지
-않는다. broad `test:contract`는 실행하지 않는다.
+bounded streaming 결과와 서버 반환 offset을 기록하며 guessed offset은 사용하지 않는다. broad
+`test:contract`는 실행하지 않는다.
+
+중단 probe는 signed URL을 명령행과 출력에 넣지 않고 PAT를 상속하지 않는 worker process를 사용한다.
+worker는 64MiB를 읽은 뒤 pause하여 client buffer를 2초간 drain하고, parent가 `SIGKILL`로 실제
+연결을 끊는다. 그 외 DNS, TLS, timeout, local read 오류는 interruption 성공으로 취급하지 않는다.
+중단 뒤에는 storage request close와 checkpoint 처리를 위한 2초 settle delay를 둔 뒤 한 번만
+재예약한다.
 
 ## 1. 로컬 파일 source
 
@@ -98,8 +105,10 @@ fake server test sequence:
 6. AbortSignal/SIGINT
 7. response lost 후 remote reconcile
 
-resume attempt 수를 bounded하게 유지한다. Phase 00에서 resume가 신뢰할 수 없다고 확인되면
-Phase 04를 `blocked`로 유지한다. 처음부터 재업로드하는 fallback을 추측으로 추가하지 않는다.
+resume attempt 수는 한 번으로 제한한다. content failure 뒤 최초와 동일한 `resume: true`,
+`modifiedTime`, overwrite policy로 예약을 한 번 재발급하고 서버가 반환한 offset을 검증한다.
+non-zero면 남은 byte만 보내고, `offset: 0`이면 전체 파일을 한 번 다시 보낸다. 복구 전송이 실패하면
+세 번째 예약이나 전송을 하지 않는다. 서버가 반환하지 않은 offset을 추측하지 않는다.
 
 `createUpload` POST는 network/5xx/429에도 generic retry하지 않는다. response가 불명확하면 확인된
 file identity와 exact remote state로 reconcile한다. signed storage content transfer의 실패는
@@ -156,12 +165,13 @@ overwrite, interrupted resume acceptance를 사용한다.
 
 - 파일 전체를 `Bun.file(...).arrayBuffer()` 또는 동등한 방식으로 읽지 않는다.
 - 신규/overwrite/conflict/local-change case가 test로 고정되어 있다.
-- content failure가 일반 create/upload 재실행으로 이어지지 않는다.
+- content failure가 동일 identity의 bounded resume 1회를 초과한 create/upload 재실행으로 이어지지
+  않는다.
 - postcondition 확인 후에만 성공을 반환한다.
 - 100MB 이상 파일에서 bounded memory 증거가 있다.
 - signed upload URL이 test output과 fixture에 없다.
-- API-05 100MB streaming, API-06 non-zero resume와 resume 관련 API-08 `modifiedTime` 규칙이
-  confirmed 상태다.
+- API-05 100MB 완료 streaming과 bounded-memory 결과가 confirmed 상태다.
+- API-06은 서버 반환 offset 0/non-zero를 모두 처리하며 실제 관찰 결과가 기록되어 있다.
 - resolve/reconcile 검색이 기존 공유 limiter를 통하며 별도 pacing 구현이 없다.
 - reservation/content mutation에 generic retry가 없다.
 
