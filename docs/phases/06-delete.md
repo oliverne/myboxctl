@@ -9,6 +9,7 @@ resolve/delete race에서 의도하지 않은 다른 resource 삭제를 방지�
 
 - Phase 05가 `complete`다.
 - delete 204/404 behavior가 API ledger에 confirmed 상태다.
+- 공식 delete 최저 한도 60회/분이 API ledger에 기록되어 있다.
 - `docs/PROGRESS.md`의 Phase 06이 `in_progress`다.
 
 ## 구현 파일
@@ -16,7 +17,9 @@ resolve/delete race에서 의도하지 않은 다른 resource 삭제를 방지�
 ```text
 src/features/delete.ts
 src/mybox/client.ts
+src/mybox/rate-limit.ts
 src/cli.ts
+src/mybox/rate-limit.test.ts
 test/http/delete.test.ts
 test/cli/delete.test.ts
 test/integration/delete.test.ts
@@ -24,15 +27,18 @@ test/integration/delete.test.ts
 
 ## 테스트 우선 matrix
 
-| 상황                           | 기본                | `--strict`          |
-| ------------------------------ | ------------------- | ------------------- |
-| file 존재, 204                 | deleted/0           | deleted/0           |
-| folder 존재, 204               | deleted/0           | deleted/0           |
-| resolve 시 없음                | already-absent/0    | not-found/4         |
-| resolve 후 DELETE 404          | already-absent/0    | not-found/4         |
-| `/`                            | invalid-arguments/2 | invalid-arguments/2 |
-| DELETE timeout 후 ID 조회 404  | deleted/0           | deleted/0           |
-| DELETE timeout 후 같은 ID 존재 | retryable failure   | retryable failure   |
+| 상황                              | 기본                | `--strict`          |
+| --------------------------------- | ------------------- | ------------------- |
+| file 존재, 204                    | deleted/0           | deleted/0           |
+| folder 존재, 204                  | deleted/0           | deleted/0           |
+| resolve 시 없음                   | already-absent/0    | not-found/4         |
+| resolve 후 DELETE 404             | already-absent/0    | not-found/4         |
+| `/`                               | invalid-arguments/2 | invalid-arguments/2 |
+| DELETE timeout 후 ID 조회 404     | deleted/0           | deleted/0           |
+| DELETE timeout 후 같은 ID 존재    | retryable failure   | retryable failure   |
+| DELETE 429 후 ID 조회 404         | deleted/0           | deleted/0           |
+| DELETE 429 후 ID 존재, 재시도 204 | deleted/0           | deleted/0           |
+| DELETE 429가 재시도 후 반복       | rate-limit/8        | rate-limit/8        |
 
 ## 구현 절차
 
@@ -45,7 +51,15 @@ test/integration/delete.test.ts
 7. timeout/5xx로 결과가 불명확하면 같은 ID를 단건 조회해 reconcile한다.
 8. path를 다시 resolve해 새 ID가 나타나더라도 그 새 resource를 삭제하지 않는다.
 
-DELETE는 같은 ID에 한해 retry할 수 있다. path 재해석 후 새 ID를 자동 삭제하는 retry는 금지한다.
+`SharedRateLimiter`에 origin별 `delete` bucket을 추가하고 가장 낮은 공식 한도인 60회/분 sliding
+window를 적용한다. search와 같은 state/atomic lock을 사용하되 request timestamp와
+`blockedUntil`은 bucket별로 분리한다.
+
+DELETE 429는 즉시 같은 `resourceId`를 GET으로 reconcile한다. 404면 성공이다. 같은 ID가 남아
+있으면 `Retry-After` 또는 60초 + jitter까지 기다린 뒤 같은 ID로 DELETE를 한 번만 재시도한다.
+두 번째 429는 `retryAfterMs`와 exit 8로 반환한다. timeout/5xx에서 ID가 남아 있는 경우에는
+자동 DELETE를 반복하지 않고 retryable failure로 반환한다. path 재해석 후 새 ID를 자동 삭제하는
+retry는 항상 금지한다.
 
 ## CLI
 
@@ -66,6 +80,8 @@ MYBOX_PAT=... bun run test:integration
 
 integration test는 unique file과 non-empty test folder의 실제 MYBOX semantics를 별도로 확인한다.
 non-empty folder 삭제가 허용되더라도 test prefix 밖의 folder에는 적용하지 않는다.
+429를 만들기 위해 delete 한도를 고의로 소진하지 않는다. 실제 429가 자연 발생하면 sanitized
+`Retry-After` 형식과 결과만 API ledger에 기록한다.
 
 ## 완료 조건
 
@@ -74,6 +90,8 @@ non-empty folder 삭제가 허용되더라도 test prefix 밖의 folder에는 �
 - 파일과 폴더가 실제 MYBOX 휴지통으로 이동한다.
 - 두 번째 기본 delete가 `already-absent`다.
 - cleanup 범위가 integration prefix로 제한된다.
+- 두 limiter instance가 60회/분 delete slot과 429 cooldown을 공유한다.
+- 429 operation-specific retry는 같은 resource ID로 한 번만 실행된다.
 
 ## Handoff
 
@@ -81,4 +99,5 @@ non-empty folder 삭제가 허용되더라도 test prefix 밖의 folder에는 �
 - non-empty folder 실제 동작
 - strict/default subprocess 결과
 - 휴지통에 남은 test resource 정보
+- delete bucket slot/cooldown과 429 `retryAfterMs` test 결과
 - check/build/integration 결과

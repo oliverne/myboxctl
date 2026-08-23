@@ -106,11 +106,20 @@ test는 unique child path의 folder ID만 cleanup하며 prefix parent는 삭제�
 
 Phase 00에서 기록한 다음 항목은 여전히 미확정이다.
 
-- 100MB bounded-memory upload probe
-- 실제 interruption 후 non-zero resume
-- 429 `Retry-After` live 형식
-- 423 해제 및 retry 특성
+- Phase 04 완료 차단: 100MB bounded-memory upload
+- Phase 04 완료 차단: 실제 interruption 후 non-zero resume
+- Phase 04 완료 차단: resume file identity에 필요한 API-08 `modifiedTime` literal/instant 규칙
+- 릴리스 비차단, 자연 관찰만 수행: 429 `Retry-After` live 형식
+- 릴리스 비차단, 자연 관찰만 수행: 423 해제 및 retry 특성
 
 다음 담당자는 `docs/phases/04-upload.md`를 읽고 Phase 04를 시작할 때만 `pending → in_progress`로
-변경한다. upload reservation/content mutation에는 이 검색 limiter를 재사용하되, POST generic
-retry를 추가하지 않고 기존 resume/reconcile 정책을 따른다.
+변경한다. 먼저 broad `test:contract`가 아니라 opt-in `test:upload-probe`를 구현·실행하고
+API-05/API-06과 resume 관련 API-08 결과를 API ledger에 기록한다. 셋 중 하나라도 재현되지 않으면
+Phase 04를 `blocked`로 남기고 guessed fallback을 구현하지 않는다.
+
+upload의 parent/target/postcondition 검색에는 기존 공유 search limiter를 재사용한다. reservation과
+content mutation에는 generic retry를 추가하지 않고 probe로 확인한 resume/reconcile만 사용한다.
+Phase 05는 이 정책을 그대로 재사용하고, Phase 06은 같은 state/lock 구현에 delete 60회/분 bucket과
+동일 resource ID 기반 429 reconcile을 추가한다. Phase 07에서 두 Bun process의 slot 공유, stale
+lock, cooldown, `retryAfterMs`/exit 8을 검증한다. live 429/423을 만들기 위해 호출 한도나 lock을
+고의로 유발하지 않는다.

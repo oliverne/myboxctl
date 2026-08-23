@@ -54,4 +54,6 @@ MYBOX_PAT=... bun run test:integration
 MYBOX_PAT=... bun run test:contract
 ```
 
-`test:integration`은 command acceptance, `test:contract`는 완료된 API 계약 probe를 실행한다.
+`test:integration`은 command acceptance를 실행한다. `test:contract`는 endpoint/schema/protocol
+변경 또는 기존 API ledger와 모순되는 관찰을 조사할 때만 실행하며, 일반 phase 검증에는 포함하지
+않는다.

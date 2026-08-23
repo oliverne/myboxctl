@@ -47,8 +47,15 @@ directory lock 아래에서 수행한다.
 - bucket key: MYBOX API origin과 `search`
 - 저장 금지: PAT, Authorization, URL query, request/response body
 
-현재는 공식 한도와 실제 사용이 확인된 `/v1/search/` GET만 선제 조정한다. delete/download/other
-bucket은 해당 command를 구현하면서 문서상 한도와 실제 호출 형태를 확인한 뒤 추가한다.
+현재 구현은 공식 한도와 실제 사용이 확인된 `/v1/search/` GET만 선제 조정한다. Phase 06은
+`DELETE /v1/drive/resources/{resourceId}`에 최저 요금제 기준 60회/분 bucket을 추가한다. upload
+reservation과 signed storage transfer는 검색/delete bucket에 섞지 않고 operation-specific
+resume/reconcile 정책을 사용한다. download/other bucket은 해당 command가 추가될 때만 문서상
+한도와 실제 호출 형태를 확인해 확장한다.
+
+모든 bucket은 같은 state/lock 구현을 재사용한다. 새 bucket을 추가할 때는 limit/window, bucket
+classifier, 429 `blockedUntil`, 여러 limiter instance의 slot 공유를 unit test로 고정한다. 실제
+429를 만들기 위해 한도를 고의로 소진하지 않는다.
 
 ### operation별 처리
 
@@ -57,11 +64,13 @@ bucket은 해당 command를 구현하면서 문서상 한도와 실제 호출 �
 - `createUpload`: Phase 00에서 같은 file identity에 대한 재호출 의미를 확인하기 전까지 자동
   재시도하지 않는다.
 - `uploadContent`: 일반 재전송이 아니라 검증된 `resume + modifiedTime + offset` 흐름을 사용한다.
-- `deleteResource`: 같은 `resourceId`를 재시도하며 404는 이미 삭제된 성공 상태로 reconcile할
-  수 있다.
+- `deleteResource`: 429는 같은 `resourceId`를 조회해 먼저 reconcile한다. ID가 남아 있을 때만
+  `Retry-After` 후 같은 ID로 한 번 재시도하며, 404는 이미 삭제된 성공 상태로 처리한다.
+  timeout/5xx 뒤 ID가 남아 있으면 DELETE를 자동 반복하지 않는다.
 
-400, 401, 403, 409, 422, 507은 자동 재시도하지 않는다. 423의 정책은 Phase 00에서 응답
-header와 실제 해제 특성을 확인한 뒤 정한다.
+400, 401, 403, 409, 422, 507은 자동 재시도하지 않는다. 423은 live 해제 특성이 미확정이므로
+자동 재시도하지 않는다. 실제 command에서 자연 발생해 정책이 필요해질 때 별도 targeted probe로
+확정한다.
 
 ## 로컬 파일 안정성
 

@@ -82,6 +82,9 @@ phase만 `in_progress`일 수 있다. phase 완료는 코드 작성 여부가 �
 - 429 응답의 `Retry-After`
 
 이 phase가 완료되기 전에는 resolver와 uploader의 최종 인터페이스를 고정하지 않는다.
+완료 후에는 endpoint/schema/protocol 변경이나 기존 ledger와 모순되는 관찰이 있을 때만 broad
+contract probe를 다시 실행한다. 후속 phase의 미확정 항목은 해당 항목만 다루는 targeted probe로
+검증한다.
 
 ### Phase 01 — 기반과 CLI 계약
 
@@ -118,10 +121,12 @@ phase만 `in_progress`일 수 있다. phase 완료는 코드 작성 여부가 �
 문서: [`docs/phases/04-upload.md`](docs/phases/04-upload.md)
 
 - file handle 기반 안정적인 stat/stream
+- 100MB streaming, 실제 interruption resume와 `modifiedTime` 규칙의 targeted preflight probe
 - 신규 업로드와 `--overwrite`
 - 100MB 이상 파일의 bounded memory 검증
 - interrupted upload와 resume
 - 업로드 후 결과 검증
+- resolve/postcondition 검색의 기존 공유 limiter 재사용
 
 ### Phase 05 — `put`
 
@@ -131,6 +136,7 @@ phase만 `in_progress`일 수 있다. phase 완료는 코드 작성 여부가 �
 - remote absent, same, local newer, remote newer, size mismatch
 - `--force`, `--mkdir`
 - upload/overwrite/skip/conflict 결과
+- Phase 03/04의 limiter와 mutation 안전 정책 재사용
 
 ### Phase 06 — `delete`
 
@@ -140,6 +146,7 @@ phase만 `in_progress`일 수 있다. phase 완료는 코드 작성 여부가 �
 - 없는 경로의 `already-absent`
 - `--strict`
 - resolve/delete 사이 race 처리
+- delete 60회/분 공유 bucket과 operation-specific 429 reconcile
 
 ### Phase 07 — 안정화와 배포 준비
 
@@ -147,7 +154,8 @@ phase만 `in_progress`일 수 있다. phase 완료는 코드 작성 여부가 �
 
 - Unicode/한글/특수문자/빈 파일/대용량 파일
 - timeout, 429, API 장애, SIGINT
-- endpoint별 rate-limit bucket 확장 여부와 운영 설정 검토
+- search/delete bucket의 교차 프로세스 state, stale lock, cooldown 검증
+- `retryAfterMs` CLI contract와 natural 429 관찰 정책 검증
 - CLI subprocess contract test
 - Ubuntu Server 24.04 설치 및 운영 문서
 - 실제 MYBOX acceptance test
@@ -161,6 +169,10 @@ bun run check
 bun run build
 bun run test:integration
 ```
+
+`test:integration`은 command acceptance만 실행한다. broad `test:contract`는 API 계약 변경이나
+ledger 모순 조사에만 사용하고 정기 MVP 검증에 포함하지 않는다. Phase 04의 upload targeted
+probe 결과는 API ledger와 handoff에 이미 남아 있어야 한다.
 
 실제 MYBOX 전용 테스트 prefix에서 아래 흐름이 성공해야 한다.
 

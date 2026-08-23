@@ -9,6 +9,7 @@
 
 - Phase 04가 `complete`다.
 - 실제 timestamp precision과 tolerance가 reference에 기록되어 있다.
+- API-05/API-06과 resume 관련 API-08 targeted upload probe 결과가 reference에 confirmed 상태다.
 - `docs/PROGRESS.md`의 Phase 05가 `in_progress`다.
 
 ## 구현 파일
@@ -75,10 +76,16 @@ myboxctl put <local-path> <remote-path> [--force] [--mkdir] [--json]
 `put`과 `upload`가 file open, parent resolve, upload protocol을 공유할 수는 있지만 generic
 `FileService` 같은 계층을 만들지 않는다. 명확한 작은 함수만 추출한다.
 
+parent/target resolve, `--mkdir`, postcondition 검색은 Phase 03의 공유 search bucket을 그대로
+사용한다. Phase 04 uploader의 reservation/content retry 정책도 그대로 재사용하며 `put` command에
+별도 sleep, rate limiter 또는 mutation retry를 추가하지 않는다. 최종 429는
+`retryAfterMs`/exit 8 계약을 유지한다.
+
 ## 4. subprocess와 integration test
 
 fake server에서 각 decision이 올바른 HTTP 호출 수로 이어지는지 확인한다. 특히 skip/conflict에서는
-mutation 요청이 0회여야 한다.
+mutation 요청이 0회여야 한다. upload/overwrite case는 resolver와 uploader에 주입한 같은 limiter
+instance/state를 사용하고, 429에서도 reservation POST가 반복되지 않는지 확인한다.
 
 integration 흐름:
 
@@ -100,12 +107,16 @@ bun run build
 MYBOX_PAT=... bun run test:integration
 ```
 
+Phase 00 broad contract probe와 Phase 04 targeted upload probe는 API ledger와 protocol이 바뀌지 않은
+한 다시 실행하지 않는다.
+
 ## 완료 조건
 
 - decision은 I/O 없는 pure function이고 table 전체가 unit test로 고정되어 있다.
 - remote-newer 기본 conflict와 force overwrite가 실제 CLI에서 동작한다.
 - skip/conflict에서 mutation이 발생하지 않는다.
 - `--mkdir`가 Phase 03 구현을 재사용한다.
+- 검색과 upload failure가 Phase 03/04 limiter·reconcile 정책을 우회하지 않는다.
 - integration flow가 unique prefix에서 반복 통과한다.
 
 ## Handoff
@@ -115,4 +126,5 @@ MYBOX_PAT=... bun run test:integration
 - metadata 비교 한계에 대한 README 위치
 - HTTP call-count test 결과
 - 실제 resource cleanup 상태
+- 429 `retryAfterMs`, search slot 공유, mutation call-count test 결과
 - check/build/integration 결과

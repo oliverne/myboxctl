@@ -89,6 +89,18 @@ MYBOX_PAT=... bun run test:contract
 
 같은 핵심 contract test를 최소 2회 실행하여 cleanup과 반복 가능성을 확인한다.
 
+## 완료 후 재실행 정책
+
+`test:contract`는 일반 command acceptance나 매 phase 완료 검증에 포함하지 않는다. 다음 경우에만
+broad probe를 다시 실행한다.
+
+- endpoint, request/response schema 또는 upload protocol을 변경할 때
+- 공식 문서가 바뀌었거나 실제 응답이 API ledger와 모순될 때
+- 여러 미확정 계약을 한 번에 다시 조사해야 할 때
+
+후속 phase가 한두 개의 미확정 항목만 필요로 하면 별도 opt-in targeted probe를 작성한다. 429나
+423을 확인하기 위해 의도적으로 한도를 소진하거나 lock을 유발하지 않는다.
+
 ## 완료 조건
 
 - `API-01`부터 `API-09`까지 confirmed/contradicted/blocked 상태가 기록되어 있다.

@@ -8,8 +8,12 @@
 ## 진입 조건
 
 - Phase 03이 `complete`다.
-- Phase 00에서 upload method/header/status와 resume 계약이 confirmed 상태다.
+- Phase 00에서 upload reservation과 소형 content method/header/status가 confirmed 상태다.
 - `docs/PROGRESS.md`의 Phase 04가 `in_progress`다.
+
+100MB streaming과 실제 interruption 후 non-zero resume는 아직 미확정이다. Phase를 시작한 뒤 아래
+targeted preflight probe를 먼저 수행하며, 결과 전에는 uploader/resume 최종 인터페이스를 고정하지
+않는다.
 
 ## 구현 파일
 
@@ -18,10 +22,37 @@ src/mybox/upload.ts
 src/features/upload.ts
 src/mybox/client.ts
 src/cli.ts
+package.json
 test/http/upload.test.ts
 test/cli/upload.test.ts
+test/integration/upload-contract.test.ts
 test/integration/upload.test.ts
 ```
+
+## 0. targeted preflight probe
+
+`test/integration/upload-contract.test.ts`와 다음 opt-in script를 먼저 추가한다.
+
+```json
+{
+  "test:upload-probe": "MYBOX_UPLOAD_PROBE=1 bun test test/integration/upload-contract.test.ts"
+}
+```
+
+probe는 `/myboxctl-integration-test/` 아래 unique child만 사용하고 다음 항목만 검증한다.
+
+1. file 전체를 buffer로 만들지 않는 100MB 이상 stream transfer와 정확한 `Content-Length`
+2. 전송 일부를 실제로 중단한 뒤 같은 file identity와 `modifiedTime`으로 resume reservation 재발급
+3. 동일 instant의 `modifiedTime` 표기 규칙, 서버가 반환한 non-zero `offset`의 단위와
+   `Content-Range`
+4. resume 완료 후 type, size, `resourceId`, `modifiedAt`
+5. success/failure/SIGINT의 file handle, response body, test resource cleanup
+
+PAT, Authorization, upload URL 원문은 fixture나 출력에 저장하지 않는다. 결과는
+API-05/API-06과 resume에 필요한 API-08 항목으로 `docs/reference/mybox-api.md`에 기록한다. 100MB
+bounded streaming, non-zero resume 또는 안정적인 `modifiedTime` file identity가 재현되지 않으면
+Phase 04를 `blocked`로 바꾸고, 처음부터 재업로드하거나 guessed offset을 쓰는 fallback을 구현하지
+않는다. broad `test:contract`는 실행하지 않는다.
 
 ## 1. 로컬 파일 source
 
@@ -42,7 +73,7 @@ stream한다. 완료 후 `fstat`이 다르면 성공 응답 대신 `local-file-c
 
 ## 2. 업로드 protocol
 
-Phase 00 fixture를 기반으로 다음 함수를 구현한다.
+Phase 00 fixture와 targeted probe 결과를 기반으로 다음 함수를 구현한다.
 
 ```ts
 createUpload(request): Promise<{ uploadUrl: string; offset: number }>
@@ -68,8 +99,11 @@ fake server test sequence:
 7. response lost 후 remote reconcile
 
 resume attempt 수를 bounded하게 유지한다. Phase 00에서 resume가 신뢰할 수 없다고 확인되면
-MVP는 자동 resume를 비활성화하고 retryable failure로 반환한다. 처음부터 재업로드하는 fallback을
-추측으로 추가하지 않는다.
+Phase 04를 `blocked`로 유지한다. 처음부터 재업로드하는 fallback을 추측으로 추가하지 않는다.
+
+`createUpload` POST는 network/5xx/429에도 generic retry하지 않는다. response가 불명확하면 확인된
+file identity와 exact remote state로 reconcile한다. signed storage content transfer의 실패는
+targeted probe로 확인된 resume state machine만 사용한다.
 
 ## 4. `upload` command
 
@@ -90,6 +124,11 @@ myboxctl upload <local-path> <remote-path> [--overwrite] [--mkdir] [--json]
 9. local file stable 확인
 10. JSON 결과 출력
 
+parent/target resolve와 postcondition/reconcile의 `/v1/search/` GET은 Phase 03
+`SharedRateLimiter`를 그대로 사용한다. command나 uploader에 별도 sleep, retry wrapper 또는 두
+번째 rate-limit state를 만들지 않는다. 429가 최종 실패하면 public JSON의 `retryAfterMs`와 exit
+code 8을 유지한다.
+
 postcondition은 upload 응답의 resource 정보가 충분하면 ID 기반 조회를 사용하고, 아니면 bounded
 exact resolve를 사용한다. 적어도 type=file과 size 일치를 확인한 후 성공을 반환한다.
 
@@ -105,12 +144,13 @@ CI 편차가 큰 경우 엄격한 byte snapshot 대신 10MB와 100MB 업로드�
 ```bash
 bun run check
 bun run build
+MYBOX_PAT=... bun run test:upload-probe
 MYBOX_PAT=... bun run test:integration
 ```
 
-실제 test는 0B, Unicode 소형 파일, 100MB 이상 파일, overwrite, interrupted resume를 포함한다.
-resume을 안전하게 재현할 수 없다면 그 항목은 미검증으로 handoff하고 phase 완료 조건을 충족하지
-못한 것으로 기록한다.
+`test:upload-probe`는 API-05/API-06과 resume 관련 API-08 증거가 없는 최초 1회와 upload
+protocol이 바뀔 때만 실행한다. 일반 반복 검증은 `test:integration`의 0B, Unicode 소형 파일,
+overwrite, interrupted resume acceptance를 사용한다.
 
 ## 완료 조건
 
@@ -120,6 +160,10 @@ resume을 안전하게 재현할 수 없다면 그 항목은 미검증으로 han
 - postcondition 확인 후에만 성공을 반환한다.
 - 100MB 이상 파일에서 bounded memory 증거가 있다.
 - signed upload URL이 test output과 fixture에 없다.
+- API-05 100MB streaming, API-06 non-zero resume와 resume 관련 API-08 `modifiedTime` 규칙이
+  confirmed 상태다.
+- resolve/reconcile 검색이 기존 공유 limiter를 통하며 별도 pacing 구현이 없다.
+- reservation/content mutation에 generic retry가 없다.
 
 ## Handoff
 
@@ -128,4 +172,6 @@ resume을 안전하게 재현할 수 없다면 그 항목은 미검증으로 han
 - file stability와 SIGINT cleanup 방식
 - large-file RSS 측정 결과
 - 실제 upload test resource cleanup 상태
+- targeted probe 실행 명령, sanitized 결과와 API ledger 위치
+- rate-limit slot/429/reconcile test 결과
 - check/build/integration 결과

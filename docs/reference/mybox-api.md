@@ -260,6 +260,25 @@ sliding window 또는 endpoint별 상세 동작은 확인하지 못했다.
 - 상태: blocked
 - 안전한 probe에서 `423`을 유발하지 않았고 해제/retry 특성을 확인하지 않았다.
 
+## 미확정 계약 해소 정책
+
+미확정 항목은 필요한 phase와 안전한 검증 방법을 기준으로 다음처럼 처리한다.
+
+| 항목                                     | 영향               | 해소 방법                                          |
+| ---------------------------------------- | ------------------ | -------------------------------------------------- |
+| API-05 100MB streaming                   | Phase 04 완료 차단 | `test:upload-probe`의 bounded-memory 전송          |
+| API-06 실제 interruption/non-zero resume | Phase 04 완료 차단 | `test:upload-probe`의 실제 중단·재예약·완료        |
+| API-08 resume용 `modifiedTime` 규칙      | Phase 04 완료 차단 | 같은 file identity의 literal/instant 재예약 비교   |
+| API-10 live `Retry-After` 형식           | 릴리스 비차단      | 자연 발생 시 sanitized 형식만 기록                 |
+| API-11 423 해제 특성                     | 릴리스 비차단      | 자연 발생하거나 실제 command가 요구할 때 별도 조사 |
+
+Phase 04는 API-05/API-06과 resume 관련 API-08을 targeted upload probe로 확정하기 전까지 완료할 수
+없다. API-10은 seconds, HTTP-date, invalid, absent fixture와 보수적 fallback으로 동작을 고정하므로
+live header 미관찰만으로 phase나 릴리스를 막지 않는다. API-11도 423을 고의로 유발하지 않는다.
+
+`test:contract` 전체 재실행은 endpoint/schema/upload protocol 변경 또는 API ledger와 모순되는
+관찰이 있을 때만 수행한다. 한두 항목의 미확정 계약은 해당 항목 전용 opt-in probe로 검증한다.
+
 ## 2026-08-23 rate-limit 관찰
 
 - `MYBOX_INTEGRATION=1 bun run test:integration` 실행에서 API contract test는 통과했다.
@@ -298,8 +317,9 @@ sliding window 또는 endpoint별 상세 동작은 확인하지 못했다.
 4. upload는 reservation과 storage content transfer를 분리한다. storage transfer는
    `POST multipart/form-data` + exact `Filedata` part + exact `Content-Length`이며 PAT를 전달하지
    않는다.
-5. 100MB bounded-memory probe, 실제 interruption resume, 429 `Retry-After`, 423 해제 특성은
-   미확정으로 남긴다. 이 미확정 항목을 추측하여 production contract를 확장하지 않는다.
+5. 100MB bounded-memory, 실제 interruption resume와 resume 관련 `modifiedTime`은 Phase 04 targeted
+   probe로 확인한다. 429 `Retry-After`와 423 해제 특성은 자연 관찰 전까지 미확정으로 남긴다. 이
+   항목들을 추측하여 production contract를 확장하지 않는다.
 
 ## 오류 mapping 초안
 

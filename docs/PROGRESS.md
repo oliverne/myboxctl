@@ -63,6 +63,14 @@ resource cleanup까지 완료됐다.
 후속 리뷰에서 Commander argument 오류도 JSON failure envelope와 exit 2를 사용하도록 보강했고,
 공식 검색 계약의 optional `resources`/`responseMetaData` 누락을 빈 검색 결과로 정규화했다.
 
+후속 phase 계획도 현재 rate-limit 및 probe 정책에 맞춰 갱신했다. Phase 04는 API-05 100MB
+streaming, API-06 실제 interruption/non-zero resume와 resume 관련 API-08 `modifiedTime` 규칙을
+targeted upload probe로 먼저 확정하며, 미확정이면 `blocked`다. Phase 05는 기존 search limiter와
+upload mutation 정책을 재사용하고, Phase 06은 같은 공유 state에 delete 60회/분 bucket과 동일
+resource ID 기반 429 reconcile을 추가한다. Phase 07은 교차 프로세스 state/lock/cooldown과 최종
+429 `retryAfterMs`/exit 8 계약을 검증한다. broad `test:contract`는 계약 변경이나 ledger 모순이
+있을 때만 다시 실행한다. 이 문서 갱신으로 phase 상태나 구현 상태가 바뀌지는 않았다.
+
 ## 상태 변경 규칙
 
 - phase를 시작할 때만 `pending → in_progress`로 변경한다.

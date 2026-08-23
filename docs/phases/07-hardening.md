@@ -26,12 +26,25 @@ flow를 완료한다.
 
 - DNS/network failure
 - timeout과 connection reset
-- 429 + Retry-After
+- search/delete 429 + `Retry-After` seconds/HTTP-date/invalid/absent
 - 500/502/503 retry exhaustion
 - mutation response lost + reconcile
 - SIGINT 중 list/upload/delete
 - stdout JSON 1개, stderr 분리, deterministic exit code
 - 어떤 실패에서도 token/signed URL 비노출
+
+rate-limit hardening은 다음을 별도 test로 고정한다.
+
+- search 10회/분과 delete 60회/분 sliding window
+- 두 limiter instance의 slot/`blockedUntil` 공유
+- 두 Bun child process가 같은 임시 state 파일과 atomic lock을 사용하는 동시 slot 예약
+- 오래된 빈 lock directory 복구와 active lock timeout의 fail-closed 동작
+- 손상된 state file의 `RATE_LIMIT_STATE_UNAVAILABLE`
+- 최종 429 JSON의 `retryAfterMs`, exit 8, stdout/stderr 계약
+- state/lock 파일에 PAT, query, request/response body가 없음
+
+교차 프로세스 test helper에는 짧은 test-only window policy를 constructor dependency로 주입한다.
+production runtime의 10/60회 기본값을 환경 변수로 낮추거나 우회하는 option은 추가하지 않는다.
 
 ### 3. CLI subprocess contract suite
 
@@ -67,6 +80,15 @@ MVP는 daemon/systemd service를 구현하지 않는다. AI 에이전트가 필�
 unique integration prefix에서 `PLAN.md`의 전체 흐름을 두 번 반복한다. 두 번째 실행에서도 이전
 실행의 resource가 결과를 오염시키지 않아야 한다.
 
+`test:integration`만 정기 acceptance에 포함한다. broad `test:contract`는 endpoint/schema/protocol이
+바뀌었거나 API ledger와 모순되는 관찰이 있을 때만 별도로 실행한다. Phase 04 targeted upload
+probe도 API-05/API-06과 resume 관련 API-08이 confirmed이고 protocol이 바뀌지 않았다면 다시
+실행하지 않는다.
+
+live `Retry-After`는 자연 발생할 때만 sanitized 형식을 기록한다. 실제 header를 관찰하지 못해도
+seconds/HTTP-date/invalid/absent fake-response test와 보수적 fallback이 통과하면 release를 막지
+않는다. 429를 확인하려고 의도적으로 호출 한도를 소진하지 않는다.
+
 ## 검증
 
 ```bash
@@ -86,6 +108,8 @@ Ubuntu 24.04 검증이 현재 환경에서 불가능하면 macOS 결과로 대�
 - Ubuntu Server 24.04 설치/실행 증거가 있다.
 - 100MB 이상 upload의 bounded memory 증거가 있다.
 - acceptance flow가 두 번 반복 통과한다.
+- search/delete limiter의 교차 프로세스 state, stale lock, 429 cooldown test가 통과한다.
+- 모든 command의 최종 429가 `retryAfterMs`와 exit 8 계약을 지킨다.
 - credential leak scan과 Git diff 검사가 통과한다.
 - README가 실제 설치/운영 절차와 일치한다.
 - `docs/PROGRESS.md`의 모든 phase가 `complete`다.
@@ -98,5 +122,7 @@ Ubuntu 24.04 검증이 현재 환경에서 불가능하면 macOS 결과로 대�
 - 전체 검증 명령과 환경, 결과
 - 실제 acceptance prefix와 cleanup 상태
 - 알려진 제한과 metadata 비교 한계
+- 실행한 targeted/broad probe와 다시 실행하지 않은 probe의 근거
+- search/delete bucket과 state/lock 운영 정보
 - 운영자가 알아야 할 retry/exit code
 - MVP 이후 후보와 명시적으로 제외된 기능
