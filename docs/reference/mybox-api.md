@@ -30,6 +30,18 @@ GET /v1/drive/resources?count=1000&cursor=...
 
 문서: <https://developers.mybox.naver.com/docs/dms_root>
 
+### 특정 폴더 내 목록
+
+```http
+GET /v1/drive/folders/{folderId}/resources?count=1000&cursor=...&sort=name,asc
+```
+
+- 특정 폴더 바로 아래의 파일/폴더 목록
+- cursor pagination
+- `count` 최대 1,000
+
+문서: <https://developers.mybox.naver.com/docs/dms_list>
+
 ### resource 속성
 
 ```http
@@ -139,14 +151,16 @@ DELETE /v1/drive/resources/{resourceId}
 
 ### API-01 — 하위 폴더 direct children 목록 endpoint
 
-- 상태: blocked
-- `GET /v1/drive/resources/{resourceId}/children`와
-  `GET /v1/drive/resources/{resourceId}/resources`는 모두 `404`를 반환했다.
-- 공개 문서에서 확인된 resource detail은 `fileCount`/`subFolderCount`만 제공하며 children 배열은
-  제공하지 않는다.
-- 따라서 direct-child endpoint를 production code에서 가정하지 않는다. `ls`의 exact direct-child
-  계약은 Phase 02에서 search 결과의 `parentPath` 필터로 별도 검증하거나, 검증되지 않으면 축소
-  범위/blocked로 유지한다.
+- 상태: confirmed
+- 공식 문서의 `GET /v1/drive/folders/{folderId}/resources`가 특정 폴더 바로 아래의 파일/폴더를
+  페이지 단위로 반환한다.
+- `count`는 최대 1,000이며 `cursor` pagination을 사용한다. 응답은 `resourceItem` 목록과
+  `fileCount`, `subFolderCount`, `responseMetaData`를 포함한다.
+- Phase 00에서 시도한 `/v1/drive/resources/{resourceId}/children` 및
+  `/v1/drive/resources/{resourceId}/resources`는 404였지만, 이는 공식 경로가 아니었다.
+- 문서: <https://developers.mybox.naver.com/docs/dms_list>
+- 구현 영향: `ls`는 nested folder를 exact resolve한 뒤 이 endpoint를 사용하고, `/`는 기존
+  root list endpoint를 사용한다.
 
 ### API-02 — 검색 기반 exact resolve 및 read-after-write
 
@@ -228,14 +242,14 @@ DELETE /v1/drive/resources/{resourceId}
 
 1. `stat`/parent resolve는 folder exact `path` search, file `q + parentPath` search 후
    `path`/`parentPath`/`name` exact filter를 사용한다.
-2. cursor가 있으면 read-only search/root 요청만 pagination한다. 검색 결과의 첫 항목을 무조건
+2. `ls`의 root는 root list endpoint, nested folder는 공식 direct-children endpoint를 사용한다.
+3. cursor가 있으면 read-only list/search 요청만 pagination한다. 검색 결과의 첫 항목을 무조건
    채택하지 않는다.
-3. upload는 reservation과 storage content transfer를 분리한다. storage transfer는
+4. upload는 reservation과 storage content transfer를 분리한다. storage transfer는
    `POST multipart/form-data` + exact `Filedata` part + exact `Content-Length`이며 PAT를 전달하지
    않는다.
-4. direct children endpoint, 100MB bounded-memory probe, 실제 interruption resume, 429
-   `Retry-After`, 423 해제 특성은 미확정으로 남긴다. 이 미확정 항목을 추측하여 production
-   contract를 확장하지 않는다.
+5. 100MB bounded-memory probe, 실제 interruption resume, 429 `Retry-After`, 423 해제 특성은
+   미확정으로 남긴다. 이 미확정 항목을 추측하여 production contract를 확장하지 않는다.
 
 ## 오류 mapping 초안
 

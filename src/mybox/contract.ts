@@ -26,7 +26,7 @@ export const searchResourceItemSchema = z
   .object({
     resourceId: nonEmptyString,
     name: nonEmptyString,
-    type: nonEmptyString,
+    type: nonEmptyString.optional(),
     parentId: nonEmptyString.optional(),
     path: nonEmptyString.optional(),
     parentPath: z.string().optional(),
@@ -59,8 +59,8 @@ export const resourceListResponseSchema = z
 
 export const searchResourceListResponseSchema = z
   .object({
-    resources: z.array(searchResourceItemSchema),
-    responseMetaData: responseMetaDataSchema,
+    resources: z.array(searchResourceItemSchema).default([]),
+    responseMetaData: responseMetaDataSchema.default({}),
     fileCount: nonNegativeNumber.optional(),
     subFolderCount: nonNegativeNumber.optional(),
   })

@@ -92,7 +92,8 @@ JSON에 넣지 않는다.
 }
 ```
 
-없는 경우 `action`은 `absent`, `data.resource`는 `null`이다.
+없는 경우 `action`은 `absent`, `data.resource`는 `null`이다. `/`는 원격 루트 폴더로
+표현하며 API에 루트 resource ID가 없으므로 `resourceId`를 만들지 않는다.
 
 ### `ls <remote-directory>`
 

@@ -42,6 +42,10 @@ type ListOptions = {
   cursor?: string;
 };
 
+type FolderListOptions = ListOptions & {
+  sort?: string;
+};
+
 export type SearchOptions = ListOptions & {
   q?: string;
   parentPath?: string;
@@ -250,6 +254,25 @@ export class MyboxClient {
     });
   }
 
+  async listFolderPage(
+    folderId: string,
+    options: FolderListOptions = {},
+  ): Promise<ResourceListResponse> {
+    const query: Record<string, string | number | undefined> = {
+      count: options.count ?? 1_000,
+    };
+    if (options.cursor !== undefined) {
+      query.cursor = options.cursor;
+    }
+    if (options.sort !== undefined) {
+      query.sort = options.sort;
+    }
+    return this.requestJson("GET", `/v1/drive/folders/${encodeURIComponent(folderId)}/resources`, {
+      query,
+      schema: resourceListResponseSchema,
+    });
+  }
+
   async searchFoldersPage(options: SearchOptions = {}): Promise<SearchResourceListResponse> {
     const query: Record<string, string | number | undefined> = {
       count: options.count ?? 200,
@@ -295,6 +318,34 @@ export class MyboxClient {
 
     for (let page = 0; page < MAX_PAGE_COUNT; page += 1) {
       const response = await this.listRootPage({ ...options, ...(cursor ? { cursor } : {}) });
+      resources.push(...response.resources);
+      const nextCursor = response.responseMetaData.nextCursor;
+      if (nextCursor === undefined || nextCursor === null || nextCursor.length === 0) {
+        return resources;
+      }
+      if (cursors.has(nextCursor)) {
+        throw apiResponseError("MYBOX returned a repeated pagination cursor.");
+      }
+      cursors.add(nextCursor);
+      cursor = nextCursor;
+    }
+
+    throw apiResponseError("MYBOX returned too many pagination pages.");
+  }
+
+  async listFolder(
+    folderId: string,
+    options: Omit<FolderListOptions, "cursor"> = {},
+  ): Promise<ResourceItem[]> {
+    const resources: ResourceItem[] = [];
+    const cursors = new Set<string>();
+    let cursor: string | undefined;
+
+    for (let page = 0; page < MAX_PAGE_COUNT; page += 1) {
+      const response = await this.listFolderPage(folderId, {
+        ...options,
+        ...(cursor ? { cursor } : {}),
+      });
       resources.push(...response.resources);
       const nextCursor = response.responseMetaData.nextCursor;
       if (nextCursor === undefined || nextCursor === null || nextCursor.length === 0) {

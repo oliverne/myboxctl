@@ -5,19 +5,19 @@
 
 ## 현재 상태
 
-- 현재 phase: `01-foundation`
+- 현재 phase: `02-read-commands`
 - 상태: `complete`
 - 다음 담당자: Luna
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
-- 마지막 갱신: 2026-08-22
+- 마지막 갱신: 2026-08-23
 
 ## Phase 상태
 
 | Phase               | 상태     | 완료 증거                                                                       | 문서                                                       |
 | ------------------- | -------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------- |
 | 00 API contract     | complete | contract test 4회 성공, resolver/upload 결과 및 미확정 항목을 API ledger에 기록 | [`phases/00-api-contract.md`](phases/00-api-contract.md)   |
-| 01 Foundation       | complete | config/error/output/client 및 fake HTTP test 통과, typecheck/lint/build 통과          | [`phases/01-foundation.md`](phases/01-foundation.md)       |
-| 02 Read commands    | pending  | 없음                                                                            | [`phases/02-read-commands.md`](phases/02-read-commands.md) |
+| 01 Foundation       | complete | config/error/output/client 및 fake HTTP test 통과, typecheck/lint/build 통과    | [`phases/01-foundation.md`](phases/01-foundation.md)       |
+| 02 Read commands    | complete | path/resolver/stat/ls 구현, fake HTTP/subprocess 및 실제 MYBOX smoke 통과       | [`phases/02-read-commands.md`](phases/02-read-commands.md) |
 | 03 Ensure directory | pending  | 없음                                                                            | [`phases/03-ensure-dir.md`](phases/03-ensure-dir.md)       |
 | 04 Upload           | pending  | 없음                                                                            | [`phases/04-upload.md`](phases/04-upload.md)               |
 | 05 Put              | pending  | 없음                                                                            | [`phases/05-put.md`](phases/05-put.md)                     |
@@ -41,7 +41,16 @@ prefix 존재를 확인했으며, resolver/upload 계약 및 미확정 항목을
 
 Phase 01 Foundation을 완료했다. config/PAT 보호, domain error와 exit code, JSON envelope/redaction,
 Zod 기반 API contract, GET 전용 retry/pagination transport, ephemeral fake HTTP server와 관련
-테스트를 추가했다. 명령 구현은 아직 시작하지 않았으며 다음 phase는 Phase 02 Read commands다.
+테스트를 추가했다.
+
+Phase 02 Read commands를 완료했다. POSIX remote path parser, exact search resolver, 공식 direct-child
+listing client, `stat`/`ls`와 JSON/human output을 추가했다. fake HTTP 및 subprocess test에서
+pagination, exact filtering, type conflict, absent 결과, deterministic ordering을 검증했고, 실제
+MYBOX의 root/nested/Unicode smoke와 opt-in integration contract test를 통과시켰다. 다음 phase는
+Phase 03 Ensure directory다.
+
+후속 리뷰에서 Commander argument 오류도 JSON failure envelope와 exit 2를 사용하도록 보강했고,
+공식 검색 계약의 optional `resources`/`responseMetaData` 누락을 빈 검색 결과로 정규화했다.
 
 ## 상태 변경 규칙
 

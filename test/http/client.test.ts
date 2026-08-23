@@ -75,6 +75,37 @@ describe("MyboxClient transport", () => {
     expect(server.requests[3]?.query.get("cursor")).toBe("cursor 2");
   });
 
+  test("lists a nested folder through the documented direct-children endpoint", async () => {
+    const server = await createFakeHttpServer([
+      { body: listPage([{ resourceId: "child-file", name: "report.txt", type: "file" }]) },
+    ]);
+    servers.push(server);
+    const client = new MyboxClient({ pat: "token", baseUrl: server.baseUrl, timeoutMs: 5_000 });
+
+    const resources = await client.listFolder("folder /한글", { sort: "name,asc" });
+
+    expect(resources.map((resource) => resource.resourceId)).toEqual(["child-file"]);
+    expect(server.requests[0]?.path).toBe(
+      "/v1/drive/folders/folder%20%2F%ED%95%9C%EA%B8%80/resources",
+    );
+    expect(server.requests[0]?.query.get("count")).toBe("1000");
+    expect(server.requests[0]?.query.get("sort")).toBe("name,asc");
+  });
+
+  test("paginates direct-folder children and preserves the cursor query", async () => {
+    const server = await createFakeHttpServer([
+      { body: listPage([{ resourceId: "folder-1", name: "one", type: "folder" }], "child-next") },
+      { body: listPage([{ resourceId: "file-2", name: "two.txt", type: "file" }]) },
+    ]);
+    servers.push(server);
+    const client = new MyboxClient({ pat: "token", baseUrl: server.baseUrl, timeoutMs: 5_000 });
+
+    const resources = await client.listFolder("folder-1");
+
+    expect(resources.map((resource) => resource.resourceId)).toEqual(["folder-1", "file-2"]);
+    expect(server.requests[1]?.query.get("cursor")).toBe("child-next");
+  });
+
   test("does not retry mutations", async () => {
     const server = await createFakeHttpServer([
       { status: 503, body: { code: "PLAT-503", message: "temporary" } },

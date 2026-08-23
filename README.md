@@ -4,8 +4,9 @@
 로컬 AI 에이전트 등 자동화된 호출자가 subprocess와 JSON으로 안정적으로 사용할 수 있도록 하는 것을
 우선하며, 양방향 sync는 제공하지 않는다.
 
-현재 Phase 01 Foundation까지 구현했다. 명령 구현 상태와 다음 작업은
-[`docs/PROGRESS.md`](docs/PROGRESS.md), [`docs/HANDOFF.md`](docs/HANDOFF.md)를 확인한다.
+현재 Phase 02 Read commands까지 구현했다. 원격 경로의 exact `stat`과 direct-child `ls`를
+제공하며, 명령 구현 상태와 다음 작업은 [`docs/PROGRESS.md`](docs/PROGRESS.md),
+[`docs/HANDOFF.md`](docs/HANDOFF.md)를 확인한다.
 
 ## 요구사항
 
@@ -19,6 +20,8 @@ bun install
 bun run check
 bun run build
 bun run dev -- --help
+bun run dev -- stat /agents/output/report.md --json
+bun run dev -- ls /agents/output --json
 ```
 
 실제 PAT는 `.env` 또는 배포 환경의 secret 파일로 전달하고 커밋하지 않는다.

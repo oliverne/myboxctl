@@ -32,7 +32,7 @@ describe("MYBOX response schemas", () => {
 
   test("distinguishes search resources from the full root resource contract", () => {
     const result = searchResourceListResponseSchema.safeParse({
-      resources: [{ resourceId: "resource-1", name: "report.md", type: "file" }],
+      resources: [{ resourceId: "resource-1", name: "report.md" }],
       responseMetaData: { nextCursor: "" },
     });
     expect(result.success).toBe(true);
@@ -40,6 +40,13 @@ describe("MYBOX response schemas", () => {
       resourceItemSchema.safeParse({ resourceId: "resource-1", name: "report.md", type: "file" })
         .success,
     ).toBe(false);
+  });
+
+  test("normalizes omitted optional search envelope fields", () => {
+    expect(searchResourceListResponseSchema.parse({})).toEqual({
+      resources: [],
+      responseMetaData: {},
+    });
   });
 
   test("rejects malformed reservation responses", () => {
