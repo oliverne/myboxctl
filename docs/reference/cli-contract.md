@@ -47,12 +47,14 @@ type Failure = {
     retryable: boolean;
     code?: string;
     requestId?: string;
+    retryAfterMs?: number;
   };
 };
 ```
 
 `message`는 비밀정보를 포함하지 않는 안정적인 설명이다. stack trace와 raw response body를
-JSON에 넣지 않는다.
+JSON에 넣지 않는다. `retryAfterMs`는 429 응답에서 다음 시도까지 기다려야 할 상대 시간이며,
+서버 header가 없을 때는 CLI의 보수적인 fallback 값이다.
 
 ## Exit code
 
@@ -122,7 +124,10 @@ point 기준 이름 오름차순으로 CLI에서 고정한다. API 응답 순서
 - 전부 존재: `action: "existing"`
 - 중간 component가 file: exit 5
 
-`data`에는 normalized `path`, 최종 `resourceId`, `createdPaths: string[]`를 반환한다.
+`data`에는 normalized `path`, 최종 folder `resourceId`, `createdPaths: string[]`를 반환한다.
+루트 `/`는 API resource ID가 없으므로 `resourceId: null`, `createdPaths: []`를 반환한다.
+`createdPaths`에는 이번 실행에서 성공한 create 요청의 경로만 포함한다. 동시 생성 race를
+reconcile한 경우에는 상태를 안전하게 `existing`으로 보고한다.
 
 ### `upload <local-path> <remote-path>`
 

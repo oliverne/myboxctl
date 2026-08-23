@@ -45,6 +45,7 @@ myboxctl delete /agents/output/old-report.md --json
 - `put`은 원격 파일이 명확히 더 최신이면 기본적으로 conflict를 반환한다.
 - 원격 최신 파일을 포함해 반드시 덮어써야 할 때만 `--force`를 사용한다.
 - 변경 요청은 공통 fetch retry로 재실행하지 않고 operation별 reconcile/resume 정책을 사용한다.
+- 검색 요청은 문서상 최저 한도인 10회/분을 기본값으로 프로세스 간 공유 조정한다.
 - 실제 API 사실은 공식 문서 또는 재현 가능한 integration test로만 확정한다.
 
 상세 근거와 의존성 방향은 [`docs/architecture/overview.md`](docs/architecture/overview.md),
@@ -110,6 +111,7 @@ phase만 `in_progress`일 수 있다. phase 완료는 코드 작성 여부가 �
 - 이미 존재하는 폴더의 idempotent 성공
 - 파일/폴더 type conflict
 - 동시 생성 409 후 재조회/reconcile
+- 검색 호출량 최적화와 프로세스 간 10회/분 sliding-window 조정
 
 ### Phase 04 — `upload`
 
@@ -145,6 +147,7 @@ phase만 `in_progress`일 수 있다. phase 완료는 코드 작성 여부가 �
 
 - Unicode/한글/특수문자/빈 파일/대용량 파일
 - timeout, 429, API 장애, SIGINT
+- endpoint별 rate-limit bucket 확장 여부와 운영 설정 검토
 - CLI subprocess contract test
 - Ubuntu Server 24.04 설치 및 운영 문서
 - 실제 MYBOX acceptance test

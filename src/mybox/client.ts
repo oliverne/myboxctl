@@ -15,6 +15,13 @@ import {
   type SearchResourceListResponse,
   searchResourceListResponseSchema,
 } from "./contract.ts";
+import {
+  fallbackRateLimitDelayMs,
+  noOpRateLimiter,
+  parseRetryAfterMs,
+  type RequestRateLimiter,
+  SEARCH_WINDOW_MS,
+} from "./rate-limit.ts";
 
 export const MAX_PAGE_COUNT = 1_000;
 export const MAX_ATTEMPTS = 4;
@@ -29,6 +36,7 @@ export type ClientDependencies = {
   fetch: typeof globalThis.fetch;
   sleep: (ms: number) => Promise<void>;
   random: () => number;
+  rateLimiter: RequestRateLimiter;
 };
 
 type RequestOptions<T> = {
@@ -70,29 +78,11 @@ const defaultDependencies: ClientDependencies = {
   fetch: globalThis.fetch,
   sleep: (ms) => Bun.sleep(ms),
   random: () => Math.random(),
+  rateLimiter: noOpRateLimiter,
 };
 
-function isRetryableStatus(status: number): boolean {
-  return [429, 500, 502, 503].includes(status);
-}
-
-function retryAfterMs(headers: Headers): number | undefined {
-  const value = headers.get("Retry-After");
-  if (value === null) {
-    return undefined;
-  }
-
-  const seconds = Number(value.trim());
-  if (Number.isFinite(seconds) && seconds >= 0) {
-    return seconds * 1_000;
-  }
-
-  const retryAt = Date.parse(value);
-  if (Number.isFinite(retryAt)) {
-    return Math.max(0, retryAt - Date.now());
-  }
-
-  return undefined;
+function isRetryableServiceStatus(status: number): boolean {
+  return [500, 502, 503].includes(status);
 }
 
 function retryBackoffMs(attempt: number, random: () => number): number {
@@ -168,12 +158,15 @@ export class MyboxClient {
       body = JSON.stringify(options.body);
     }
 
-    const response = await this.dependencies.fetch(this.url(path, options.query), {
+    const request = { method, url: this.url(path, options.query) };
+    await this.dependencies.rateLimiter.beforeRequest(request);
+    const response = await this.dependencies.fetch(request.url, {
       method,
       headers,
       body,
       signal: AbortSignal.timeout(this.config.timeoutMs),
     });
+    await this.dependencies.rateLimiter.recordResponse(request, response);
     return { response, body: await bodyFromResponse(response) };
   }
 
@@ -182,6 +175,7 @@ export class MyboxClient {
     const options: {
       code?: string;
       requestId?: string;
+      retryAfterMs?: number;
       cause?: unknown;
     } = {};
     if (parsed.success) {
@@ -190,17 +184,25 @@ export class MyboxClient {
         options.requestId = parsed.data.requestId;
       }
     }
+    if (response.status === 429) {
+      options.retryAfterMs =
+        parseRetryAfterMs(response.headers) ?? fallbackRateLimitDelayMs(this.dependencies.random);
+    }
     return domainErrorForHttp(response.status, options);
   }
 
   async requestJson<T>(method: string, path: string, options: RequestOptions<T> = {}): Promise<T> {
     const isGet = method.toUpperCase() === "GET";
+    let rateLimitRetries = 0;
 
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
       let result: { response: Response; body: unknown };
       try {
         result = await this.requestOnce(method, path, options);
       } catch (error) {
+        if (error instanceof DomainError) {
+          throw error;
+        }
         if (isGet && attempt < MAX_ATTEMPTS - 1) {
           await this.dependencies.sleep(retryBackoffMs(attempt, this.dependencies.random));
           continue;
@@ -211,11 +213,17 @@ export class MyboxClient {
 
       if (result.response.status < 200 || result.response.status >= 300) {
         const mapped = this.parseError(result.response, result.body);
-        if (isGet && isRetryableStatus(result.response.status) && attempt < MAX_ATTEMPTS - 1) {
-          await this.dependencies.sleep(
-            retryAfterMs(result.response.headers) ??
-              retryBackoffMs(attempt, this.dependencies.random),
-          );
+        if (isGet && result.response.status === 429 && rateLimitRetries < 1) {
+          rateLimitRetries += 1;
+          await this.dependencies.sleep(mapped.retryAfterMs ?? SEARCH_WINDOW_MS);
+          continue;
+        }
+        if (
+          isGet &&
+          isRetryableServiceStatus(result.response.status) &&
+          attempt < MAX_ATTEMPTS - 1
+        ) {
+          await this.dependencies.sleep(retryBackoffMs(attempt, this.dependencies.random));
           continue;
         }
         throw mapped;

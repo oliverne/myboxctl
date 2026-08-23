@@ -122,6 +122,26 @@ DELETE /v1/drive/resources/{resourceId}
 
 문서: <https://developers.mybox.naver.com/docs/files_delete>
 
+### API 사용 한도와 429
+
+공식 Getting Started 문서의 `4. API 사용 한도`에 요금제별 호출 한도가 명시되어 있다.
+
+| API      | 30GB     | 80GB       | 180GB ~ 330GB      | 2TB                | 5TB                | 10TB               | 20TB               |
+| -------- | -------- | ---------- | ------------------ | ------------------ | ------------------ | ------------------ | ------------------ |
+| 다운로드 | 500회/일 | 1,000회/일 | 1,000회/일         | 2,000회/일         | 5,000회/일         | 20,000회/일        | 50,000회/일        |
+| 검색     | 10회/분  | 10회/분    | 30회/분            | 30회/분            | 30회/분            | 30회/분            | 30회/분            |
+| 삭제     | 60회/분  | 60회/분    | API 1개당 240회/분 | API 1개당 240회/분 | API 1개당 240회/분 | API 1개당 240회/분 | API 1개당 240회/분 |
+
+문서에는 복원 및 그 외 기능도 별도 한도로 기재되어 있으며, API별 분당 한도는 매분,
+일일 한도는 매일 갱신된다고 설명한다. 또한 단시간 대량 호출이나 abuse가 감지되면 사전
+경고 없이 서비스 이용이 제한될 수 있다고 명시한다.
+
+공식 endpoint 문서의 오류 표에는 `429 / PLAT-429 / TOO_MANY_REQUESTS`가 포함되어 있다.
+그러나 공식 문서에서 429의 정확한 `Retry-After` 헤더 형식, 제한 기준(PAT/account/IP),
+sliding window 또는 endpoint별 상세 동작은 확인하지 못했다.
+
+문서: <https://developers.mybox.naver.com/getting-started>
+
 ## Phase 00에서 확인할 계약
 
 아래 항목은 확인 전까지 production code에 고정하지 않는다.
@@ -232,11 +252,41 @@ DELETE /v1/drive/resources/{resourceId}
 - 초기 probe 과정에서 자연적으로 `429 PLAT-429`가 발생했으나 의도적인 과부하는 유발하지 않았다.
 - 해당 응답의 `Retry-After` 값을 별도로 보존하지 못했으므로 header 형식은 미확정이다. GET에는
   operation-specific backoff를 적용하되, mutation을 generic retry하지 않는다.
+- production 기본 정책은 검색 10회/분 sliding window, header 우선, header가 없으면 60초 + jitter,
+  GET 1회 재시도다. 이는 실제 header 계약 확정이 아니라 공식 최저 한도에 맞춘 보수적 정책이다.
 
 ### API-11 — 423 locked
 
 - 상태: blocked
 - 안전한 probe에서 `423`을 유발하지 않았고 해제/retry 특성을 확인하지 않았다.
+
+## 2026-08-23 rate-limit 관찰
+
+- `MYBOX_INTEGRATION=1 bun run test:integration` 실행에서 API contract test는 통과했다.
+- 이어진 `ensure-dir` acceptance test의 첫 CLI 호출은 `429 / PLAT-429`를 받아 exit code `8`로
+  종료했다.
+- `sleep 45` 후 `MYBOX_INTEGRATION=1 bun test test/integration/ensure-dir.test.ts`를 단독 실행했을
+  때는 Unicode 계층 생성, 두 번째 호출의 `existing`, cleanup이 모두 통과했다.
+- 위 실행 순서와 결과는 API contract suite의 요청량과 rate limit 응답이 함께 관찰된 사실이다.
+  다만 이 관찰만으로 제한의 직접 원인이 특정 endpoint인지, 요금제 한도인지, PAT/account/IP 중
+  어떤 기준인지 단정할 수 없다.
+- rate limit 응답에서 `Retry-After` 값을 별도로 보존하지 않았으므로 실제 대기 시간과 헤더 동작은
+  여전히 미확정이다.
+- test prefix `/myboxctl-integration-test/`를 재조회했을 때 남은 resource는 없었다.
+
+## 2026-08-23 rate-limit 대응 검증
+
+- 검색 GET을 origin별 10회/분 sliding window로 조정하고 local state를 CLI process 간 공유한다.
+- `Retry-After`는 seconds와 HTTP-date를 상한 없이 처리한다. header가 없으면 60초 + jitter를
+  적용하고 GET은 한 번만 재시도한다.
+- Phase 00 contract probe는 `bun run test:contract`, command acceptance는
+  `bun run test:integration`으로 분리했다.
+- 변경 후 `bun run test:integration`은 contract 3건을 skip하고 ensure-dir acceptance 1건을
+  통과했다. Unicode 계층 생성, 두 번째 호출의 `existing`, exact resource cleanup이 성공했다.
+- 전체 실행은 60.96초였고 acceptance test body는 2.05초였다. 공유 window가 남은 검색 slot을
+  기다렸지만 429는 발생하지 않았다.
+- 이 실행에서도 live `Retry-After`는 관찰하지 않았으므로 API-10의 실제 header 형식은 계속
+  미확정이다.
 
 ## Phase 00 resolver/upload 결정
 

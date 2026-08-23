@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { createFakeHttpServer, type FakeHttpServer, type RecordedRequest } from "../http/server.ts";
 
@@ -46,6 +48,10 @@ async function runCli(
       MYBOX_PAT: "test-pat",
       MYBOX_BASE_URL: baseUrl,
       MYBOX_TIMEOUT_MS: "5000",
+      MYBOX_RATE_LIMIT_STATE_PATH: join(
+        tmpdir(),
+        `myboxctl-cli-rate-limit-${crypto.randomUUID()}.json`,
+      ),
     },
     stdout: "pipe",
     stderr: "pipe",
@@ -176,7 +182,7 @@ describe("read command subprocess contract", () => {
         },
       },
     });
-    expect(server.requests[3]?.query.get("parentPath")).toBe("/reports");
+    expect(server.requests[2]?.query.get("parentPath")).toBe("/reports");
   });
 
   test("ls uses direct-child pagination and deterministic folder-first ordering", async () => {

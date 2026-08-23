@@ -29,7 +29,7 @@ client를 설계한다.
 
 ### 1. 안전장치부터 작성
 
-- `MYBOX_INTEGRATION === "1"`이 아니면 전체 suite를 skip한다.
+- `MYBOX_CONTRACT === "1"`이 아니면 전체 suite를 skip한다.
 - PAT가 없으면 명확한 skip 또는 사전 조건 실패를 반환한다.
 - 실행마다 `/myboxctl-integration-test/<timestamp>-<random>/`를 생성한다.
 - cleanup 함수는 생성한 exact `resourceId`만 삭제하고 root/prefix parent는 삭제하지 않는다.
@@ -84,7 +84,7 @@ Bun stream을 사용하되, 실패했다고 파일 전체 `arrayBuffer()`를 pro
 
 ```bash
 bun run check
-MYBOX_PAT=... bun run test:integration
+MYBOX_PAT=... bun run test:contract
 ```
 
 같은 핵심 contract test를 최소 2회 실행하여 cleanup과 반복 가능성을 확인한다.

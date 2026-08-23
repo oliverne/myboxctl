@@ -28,6 +28,7 @@ export type FailureError = {
   retryable: boolean;
   code?: string;
   requestId?: string;
+  retryAfterMs?: number;
 };
 
 export type FailureEnvelope = {

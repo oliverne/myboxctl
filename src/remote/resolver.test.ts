@@ -43,7 +43,6 @@ describe("RemoteResolver", () => {
         { resourceId: "folder-foo", name: "foo", type: "folder", path: "/foo" },
         { resourceId: "wrong-folder", name: "foo", type: "folder", path: "/foobar" },
       ]),
-      searchPage([{ resourceId: "wrong-file", name: "foo", type: "file", path: "/other/foo" }]),
       searchPage(
         [
           {
@@ -86,14 +85,13 @@ describe("RemoteResolver", () => {
     }
     expect(server.requests.map((request) => request.path)).toEqual([
       "/v1/search/resources/folders",
-      "/v1/search/resources/files",
       "/v1/search/resources/folders",
       "/v1/search/resources/folders",
       "/v1/search/resources/files",
     ]);
-    expect(server.requests[4]?.query.get("q")).toBe("bar.txt");
-    expect(server.requests[4]?.query.get("parentPath")).toBe("/foo");
-    expect(server.requests[3]?.query.get("cursor")).toBe("next");
+    expect(server.requests[3]?.query.get("q")).toBe("bar.txt");
+    expect(server.requests[3]?.query.get("parentPath")).toBe("/foo");
+    expect(server.requests[2]?.query.get("cursor")).toBe("next");
   });
 
   test("returns absent for a candidate without enough optional path evidence", async () => {
@@ -105,6 +103,22 @@ describe("RemoteResolver", () => {
     const resolver = resolverFor(server);
 
     await expect(resolver.resolve("/report.md")).resolves.toMatchObject({ kind: "absent" });
+  });
+
+  test("resolves an existing folder without spending a file search request", async () => {
+    const server = await createFakeHttpServer([
+      searchPage([{ resourceId: "folder-1", name: "reports", type: "folder", path: "/reports" }]),
+    ]);
+    servers.push(server);
+    const resolver = resolverFor(server);
+
+    await expect(resolver.resolveFolderExact("/reports")).resolves.toMatchObject({
+      kind: "found",
+      resource: { resourceId: "folder-1", type: "folder" },
+    });
+    expect(server.requests.map((request) => request.path)).toEqual([
+      "/v1/search/resources/folders",
+    ]);
   });
 
   test("reports a file used as an intermediate directory as a conflict", async () => {

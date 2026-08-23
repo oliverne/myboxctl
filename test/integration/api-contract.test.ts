@@ -24,10 +24,10 @@ import {
 
 const PREFIX_PATH = "/myboxctl-integration-test/";
 const FIXTURE_PATH = "test/fixtures/mybox/api-contract.latest.json";
-const integrationEnabled = process.env.MYBOX_INTEGRATION === "1" && Boolean(process.env.MYBOX_PAT);
+const integrationEnabled = process.env.MYBOX_CONTRACT === "1" && Boolean(process.env.MYBOX_PAT);
 const describeIntegration = integrationEnabled ? describe : describe.skip;
 if (integrationEnabled) {
-  setDefaultTimeout(60_000);
+  setDefaultTimeout(600_000);
 }
 
 type IntegrationContext = {

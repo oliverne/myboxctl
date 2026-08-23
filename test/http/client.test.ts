@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 
+import { DomainError } from "../../src/errors.ts";
 import { MyboxClient } from "../../src/mybox/client.ts";
 import { createFakeHttpServer, type FakeHttpServer } from "./server.ts";
 
@@ -43,7 +44,7 @@ describe("MyboxClient transport", () => {
       { status: 503, body: { code: "PLAT-503", message: "temporary" } },
       {
         status: 429,
-        headers: { "Retry-After": "2" },
+        headers: { "Retry-After": "45" },
         body: { code: "PLAT-429", message: "slow down" },
       },
       {
@@ -66,7 +67,7 @@ describe("MyboxClient transport", () => {
     const resources = await client.listRoot({ count: 1 });
 
     expect(resources.map((resource) => resource.resourceId)).toEqual(["folder-1", "file-1"]);
-    expect(sleeps).toEqual([500, 2_000]);
+    expect(sleeps).toEqual([500, 45_000]);
     expect(server.requests).toHaveLength(4);
     expect(server.requests[0]?.method).toBe("GET");
     expect(server.requests[0]?.query.get("count")).toBe("1");
@@ -127,6 +128,58 @@ describe("MyboxClient transport", () => {
     });
     expect(server.requests).toHaveLength(1);
     expect(sleeps).toEqual([]);
+  });
+
+  test("waits one conservative window and retries a GET 429 only once without Retry-After", async () => {
+    const server = await createFakeHttpServer([
+      { status: 429, body: { code: "PLAT-429", message: "slow down" } },
+      { status: 429, body: { code: "PLAT-429", message: "still limited" } },
+      { body: listPage([]) },
+    ]);
+    servers.push(server);
+    const sleeps: number[] = [];
+    const client = new MyboxClient(
+      { pat: "token", baseUrl: server.baseUrl, timeoutMs: 5_000 },
+      {
+        sleep: async (ms) => {
+          sleeps.push(ms);
+        },
+        random: () => 0,
+      },
+    );
+
+    await expect(client.listRootPage()).rejects.toMatchObject({
+      kind: "rate-limit",
+      retryable: true,
+      retryAfterMs: 60_000,
+    });
+    expect(server.requests).toHaveLength(2);
+    expect(sleeps).toEqual([60_000]);
+  });
+
+  test("preserves a local rate-limit state failure instead of retrying it as a network error", async () => {
+    const server = await createFakeHttpServer();
+    servers.push(server);
+    const client = new MyboxClient(
+      { pat: "token", baseUrl: server.baseUrl, timeoutMs: 5_000 },
+      {
+        rateLimiter: {
+          beforeRequest: async () => {
+            throw new DomainError("api-unavailable", "rate state failed", {
+              code: "RATE_LIMIT_STATE_UNAVAILABLE",
+              retryable: true,
+            });
+          },
+          recordResponse: async () => undefined,
+        },
+      },
+    );
+
+    await expect(client.listRootPage()).rejects.toMatchObject({
+      kind: "api-unavailable",
+      code: "RATE_LIMIT_STATE_UNAVAILABLE",
+    });
+    expect(server.requests).toHaveLength(0);
   });
 
   test("maps a schema mismatch to api-unavailable without raw Zod details", async () => {

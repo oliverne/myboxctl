@@ -45,6 +45,7 @@ export type DomainErrorOptions = {
   requestId?: string;
   retryable?: boolean;
   status?: number;
+  retryAfterMs?: number;
   cause?: unknown;
 };
 
@@ -54,6 +55,7 @@ export class DomainError extends Error {
   readonly code?: string;
   readonly requestId?: string;
   readonly status?: number;
+  readonly retryAfterMs?: number;
 
   constructor(kind: ErrorKind, message: string, options: DomainErrorOptions = {}) {
     super(redactSensitiveText(message), { cause: options.cause });
@@ -69,6 +71,9 @@ export class DomainError extends Error {
     if (options.status !== undefined) {
       this.status = options.status;
     }
+    if (options.retryAfterMs !== undefined) {
+      this.retryAfterMs = options.retryAfterMs;
+    }
   }
 
   toJSON(): {
@@ -77,6 +82,7 @@ export class DomainError extends Error {
     retryable: boolean;
     code?: string;
     requestId?: string;
+    retryAfterMs?: number;
   } {
     const result: {
       kind: ErrorKind;
@@ -84,6 +90,7 @@ export class DomainError extends Error {
       retryable: boolean;
       code?: string;
       requestId?: string;
+      retryAfterMs?: number;
     } = {
       kind: this.kind,
       message: this.message,
@@ -94,6 +101,9 @@ export class DomainError extends Error {
     }
     if (this.requestId !== undefined) {
       result.requestId = redactSensitiveText(this.requestId);
+    }
+    if (this.retryAfterMs !== undefined) {
+      result.retryAfterMs = this.retryAfterMs;
     }
     return result;
   }
@@ -132,7 +142,13 @@ function apiErrorMessage(status: number): string {
 
 export function domainErrorForHttp(
   status: number,
-  options: { code?: string; requestId?: string; retryable?: boolean; cause?: unknown } = {},
+  options: {
+    code?: string;
+    requestId?: string;
+    retryable?: boolean;
+    retryAfterMs?: number;
+    cause?: unknown;
+  } = {},
 ): DomainError {
   let kind: ErrorKind;
   switch (status) {
@@ -174,6 +190,9 @@ export function domainErrorForHttp(
   }
   if (options.cause !== undefined) {
     errorOptions.cause = options.cause;
+  }
+  if (options.retryAfterMs !== undefined) {
+    errorOptions.retryAfterMs = options.retryAfterMs;
   }
   return new DomainError(kind, apiErrorMessage(status), errorOptions);
 }

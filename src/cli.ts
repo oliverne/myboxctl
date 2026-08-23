@@ -3,6 +3,7 @@
 import { Command, CommanderError } from "commander";
 
 import { DomainError, normalizeError } from "./errors.ts";
+import { runEnsureDir } from "./features/ensure-dir.ts";
 import { runLs } from "./features/ls.ts";
 import { runStat } from "./features/stat.ts";
 import { exitCodeForError, redactSecrets, writeFailure, writeSuccess } from "./output.ts";
@@ -19,7 +20,7 @@ function displayValue(value: unknown): string {
 }
 
 function writeCommandSuccess(
-  command: "stat" | "ls",
+  command: "stat" | "ls" | "ensure-dir",
   result: { action: string; data: unknown },
   options: OutputOptions,
 ): void {
@@ -40,12 +41,24 @@ function writeCommandSuccess(
     return;
   }
 
-  const resources = (result.data as { resources: Array<Record<string, unknown>> }).resources;
-  for (const resource of resources) {
-    process.stdout.write(
-      `${displayValue(resource.type)}\t${displayValue(resource.path)}\t${displayValue(resource.size ?? "-")}\t${displayValue(resource.modifiedAt ?? "-")}\n`,
-    );
+  if (command === "ls") {
+    const resources = (result.data as { resources: Array<Record<string, unknown>> }).resources;
+    for (const resource of resources) {
+      process.stdout.write(
+        `${displayValue(resource.type)}\t${displayValue(resource.path)}\t${displayValue(resource.size ?? "-")}\t${displayValue(resource.modifiedAt ?? "-")}\n`,
+      );
+    }
+    return;
   }
+
+  const data = result.data as {
+    path: string;
+    resourceId: string | null;
+    createdPaths: string[];
+  };
+  process.stdout.write(
+    `${displayValue(result.action)}\t${displayValue(data.path)}\t${displayValue(data.resourceId ?? "-")}\t${displayValue(data.createdPaths.join(",") || "-")}\n`,
+  );
 }
 
 function addJsonOption(command: Command): Command {
@@ -81,6 +94,18 @@ export function createProgram(runtimeFactory: RuntimeFactory = createRuntime): C
         const runtime = await runtimeFactory();
         const result = await runLs(remotePath, runtime.resolver);
         writeCommandSuccess("ls", result, options);
+      }),
+  );
+
+  addJsonOption(
+    program
+      .command("ensure-dir")
+      .description("Create a remote directory hierarchy if it is missing")
+      .argument("<remote-directory>")
+      .action(async (remotePath: string, options: OutputOptions) => {
+        const runtime = await runtimeFactory();
+        const result = await runEnsureDir(remotePath, runtime.resolver);
+        writeCommandSuccess("ensure-dir", result, options);
       }),
   );
 

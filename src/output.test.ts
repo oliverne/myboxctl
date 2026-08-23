@@ -80,4 +80,21 @@ describe("JSON output", () => {
       error: { kind: "invalid-arguments" },
     });
   });
+
+  test("exposes a safe retry delay for rate-limit callers", () => {
+    const output = JSON.parse(
+      renderFailure(
+        "stat",
+        new DomainError("rate-limit", "MYBOX rate limit was exceeded.", {
+          retryable: true,
+          retryAfterMs: 60_000,
+        }),
+      ),
+    );
+    expect(output.error).toMatchObject({
+      kind: "rate-limit",
+      retryable: true,
+      retryAfterMs: 60_000,
+    });
+  });
 });

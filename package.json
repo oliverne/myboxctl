@@ -20,6 +20,7 @@
     "format:md": "prettier --write \"**/*.md\"",
     "test": "bun test",
     "test:integration": "MYBOX_INTEGRATION=1 bun test test/integration",
+    "test:contract": "MYBOX_CONTRACT=1 bun test test/integration/api-contract.test.ts",
     "check": "bun run typecheck && bun run lint && bun test"
   },
   "dependencies": {

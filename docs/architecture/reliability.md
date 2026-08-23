@@ -29,8 +29,26 @@ local state DB나 hash 동기화를 추가하지 않는다.
 - GET 요청의 network timeout, connection reset, 429, 500, 502, 503
 - 재사용 가능하다고 실제 계약으로 확인된 read-only 요청
 
-기본 최대 attempt는 최초 요청을 포함해 4회다. delay는 500ms, 1s, 2s에 jitter를 더한다.
-서버가 `Retry-After`를 제공하면 이를 우선한다. sleep과 random 함수는 테스트에서 주입한다.
+network/5xx의 기본 최대 attempt는 최초 요청을 포함해 4회다. delay는 500ms, 1s, 2s에 jitter를
+더한다. 429는 이 짧은 backoff와 분리한다. 서버가 `Retry-After`를 제공하면 그대로 우선하고,
+없으면 60초에 최대 1초 jitter를 더한 뒤 GET을 한 번만 재시도한다. sleep과 random 함수는
+테스트에서 주입한다.
+
+### 검색 API budget
+
+검색은 가장 낮은 요금제의 공식 한도인 10회/분을 안전한 기본값으로 사용한다. 각 CLI process의
+메모리만으로는 여러 로컬 AI 에이전트를 조정할 수 없으므로 최근 검색 요청 시각과 429
+`blockedUntil`을 local state 파일에 저장한다. sliding window slot 예약과 상태 갱신은 atomic
+directory lock 아래에서 수행한다.
+
+- 기본 경로: `${XDG_STATE_HOME}/myboxctl/rate-limit.json`
+- XDG 미설정 시: 사용자 local state 디렉터리 아래 `myboxctl/rate-limit.json`
+- override: `MYBOX_RATE_LIMIT_STATE_PATH`
+- bucket key: MYBOX API origin과 `search`
+- 저장 금지: PAT, Authorization, URL query, request/response body
+
+현재는 공식 한도와 실제 사용이 확인된 `/v1/search/` GET만 선제 조정한다. delete/download/other
+bucket은 해당 command를 구현하면서 문서상 한도와 실제 호출 형태를 확인한 뒤 추가한다.
 
 ### operation별 처리
 

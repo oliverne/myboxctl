@@ -45,8 +45,10 @@ describe("domain errors", () => {
   });
 
   test("marks rate limits and transient API statuses retryable", () => {
-    expect(domainErrorForHttp(429).kind).toBe("rate-limit");
-    expect(domainErrorForHttp(429).retryable).toBe(true);
+    const error = domainErrorForHttp(429, { retryAfterMs: 60_000 });
+    expect(error.kind).toBe("rate-limit");
+    expect(error.retryable).toBe(true);
+    expect(error.toJSON().retryAfterMs).toBe(60_000);
     expect(domainErrorForHttp(503).kind).toBe("api-unavailable");
     expect(domainErrorForHttp(503).retryable).toBe(true);
     expect(domainErrorForHttp(409).retryable).toBe(false);

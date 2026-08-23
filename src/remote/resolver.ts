@@ -1,6 +1,11 @@
 import { apiResponseError, DomainError } from "../errors.ts";
-import type { MyboxClient } from "../mybox/client.ts";
-import type { ResourceDetail, ResourceItem, SearchResourceItem } from "../mybox/contract.ts";
+import type { CreateFolderInput, MyboxClient } from "../mybox/client.ts";
+import type {
+  CreateFolderResponse,
+  ResourceDetail,
+  ResourceItem,
+  SearchResourceItem,
+} from "../mybox/contract.ts";
 import { type ChildRemotePath, parseRemotePath, type RemotePath } from "./path.ts";
 
 const DEFAULT_POLL_TIMES_MS = [0, 250, 1_000, 2_000] as const;
@@ -147,12 +152,10 @@ export class RemoteResolver {
     this.dependencies = { ...defaultDependencies, ...dependencies };
   }
 
-  async resolve(input: string | RemotePath, options: ResolveOptions = {}): Promise<PathResolution> {
-    const parsed = typeof input === "string" ? parseRemotePath(input) : input;
-    if (parsed.kind === "root") {
-      return { kind: "root", path: parsed, resource: null };
-    }
-
+  private async poll(
+    load: () => Promise<PathResolution>,
+    options: ResolveOptions,
+  ): Promise<PathResolution> {
     const pollTimes = options.poll ? (options.pollTimesMs ?? DEFAULT_POLL_TIMES_MS) : [0];
     let previousTime = 0;
     for (const [index, elapsed] of pollTimes.entries()) {
@@ -164,13 +167,85 @@ export class RemoteResolver {
       }
       previousTime = elapsed;
 
-      const result = await this.resolveOnce(parsed);
+      const result = await load();
       if (result.kind !== "absent" || index === pollTimes.length - 1) {
         return result;
       }
     }
 
     throw apiResponseError("MYBOX path resolution polling ended unexpectedly.");
+  }
+
+  async resolve(input: string | RemotePath, options: ResolveOptions = {}): Promise<PathResolution> {
+    const parsed = typeof input === "string" ? parseRemotePath(input) : input;
+    if (parsed.kind === "root") {
+      return { kind: "root", path: parsed, resource: null };
+    }
+    return this.poll(() => this.resolveOnce(parsed), options);
+  }
+
+  async resolveExact(
+    input: string | ChildRemotePath,
+    options: ResolveOptions = {},
+  ): Promise<PathResolution> {
+    const parsed = typeof input === "string" ? parseRemotePath(input) : input;
+    if (parsed.kind === "root") {
+      return { kind: "root", path: parsed, resource: null };
+    }
+    return this.poll(() => this.resolveExactOnce(parsed), options);
+  }
+
+  private async resolveExactOnce(path: ChildRemotePath): Promise<PathResolution> {
+    const folder = await this.resolveFolderExactOnce(path);
+    if (folder.kind === "found") {
+      return folder;
+    }
+    return this.resolveFileExactOnce(path);
+  }
+
+  async resolveFolderExact(
+    input: string | ChildRemotePath,
+    options: ResolveOptions = {},
+  ): Promise<PathResolution> {
+    const parsed = typeof input === "string" ? parseRemotePath(input) : input;
+    if (parsed.kind === "root") {
+      return { kind: "root", path: parsed, resource: null };
+    }
+    return this.poll(() => this.resolveFolderExactOnce(parsed), options);
+  }
+
+  private async resolveFolderExactOnce(path: ChildRemotePath): Promise<PathResolution> {
+    const folders = await this.client.searchFolders({ path: path.normalized });
+    const folder = assertAtMostOne(
+      exactFolderCandidates(folders, path.normalized),
+      path.normalized,
+      "folder",
+    );
+    return folder === undefined
+      ? { kind: "absent", path, resource: null }
+      : { kind: "found", path, resource: folder };
+  }
+
+  async resolveFileExact(
+    input: string | ChildRemotePath,
+    options: ResolveOptions = {},
+  ): Promise<PathResolution> {
+    const parsed = typeof input === "string" ? parseRemotePath(input) : input;
+    if (parsed.kind === "root") {
+      return { kind: "root", path: parsed, resource: null };
+    }
+    return this.poll(() => this.resolveFileExactOnce(parsed), options);
+  }
+
+  private async resolveFileExactOnce(path: ChildRemotePath): Promise<PathResolution> {
+    const files = await this.client.searchFiles({
+      q: path.basename,
+      parentPath: path.parentPath,
+    });
+    const file = assertAtMostOne(exactFileCandidates(files, path), path.normalized, "file");
+    return file === undefined
+      ? { kind: "absent", path, resource: null }
+      : { kind: "found", path, resource: file };
   }
 
   private async resolveOnce(path: ChildRemotePath): Promise<PathResolution> {
@@ -181,33 +256,21 @@ export class RemoteResolver {
         throw apiResponseError("MYBOX path resolver built an invalid child path.");
       }
 
-      const folders = await this.client.searchFolders({ path: current.normalized });
-      const folder = assertAtMostOne(
-        exactFolderCandidates(folders, current.normalized),
-        current.normalized,
-        "folder",
-      );
-
-      const files = await this.client.searchFiles({
-        q: current.basename,
-        parentPath: current.parentPath,
-      });
-      const file = assertAtMostOne(exactFileCandidates(files, current), current.normalized, "file");
-
-      if (folder !== undefined && file !== undefined) {
-        throw conflict(`A file and folder both match the exact path ${current.normalized}.`);
-      }
-      if (folder === undefined && file === undefined) {
+      const result = await this.resolveExactOnce(current);
+      if (result.kind === "absent") {
         return { kind: "absent", path, resource: null };
       }
-      if (file !== undefined) {
+      if (result.kind === "root") {
+        throw apiResponseError("MYBOX path resolver returned an invalid exact result.");
+      }
+      if (result.resource.type.toLowerCase() !== "folder") {
         if (index < path.components.length - 1) {
           throw conflict(`A file cannot be used as a directory: ${current.normalized}.`);
         }
-        return { kind: "found", path, resource: file };
+        return { kind: "found", path, resource: result.resource };
       }
-      if (index === path.components.length - 1 && folder !== undefined) {
-        return { kind: "found", path, resource: folder };
+      if (index === path.components.length - 1) {
+        return { kind: "found", path, resource: result.resource };
       }
     }
 
@@ -216,6 +279,10 @@ export class RemoteResolver {
 
   async detail(resolution: FoundResolution): Promise<ResourceDetail> {
     return this.client.getResource(resolution.resource.resourceId);
+  }
+
+  async createFolder(input: CreateFolderInput): Promise<CreateFolderResponse> {
+    return this.client.createFolder(input);
   }
 
   async listChildren(input: string | RemotePath, folderId?: string): Promise<ResourceItem[]> {

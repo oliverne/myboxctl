@@ -4,8 +4,8 @@
 로컬 AI 에이전트 등 자동화된 호출자가 subprocess와 JSON으로 안정적으로 사용할 수 있도록 하는 것을
 우선하며, 양방향 sync는 제공하지 않는다.
 
-현재 Phase 02 Read commands까지 구현했다. 원격 경로의 exact `stat`과 direct-child `ls`를
-제공하며, 명령 구현 상태와 다음 작업은 [`docs/PROGRESS.md`](docs/PROGRESS.md),
+현재 Phase 03 Ensure directory까지 완료했다. 원격 경로의 exact `stat`, direct-child `ls`,
+누락 계층을 만드는 `ensure-dir`를 제공하며, 명령 구현 상태와 다음 작업은 [`docs/PROGRESS.md`](docs/PROGRESS.md),
 [`docs/HANDOFF.md`](docs/HANDOFF.md)를 확인한다.
 
 ## 요구사항
@@ -51,4 +51,7 @@ bun run build
 
 ```bash
 MYBOX_PAT=... bun run test:integration
+MYBOX_PAT=... bun run test:contract
 ```
+
+`test:integration`은 command acceptance, `test:contract`는 완료된 API 계약 probe를 실행한다.

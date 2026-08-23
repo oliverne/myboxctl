@@ -1,3 +1,10 @@
+import {
+  defaultRateLimitStatePath,
+  fallbackRateLimitDelayMs,
+  parseRetryAfterMs,
+  SharedRateLimiter,
+} from "../../src/mybox/rate-limit.ts";
+
 export const DEFAULT_BASE_URL = "https://open-api.mybox.naver.com";
 
 export type JsonRecord = Record<string, unknown>;
@@ -44,16 +51,9 @@ export function joinRemotePath(parent: string, child: string): string {
   return `${pathWithTrailingSlash(parent)}${child}`;
 }
 
-let lastApiRequestAt = 0;
-
-async function waitBetweenApiRequests(): Promise<void> {
-  const minimumIntervalMs = 700;
-  const waitMs = minimumIntervalMs - (Date.now() - lastApiRequestAt);
-  if (waitMs > 0) {
-    await Bun.sleep(waitMs);
-  }
-  lastApiRequestAt = Date.now();
-}
+const integrationRateLimiter = new SharedRateLimiter({
+  statePath: defaultRateLimitStatePath(),
+});
 
 function parseBody(text: string): unknown {
   if (text.length === 0) {
@@ -99,19 +99,21 @@ export async function apiRequest(
     }
   }
 
-  await waitBetweenApiRequests();
-
   const headers = new Headers({ Authorization: `Bearer ${pat}` });
   if (options.body !== undefined) {
     headers.set("Content-Type", "application/json");
   }
 
+  const method = options.method ?? "GET";
+  const request = { method, url };
+  await integrationRateLimiter.beforeRequest(request);
   const response = await fetch(url, {
-    method: options.method ?? "GET",
+    method,
     headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
     signal: AbortSignal.timeout(Number(process.env.MYBOX_TIMEOUT_MS ?? 30_000)),
   });
+  await integrationRateLimiter.recordResponse(request, response);
 
   return {
     status: response.status,
@@ -120,18 +122,9 @@ export async function apiRequest(
   };
 }
 
-function retryDelayMs(headers: Headers, attempt: number): number {
-  const retryAfter = headers.get("Retry-After");
-  if (retryAfter !== null) {
-    const seconds = Number(retryAfter);
-    if (Number.isFinite(seconds) && seconds >= 0) {
-      return Math.min(Math.max(seconds * 1_000, 250), 10_000);
-    }
-
-    const retryAt = Date.parse(retryAfter);
-    if (Number.isFinite(retryAt)) {
-      return Math.min(Math.max(retryAt - Date.now(), 250), 10_000);
-    }
+function retryDelayMs(status: number, headers: Headers, attempt: number): number {
+  if (status === 429) {
+    return parseRetryAfterMs(headers) ?? fallbackRateLimitDelayMs(() => Math.random());
   }
 
   return [2_000, 4_000, 8_000][attempt] ?? 8_000;
@@ -145,6 +138,7 @@ export async function readRequest(
     baseUrl?: string;
   } = {},
 ): Promise<ApiResponse> {
+  let rateLimitRetries = 0;
   for (let attempt = 0; attempt < 4; attempt += 1) {
     try {
       const response = await apiRequest(path, options);
@@ -152,7 +146,14 @@ export async function readRequest(
         return response;
       }
 
-      await Bun.sleep(retryDelayMs(response.headers, attempt));
+      if (response.status === 429) {
+        if (rateLimitRetries >= 1) {
+          return response;
+        }
+        rateLimitRetries += 1;
+      }
+
+      await Bun.sleep(retryDelayMs(response.status, response.headers, attempt));
     } catch (error) {
       if (attempt === 3) {
         throw error;

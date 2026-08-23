@@ -5,9 +5,9 @@
 
 ## 현재 상태
 
-- 현재 phase: `02-read-commands`
+- 현재 phase: `03-ensure-dir`
 - 상태: `complete`
-- 다음 담당자: Luna
+- 다음 담당자: 미정
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
 - 마지막 갱신: 2026-08-23
 
@@ -18,7 +18,7 @@
 | 00 API contract     | complete | contract test 4회 성공, resolver/upload 결과 및 미확정 항목을 API ledger에 기록 | [`phases/00-api-contract.md`](phases/00-api-contract.md)   |
 | 01 Foundation       | complete | config/error/output/client 및 fake HTTP test 통과, typecheck/lint/build 통과    | [`phases/01-foundation.md`](phases/01-foundation.md)       |
 | 02 Read commands    | complete | path/resolver/stat/ls 구현, fake HTTP/subprocess 및 실제 MYBOX smoke 통과       | [`phases/02-read-commands.md`](phases/02-read-commands.md) |
-| 03 Ensure directory | pending  | 없음                                                                            | [`phases/03-ensure-dir.md`](phases/03-ensure-dir.md)       |
+| 03 Ensure directory | complete | ensure-dir, 공유 검색 limiter, fake/subprocess/실제 MYBOX acceptance 통과       | [`phases/03-ensure-dir.md`](phases/03-ensure-dir.md)       |
 | 04 Upload           | pending  | 없음                                                                            | [`phases/04-upload.md`](phases/04-upload.md)               |
 | 05 Put              | pending  | 없음                                                                            | [`phases/05-put.md`](phases/05-put.md)                     |
 | 06 Delete           | pending  | 없음                                                                            | [`phases/06-delete.md`](phases/06-delete.md)               |
@@ -46,8 +46,19 @@ Zod 기반 API contract, GET 전용 retry/pagination transport, ephemeral fake H
 Phase 02 Read commands를 완료했다. POSIX remote path parser, exact search resolver, 공식 direct-child
 listing client, `stat`/`ls`와 JSON/human output을 추가했다. fake HTTP 및 subprocess test에서
 pagination, exact filtering, type conflict, absent 결과, deterministic ordering을 검증했고, 실제
-MYBOX의 root/nested/Unicode smoke와 opt-in integration contract test를 통과시켰다. 다음 phase는
-Phase 03 Ensure directory다.
+MYBOX의 root/nested/Unicode smoke와 opt-in integration contract test를 통과시켰다.
+
+Phase 03 Ensure directory를 완료했다. 누락된 remote folder component를 root부터 순차적으로
+생성하고, 409/응답 유실 가능 오류 뒤에는 exact resolve로 reconcile하며 mutation POST를 반복하지
+않는다. 최종 folder가 이미 존재하면 검색 1회로 반환하고, folder가 없을 때만 file conflict를
+검색한다.
+
+검색 GET은 local state의 10회/분 sliding window를 atomic lock으로 공유한다. 429는
+`Retry-After`를 우선하고 header가 없으면 60초 + jitter를 사용하며 GET을 한 번만 재시도한다.
+Phase 00 contract probe는 `test:contract`, command acceptance는 `test:integration`으로 분리했다.
+`bun run check`는 76 pass, 6 integration skip, 0 fail이었고 build와 실제 MYBOX ensure-dir
+acceptance도 통과했다. 실제 integration은 contract 3 skip, acceptance 1 pass였으며 unique test
+resource cleanup까지 완료됐다.
 
 후속 리뷰에서 Commander argument 오류도 JSON failure envelope와 exit 2를 사용하도록 보강했고,
 공식 검색 계약의 optional `resources`/`responseMetaData` 누락을 빈 검색 결과로 정규화했다.
