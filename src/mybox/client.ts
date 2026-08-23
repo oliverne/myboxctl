@@ -437,6 +437,30 @@ export class MyboxClient {
     });
   }
 
+  async deleteResource(resourceId: string): Promise<void> {
+    let result: { response: Response; body: unknown };
+    try {
+      result = await this.requestOnce(
+        "DELETE",
+        `/v1/drive/resources/${encodeURIComponent(resourceId)}`,
+        {},
+      );
+    } catch (error) {
+      if (error instanceof DomainError) {
+        throw error;
+      }
+      throw networkError(error);
+    }
+
+    if (result.response.status === 204) {
+      return;
+    }
+    if (result.response.status >= 200 && result.response.status < 300) {
+      throw apiResponseError("MYBOX returned an unexpected delete success status.");
+    }
+    throw this.parseError(result.response, result.body);
+  }
+
   /** Useful for tests and future commands that need a non-JSON 204 response. */
   async request<T>(method: string, path: string, options: RequestOptions<T> = {}): Promise<T> {
     return this.requestJson(method, path, options);

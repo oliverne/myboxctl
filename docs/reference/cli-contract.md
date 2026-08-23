@@ -188,3 +188,7 @@ folder이면 `REMOTE_TYPE_CONFLICT`다. 두 경우 모두 mutation을 수행하�
 - `--strict`에서 없음: exit 4
 
 `/` 삭제는 항상 argument 오류로 거부한다.
+
+`deleted`의 `data`에는 normalized `path`, 삭제 전에 resolve한 `resourceId`, `type`이 들어간다.
+`already-absent`에는 `path`만 포함한다. DELETE timeout/5xx/429 뒤에는 path를 다시 해석하지 않고 같은
+resource ID만 조회한다. 429에서 ID가 남아 있을 때만 같은 ID로 DELETE를 한 번 재시도한다.

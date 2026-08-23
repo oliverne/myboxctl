@@ -5,7 +5,7 @@
 
 ## 현재 상태
 
-- 현재 phase: `05-put`
+- 현재 phase: `06-delete`
 - 상태: `complete`
 - 다음 담당자: 미정
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
@@ -21,7 +21,7 @@
 | 03 Ensure directory | complete | ensure-dir, 공유 검색 limiter, fake/subprocess/실제 MYBOX acceptance 통과       | [`phases/03-ensure-dir.md`](phases/03-ensure-dir.md)       |
 | 04 Upload           | complete | 실제 소형 acceptance와 100MiB bounded-memory resume 완료 전송 통과              | [`phases/04-upload.md`](phases/04-upload.md)               |
 | 05 Put              | complete | 순수 decision, CLI/fake HTTP, 실제 metadata policy flow 및 cleanup 통과         | [`phases/05-put.md`](phases/05-put.md)                     |
-| 06 Delete           | pending  | 없음                                                                            | [`phases/06-delete.md`](phases/06-delete.md)               |
+| 06 Delete           | complete | file/non-empty-folder 실제 삭제, ID reconcile, limiter 및 cleanup 통과          | [`phases/06-delete.md`](phases/06-delete.md)               |
 | 07 Hardening        | pending  | 없음                                                                            | [`phases/07-hardening.md`](phases/07-hardening.md)         |
 
 ## 초기화 상태
@@ -115,6 +115,18 @@ conflict code를 확인했다. 실제 MYBOX 단독 put acceptance는 1 pass, 0 f
 uploaded → skipped → size-different overwrite → remote-newer conflict → force overwrite와 missing
 parent → `--mkdir`를 검증하고 file/folder cleanup을 완료했다. `bun run check`는 107 pass, 15 skip,
 0 fail이었고 build와 diff check도 통과했다.
+
+Phase 06 Delete를 완료했다. 기본 absent는 `already-absent`, `--strict`는 not-found/exit 4이며 root는
+API 호출 전에 거부한다. DELETE timeout/5xx/429 뒤에는 resolve 당시 resource ID만 조회한다. ID가
+사라졌으면 삭제 성공으로 reconcile하고, 남아 있으면 429에만 같은 ID로 한 번 재시도한다. timeout/5xx는
+DELETE를 반복하지 않으며 path에 새 ID가 나타나도 삭제 대상으로 바꾸지 않는다.
+
+origin별 delete bucket을 기존 shared state/lock에 60회/분으로 추가했다. 두 limiter instance의 slot과
+429 cooldown 공유, search bucket 분리를 fake clock으로 검증했다. 실제 MYBOX에서 file과 non-empty
+folder DELETE가 204, 같은 ID 재삭제가 404임을 확인했다. 단독 acceptance는 1 pass, 전체
+`bun run test:integration`은 6 pass, 6 opt-in skip, 0 fail이었다. active integration prefix cleanup은
+완료됐고 unique test resources는 MYBOX 삭제 의미에 따라 휴지통에 남는다. `bun run check`는 121
+pass, 18 skip, 0 fail이었고 build와 diff check도 통과했다.
 
 ## 상태 변경 규칙
 

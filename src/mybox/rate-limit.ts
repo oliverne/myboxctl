@@ -6,6 +6,8 @@ import { DomainError } from "../errors.ts";
 
 export const SEARCH_REQUEST_LIMIT = 10;
 export const SEARCH_WINDOW_MS = 60_000;
+export const DELETE_REQUEST_LIMIT = 60;
+export const DELETE_WINDOW_MS = 60_000;
 
 const STATE_VERSION = 1;
 const LOCK_RETRY_MS = 25;
@@ -117,11 +119,29 @@ function parseState(contents: string): RateLimitState {
   return { version: STATE_VERSION, buckets };
 }
 
-function searchBucket(request: RateLimitRequest): string | undefined {
-  if (request.method.toUpperCase() !== "GET" || !request.url.pathname.startsWith("/v1/search/")) {
-    return undefined;
+type BucketConfig = {
+  key: string;
+  limit: number;
+  windowMs: number;
+};
+
+function bucketForRequest(request: RateLimitRequest): BucketConfig | undefined {
+  const method = request.method.toUpperCase();
+  if (method === "GET" && request.url.pathname.startsWith("/v1/search/")) {
+    return {
+      key: `${request.url.origin}:search`,
+      limit: SEARCH_REQUEST_LIMIT,
+      windowMs: SEARCH_WINDOW_MS,
+    };
   }
-  return `${request.url.origin}:search`;
+  if (method === "DELETE" && /^\/v1\/drive\/resources\/[^/]+$/.test(request.url.pathname)) {
+    return {
+      key: `${request.url.origin}:delete`,
+      limit: DELETE_REQUEST_LIMIT,
+      windowMs: DELETE_WINDOW_MS,
+    };
+  }
+  return undefined;
 }
 
 function clampedRandom(random: () => number): number {
@@ -249,25 +269,25 @@ export class SharedRateLimiter implements RequestRateLimiter {
   }
 
   async beforeRequest(request: RateLimitRequest): Promise<void> {
-    const bucketKey = searchBucket(request);
-    if (bucketKey === undefined) {
+    const config = bucketForRequest(request);
+    if (config === undefined) {
       return;
     }
 
     while (true) {
       const waitMs = await this.withState((state) => {
         const now = this.dependencies.now();
-        const bucket = state.buckets[bucketKey] ?? { requests: [] };
+        const bucket = state.buckets[config.key] ?? { requests: [] };
         bucket.requests = bucket.requests.filter(
-          (requestedAt) => requestedAt > now - SEARCH_WINDOW_MS,
+          (requestedAt) => requestedAt > now - config.windowMs,
         );
-        state.buckets[bucketKey] = bucket;
+        state.buckets[config.key] = bucket;
 
         if (bucket.blockedUntil !== undefined && bucket.blockedUntil > now) {
           return bucket.blockedUntil - now;
         }
-        if (bucket.requests.length >= SEARCH_REQUEST_LIMIT) {
-          return Math.max(1, (bucket.requests[0] ?? now) + SEARCH_WINDOW_MS - now);
+        if (bucket.requests.length >= config.limit) {
+          return Math.max(1, (bucket.requests[0] ?? now) + config.windowMs - now);
         }
 
         bucket.requests.push(now);
@@ -282,8 +302,8 @@ export class SharedRateLimiter implements RequestRateLimiter {
   }
 
   async recordResponse(request: RateLimitRequest, response: RateLimitResponse): Promise<void> {
-    const bucketKey = searchBucket(request);
-    if (bucketKey === undefined || response.status !== 429) {
+    const config = bucketForRequest(request);
+    if (config === undefined || response.status !== 429) {
       return;
     }
 
@@ -291,9 +311,9 @@ export class SharedRateLimiter implements RequestRateLimiter {
       parseRetryAfterMs(response.headers, this.dependencies.now()) ??
       fallbackRateLimitDelayMs(this.dependencies.random);
     await this.withState((state) => {
-      const bucket = state.buckets[bucketKey] ?? { requests: [] };
+      const bucket = state.buckets[config.key] ?? { requests: [] };
       bucket.blockedUntil = Math.max(bucket.blockedUntil ?? 0, this.dependencies.now() + delayMs);
-      state.buckets[bucketKey] = bucket;
+      state.buckets[config.key] = bucket;
     });
   }
 }

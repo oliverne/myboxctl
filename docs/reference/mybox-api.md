@@ -298,6 +298,19 @@ sliding window 또는 endpoint별 상세 동작은 확인하지 못했다.
 - 상태: blocked
 - 안전한 probe에서 `423`을 유발하지 않았고 해제/retry 특성을 확인하지 않았다.
 
+## 2026-08-23 Phase 06 delete acceptance
+
+- 상태: confirmed
+- 실행: `MYBOX_INTEGRATION=1 bun test test/integration/delete.test.ts`
+- 환경: Bun 1.4.0, macOS 개발 환경, `/myboxctl-integration-test/` 아래 unique child
+- file과 non-empty folder를 exact resource ID로 DELETE했을 때 모두 `204`였고 active path 검색에서
+  사라졌다.
+- 휴지통으로 이동한 같은 resource ID에 DELETE를 다시 호출하면 `404`였다.
+- CLI에서 두 번째 기본 delete는 `already-absent`, `--strict`는 not-found/exit 4였다.
+- unique test root까지 휴지통으로 이동해 active integration prefix에 잔여 child가 없었다.
+- 실제 429는 발생하지 않았으며 delete bucket의 60회/분 window와 429 cooldown/retry는 fake clock과
+  fake HTTP test로 검증했다.
+
 ## 미확정 계약 해소 정책
 
 미확정 항목은 필요한 phase와 안전한 검증 방법을 기준으로 다음처럼 처리한다.

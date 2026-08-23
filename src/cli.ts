@@ -3,6 +3,7 @@
 import { Command, CommanderError } from "commander";
 
 import { DomainError, normalizeError } from "./errors.ts";
+import { runDelete } from "./features/delete.ts";
 import { runEnsureDir } from "./features/ensure-dir.ts";
 import { runLs } from "./features/ls.ts";
 import { runPut } from "./features/put/command.ts";
@@ -27,12 +28,16 @@ type PutOutputOptions = OutputOptions & {
   mkdir?: boolean;
 };
 
+type DeleteOutputOptions = OutputOptions & {
+  strict?: boolean;
+};
+
 function displayValue(value: unknown): string {
   return redactSecrets(String(value));
 }
 
 function writeCommandSuccess(
-  command: "stat" | "ls" | "ensure-dir" | "upload" | "put",
+  command: "stat" | "ls" | "ensure-dir" | "upload" | "put" | "delete",
   result: { action: string; data: unknown },
   options: OutputOptions,
 ): void {
@@ -73,6 +78,14 @@ function writeCommandSuccess(
     };
     process.stdout.write(
       `${displayValue(result.action)}\t${displayValue(data.path)}\t${displayValue(data.resourceId)}\t${displayValue(data.size)}\t${displayValue(data.modifiedAt)}${data.reason === undefined ? "" : `\t${displayValue(data.reason)}`}\n`,
+    );
+    return;
+  }
+
+  if (command === "delete") {
+    const data = result.data as { path: string; resourceId?: string; type?: string };
+    process.stdout.write(
+      `${displayValue(result.action)}\t${displayValue(data.path)}\t${displayValue(data.resourceId ?? "-")}\t${displayValue(data.type ?? "-")}\n`,
     );
     return;
   }
@@ -184,6 +197,23 @@ export function createProgram(runtimeFactory: RuntimeFactory = createRuntime): C
           },
         );
         writeCommandSuccess("put", result, options);
+      }),
+  );
+
+  addJsonOption(
+    program
+      .command("delete")
+      .description("Move an exact remote resource to MYBOX trash")
+      .argument("<remote-path>")
+      .option("--strict", "Return not-found when the resource is absent")
+      .action(async (remotePath: string, options: DeleteOutputOptions) => {
+        const runtime = await runtimeFactory();
+        const result = await runDelete(
+          remotePath,
+          { ...(options.strict === undefined ? {} : { strict: options.strict }) },
+          { client: runtime.client, resolver: runtime.resolver },
+        );
+        writeCommandSuccess("delete", result, options);
       }),
   );
 

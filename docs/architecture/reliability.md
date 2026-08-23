@@ -47,8 +47,8 @@ directory lock 아래에서 수행한다.
 - bucket key: MYBOX API origin과 `search`
 - 저장 금지: PAT, Authorization, URL query, request/response body
 
-현재 구현은 공식 한도와 실제 사용이 확인된 `/v1/search/` GET만 선제 조정한다. Phase 06은
-`DELETE /v1/drive/resources/{resourceId}`에 최저 요금제 기준 60회/분 bucket을 추가한다. upload
+현재 구현은 `/v1/search/` GET의 10회/분 bucket과
+`DELETE /v1/drive/resources/{resourceId}`의 60회/분 bucket을 origin별로 분리해 선제 조정한다. upload
 reservation과 signed storage transfer는 검색/delete bucket에 섞지 않고 operation-specific
 resume/reconcile 정책을 사용한다. download/other bucket은 해당 command가 추가될 때만 문서상
 한도와 실제 호출 형태를 확인해 확장한다.

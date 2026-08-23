@@ -2,7 +2,7 @@
 
 ## 요약
 
-Phase 03 Ensure directory, Phase 04 Upload, Phase 05 Put을 완료했다. `upload`는 같은 file handle의
+Phase 03 Ensure directory, Phase 04 Upload, Phase 05 Put, Phase 06 Delete를 완료했다. `upload`는 같은 file handle의
 `fstat` 결과를 기준으로 multipart body를 streaming하며, retryable content failure 뒤 서버 offset을
 기준으로 정확히 한 번 복구한다. 실제 probe에서 관찰된 `offset: 0`은 전체 파일 재전송으로 처리하고,
 향후 non-zero가 반환되면 해당 지점부터 남은 byte만 보낸다.
@@ -14,7 +14,7 @@ lock으로 여러 CLI process에 공유한다. `Retry-After`가 없는 429는 60
 
 ## 현재 phase와 상태
 
-- Phase: `05-put`
+- Phase: `06-delete`
 - 상태: `complete`
 - `docs/PROGRESS.md`와 일치한다.
 - 수정된 probe를 실제 MYBOX에서 실행했다. 동일 resume identity로 64MiB를 읽은 뒤 in-process stream
@@ -23,9 +23,26 @@ lock으로 여러 CLI process에 공유한다. `Retry-After`가 없는 429는 60
 - 각 실행 후 `/myboxctl-integration-test/`를 조회해 잔여 리소스가 없음을 확인했다.
 - 사용자가 server-returned offset 0부터 전체 파일을 한 번 재전송하는 정책을 승인했다.
 - production command의 실제 MYBOX acceptance와 100MiB bounded-memory 완료 전송이 통과했다.
-- Phase 05의 decision/command/integration flow도 통과했으며 Phase 06은 아직 시작하지 않았다.
+- Phase 05의 decision/command/integration flow와 Phase 06의 delete matrix/live acceptance가 통과했다.
+  Phase 07은 아직 시작하지 않았다.
 
 ## 변경 파일
+
+- `src/features/delete.ts`, `src/mybox/client.ts`, `src/cli.ts`
+  - `delete <remote-path> [--strict] [--json]` vertical slice와 단일 DELETE transport를 추가했다.
+  - timeout/5xx/429 뒤 resolve 당시 ID만 조회하고 429에서 같은 ID로 한 번만 재시도한다.
+  - 기본 absent/DELETE 404는 `already-absent`, strict는 not-found이며 root는 API 전에 거부한다.
+- `src/mybox/rate-limit.ts`, `src/mybox/rate-limit.test.ts`
+  - search와 분리된 origin별 delete 60회/분 bucket을 같은 state/atomic lock에 추가했다.
+  - 두 limiter instance의 slot, 429 cooldown, search/delete 독립성을 검증한다.
+- `test/http/delete.test.ts`, `test/cli/delete.test.ts`
+  - idempotent/strict/root, 204/404, timeout/5xx/429 reconcile, same-ID retry 1회 상한과 JSON 계약을
+    검증한다.
+- `test/integration/delete.test.ts`
+  - unique file과 non-empty folder의 204, 같은 ID 재삭제 404, default/strict 및 active cleanup을
+    검증한다.
+- `docs/reference/mybox-api.md`, `docs/reference/cli-contract.md`, `docs/architecture/reliability.md`
+  - 실제 delete 관찰, public data shape, ID 기반 retry와 delete bucket을 기록했다.
 
 - `src/features/put/decision.ts`, `src/features/put/decision.test.ts`
   - 2초 mtime tolerance를 사용하는 I/O 없는 decision table을 구현했다.
@@ -151,6 +168,10 @@ lock으로 여러 CLI process에 공유한다. `Retry-After`가 없는 429는 60
 - Phase 05 실제 MYBOX 단독 acceptance — 1 pass, 0 fail, exact cleanup 통과
 - `bun run test:integration` — 5 pass, 6 opt-in skip, 0 fail, 모든 unique resource cleanup 통과
 - Phase 05 포함 `bun run check` — 107 pass, 15 opt-in skip, 0 fail
+- Phase 06 limiter/HTTP/CLI 집중 테스트 — 21 pass, 0 fail
+- Phase 06 실제 MYBOX 단독 acceptance — 1 pass, 0 fail; file/non-empty-folder 204와 same-ID 404 확인
+- Phase 06 포함 `bun run test:integration` — 6 pass, 6 opt-in skip, 0 fail
+- Phase 06 포함 `bun run check` — 121 pass, 18 opt-in skip, 0 fail
 
 확인하지 않은 항목:
 
@@ -161,6 +182,9 @@ lock으로 여러 CLI process에 공유한다. `Retry-After`가 없는 429는 60
 
 PAT, Authorization header, upload URL은 테스트 출력이나 문서에 기록하지 않았다. 새 integration
 test는 unique child의 file과 folder만 exact ID로 cleanup하며 prefix parent는 삭제하지 않는다.
+Phase 06 delete acceptance가 만든 `delete-<timestamp>-<suffix>` 계열 리소스는 API 의미대로 MYBOX
+휴지통에 남아 있으며 복원하거나 영구 삭제하지 않았다. active `/myboxctl-integration-test/` child는
+정리됐다.
 
 ## 남은 API 미확정 사항
 
@@ -171,10 +195,10 @@ Phase 00에서 기록한 다음 항목은 여전히 미확정이다.
 - 릴리스 비차단, 자연 관찰만 수행: 429 `Retry-After` live 형식
 - 릴리스 비차단, 자연 관찰만 수행: 423 해제 및 retry 특성
 
-다음 담당자는 upload probe나 put acceptance를 반복하지 않는다. 같은 identity, 64MiB read, process hard-kill,
+다음 담당자는 upload probe나 완료된 command acceptance를 반복하지 않는다. 같은 identity, 64MiB read, process hard-kill,
 pre-kill drain, post-kill settle 뒤 offset 0이 재현됐고, production uploader의 100MiB 전체 재전송,
-bounded-memory, postcondition, cleanup까지 확인했다. Phase 05도 전체 metadata policy와 cleanup을
-확인했다. 다음 작업은 Phase 06 `delete` 시작 여부를 결정하는 것이다.
+bounded-memory, postcondition, cleanup까지 확인했다. Phase 05 metadata policy와 Phase 06 file 및
+non-empty-folder delete도 확인했다. 다음 작업은 Phase 07 hardening 시작 여부를 결정하는 것이다.
 
 upload의 parent/target/postcondition 검색에는 기존 공유 search limiter를 재사용한다. reservation과
 content mutation에는 generic retry를 추가하지 않고 probe로 확인한 resume/reconcile만 사용한다.

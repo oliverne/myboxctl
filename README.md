@@ -4,8 +4,9 @@
 로컬 AI 에이전트 등 자동화된 호출자가 subprocess와 JSON으로 안정적으로 사용할 수 있도록 하는 것을
 우선하며, 양방향 sync는 제공하지 않는다.
 
-현재 Phase 05 Put까지 완료했다. 원격 경로의 exact `stat`, direct-child `ls`, 누락 계층을 만드는
-`ensure-dir`, bounded-memory streaming `upload`, metadata 기반 조건부 `put`을 제공하며 상태는
+현재 Phase 06 Delete까지 완료했다. 원격 경로의 exact `stat`, direct-child `ls`, 누락 계층을 만드는
+`ensure-dir`, bounded-memory streaming `upload`, metadata 기반 조건부 `put`, idempotent `delete`를
+제공하며 상태는
 [`docs/PROGRESS.md`](docs/PROGRESS.md), [`docs/HANDOFF.md`](docs/HANDOFF.md)를 확인한다.
 
 ## 요구사항
