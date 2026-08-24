@@ -40,6 +40,18 @@ upload/put 안정성과 직접 관련된 후속 API로 분류했다.
 2. 공식 `그 외 기능`의 API별 60회/분 한도를 현재 공유 limiter가 선제 관리하지 않는다.
 3. file search client type이 공식 문서에 없는 `path` query를 표현하고 전송할 수 있다.
 
+## 순서 변경 — Phase 07 최종 검증 통합
+
+2026-08-24 사용자는 Phase 08의 breaking contract correction 전에 Phase 07 live acceptance를 별도로
+실행하지 않고, Phase 08 구현 이후 최종 acceptance로 통합하는 것을 승인했다.
+
+- Phase 07의 P07-A~D 구현과 Ubuntu 24.04/Bun 1.4 CI 증거는 유지한다.
+- 아직 실행하지 않은 P07-E live acceptance 때문에 Phase 07을 `complete`로 표시하지 않는다.
+- Phase 08은 Phase 07이 `in_progress`인 상태에서 시작할 수 있다.
+- Phase 08 구현과 일반 CI가 통과한 뒤 전체 live acceptance를 2회 실행하고 unique prefix cleanup,
+  credential leak, diff 검사를 함께 확인한다.
+- 최종 증거가 모두 충족된 close-out에서 Phase 07과 Phase 08의 상태를 갱신한다.
+
 ## 구현 원칙 — pre-release contract correction
 
 이 프로젝트는 아직 정식 출시 전이므로 Phase 08에서는 **기존 코드와의 호환성보다 공식 MYBOX API
@@ -207,5 +219,7 @@ Phase 08을 `complete`로 변경하려면 다음을 모두 만족해야 한다.
 
 ## Handoff
 
-Phase 07이 완료되기 전에는 Phase 08을 `in_progress`로 바꾸지 않는다. 현재 문서 작업은 공식 API 전수
-조사와 다음 phase의 범위를 준비하는 작업이며 production code는 변경하지 않는다.
+Phase 08을 `in_progress`로 시작한다. 첫 bounded action은 file/folder search option type을 공식 계약에
+맞게 분리하고 관련 resolver/client test를 수정하는 것이다. 이후 operation별 rate-limit과 storage
+preflight를 순서대로 구현한다. live acceptance는 모든 contract correction과 일반 CI가 끝난 뒤 2회
+실행한다.
