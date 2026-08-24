@@ -63,10 +63,7 @@ async function openLocalFile(path: string): Promise<{ handle: FileHandle; stats:
   }
 }
 
-async function assertWithinStorageLimit(
-  fileSize: number,
-  client: MyboxClient,
-): Promise<void> {
+async function assertWithinStorageLimit(fileSize: number, client: MyboxClient): Promise<void> {
   const storage = await client.getStorage();
   if (fileSize > storage.maxFileBytes) {
     throw new DomainError(
