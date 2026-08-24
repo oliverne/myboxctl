@@ -21,6 +21,25 @@ function searchPage(resources: unknown[] = []) {
   return { resources, responseMetaData: {} };
 }
 
+function storageResponse(maxFileBytes = 1_000_000) {
+  return {
+    fileCounts: {
+      archive: 0,
+      audio: 0,
+      document: 0,
+      etc: 0,
+      executable: 0,
+      image: 0,
+      total: 0,
+      video: 0,
+    },
+    maxFileBytes,
+    quotaBytes: 10_000_000,
+    trashAutoDeleteDays: 30,
+    usedBytes: 0,
+  };
+}
+
 async function runCli(
   args: string[],
   baseUrl: string,
@@ -56,6 +75,9 @@ describe("upload command subprocess contract", () => {
     await writeFile(localPath, "content");
     const server = await createFakeHttpServer({
       handler: (request: RecordedRequest) => {
+        if (request.path === "/v1/drive/storage") {
+          return { body: storageResponse() };
+        }
         if (request.path.startsWith("/v1/search/resources/")) {
           return { body: searchPage() };
         }
@@ -108,5 +130,32 @@ describe("upload command subprocess contract", () => {
     expect(
       server.requests.find((request) => request.path === "/storage/upload")?.bodyText,
     ).toContain("content\r\n--");
+  });
+
+  test("returns FILE_TOO_LARGE before upload mutation", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "myboxctl-upload-cli-large-"));
+    directories.push(directory);
+    const localPath = join(directory, "large.txt");
+    await writeFile(localPath, "content");
+    const server = await createFakeHttpServer({
+      handler: (request: RecordedRequest) => {
+        if (request.path === "/v1/drive/storage") {
+          return { body: storageResponse(1) };
+        }
+        return { status: 500, body: { code: "UNEXPECTED", message: "unexpected request" } };
+      },
+    });
+    servers.push(server);
+
+    const result = await runCli(["upload", localPath, "/large.txt", "--json"], server.baseUrl);
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      command: "upload",
+      error: { kind: "invalid-arguments", code: "FILE_TOO_LARGE", retryable: false },
+    });
+    expect(server.requests.filter((request) => request.method === "POST")).toHaveLength(0);
   });
 });
