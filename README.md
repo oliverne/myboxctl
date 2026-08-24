@@ -1,34 +1,118 @@
 # myboxctl
 
-`myboxctl`은 NAVER MYBOX Open API를 사용하는 홈서버용 단방향 파일 관리 CLI다.
-로컬 AI 에이전트 등 자동화된 호출자가 subprocess와 JSON으로 안정적으로 사용할 수 있도록 하는 것을
-우선하며, 양방향 sync는 제공하지 않는다.
+`myboxctl`은 NAVER MYBOX Open API 위에 얇게 만든 파일 관리 CLI입니다.
 
-현재 Phase 06 Delete까지 완료했고 Phase 07 안정화·배포 검증을 진행 중이다. 원격 경로의 exact `stat`,
-direct-child `ls`, 누락 계층을 만드는 `ensure-dir`, bounded-memory streaming `upload`, metadata 기반
-조건부 `put`, idempotent `delete`를 제공하며 상태는
-[`docs/PROGRESS.md`](docs/PROGRESS.md), [`docs/HANDOFF.md`](docs/HANDOFF.md)를 확인한다.
+이 프로젝트의 목표는 MYBOX의 모든 기능을 다시 구현하는 것이 아닙니다. MCP 서버나 범용 MYBOX
+클라이언트를 만드는 것도 아닙니다. 대신 홈서버, 스크립트, AI 에이전트가 파일을 올리고, 확인하고,
+필요할 때 삭제하는 데 필요한 **작고 예측 가능한 CLI 기능**을 제공하는 데 집중합니다.
+
+예를 들어 에이전트가 다음처럼 단순한 subprocess 호출만으로 작업할 수 있는 형태를 목표로 합니다.
+
+```bash
+myboxctl stat /agents/output/report.md --json
+myboxctl put ./report.md /agents/output/report.md --mkdir --json
+myboxctl delete /agents/output/old-report.md --json
+```
+
+현재 핵심 명령 구현은 완료했고, 실제 공개·배포 전 마지막 안정화와 검증을 진행하고 있습니다.
+
+> [!IMPORTANT]
+> **현재는 pre-release / testing 단계입니다.**
+> 아직 안정 버전으로 배포하지 않았으며 실제 MYBOX 계정과 데이터를 대상으로 계속 검증하고 있습니다.
+> 중요한 데이터나 유일한 사본에는 사용하지 말고, 처음에는 별도의 테스트 경로에서 동작을 확인해 주세요.
+
+최신 구현 및 검증 상태는 [`docs/PROGRESS.md`](docs/PROGRESS.md),
+[`docs/HANDOFF.md`](docs/HANDOFF.md)에서 확인할 수 있습니다.
+
+## 왜 만들었나요?
+
+AI 에이전트나 자동화 도구가 클라우드 스토리지를 사용할 때 항상 큰 SDK나 복잡한 protocol이 필요한 것은
+아닙니다. 파일 작업처럼 범위가 명확한 경우에는 작은 CLI가 오히려 다루기 쉽습니다.
+
+`myboxctl`은 다음 원칙을 따릅니다.
+
+- 사람이 터미널에서 직접 사용할 수 있어야 합니다.
+- AI 에이전트는 안정적인 JSON과 exit code만으로 결과를 판단할 수 있어야 합니다.
+- 원격 파일 변경은 명시적이고 예측 가능해야 합니다.
+- MYBOX API의 전체 기능을 감싸기보다는 실제 필요한 기능만 추가합니다.
+- MCP, daemon, sync engine 같은 별도 계층은 필요성이 확인되기 전까지 추가하지 않습니다.
+
+## 현재 제공하는 기능
+
+```text
+stat        원격 파일/폴더 메타데이터 조회
+ls          폴더의 direct children 조회
+ensure-dir  원격 폴더 계층 보장
+upload      신규 업로드 및 명시적 overwrite
+put         로컬/원격 metadata를 비교한 조건부 업로드
+delete      원격 파일/폴더를 MYBOX 휴지통으로 이동
+```
+
+현재 의도적으로 지원하지 않는 기능도 있습니다.
+
+- MYBOX 전체 API 기능
+- MCP server
+- 양방향 sync
+- 전체 디렉터리 미러링
+- 로컬 삭제의 자동 원격 반영
+- daemon/watch mode
+- FUSE mount, GUI, TUI
+- 다중 MYBOX 계정
+
+이 범위는 프로젝트의 제약이라기보다 방향에 가깝습니다. 실제로 필요한 기능이 생기면 추가할 수 있지만,
+작고 단순한 CLI라는 성격은 유지하려고 합니다.
+
+## 사용하기 전에
+
+이 프로젝트의 구현, 테스트 작성, 코드 리뷰, 문서화에는 AI 코딩 에이전트를 적극적으로 사용했습니다.
+사람이 설계 방향과 정책을 정하고 자동화된 테스트와 실제 MYBOX integration test로 검증하고 있지만,
+AI가 작성한 코드가 포함되어 있다는 점을 고려해 사용해 주세요.
+
+특히 현재 pre-release 기간에는 다음 정도의 주의를 권장합니다.
+
+- `upload`, `put`, `delete`는 실제 원격 데이터를 변경합니다.
+- 중요한 데이터에는 먼저 충분히 테스트한 뒤 사용해 주세요.
+- 처음에는 `/myboxctl-integration-test/` 같은 별도 경로를 사용하는 것이 좋습니다.
+- PAT, credentials 파일, signed upload URL은 저장소나 issue에 올리지 마세요.
+- AI 에이전트에 연결할 경우 허용할 명령과 원격 경로를 제한하는 편이 안전합니다.
+- CLI/JSON 계약은 안정화 과정에서 아직 변경될 수 있습니다.
+
+`myboxctl`은 NAVER의 공식 제품이 아니며 NAVER와 제휴하거나 보증을 받은 프로젝트가 아닙니다.
 
 ## 요구사항
 
 - Bun 1.4 이상
-- NAVER MYBOX PAT: 실제 integration test에서만 필요
+- NAVER MYBOX PAT
 
 ## 시작하기
+
+저장소를 clone한 뒤 의존성을 설치하고 먼저 일반 테스트를 실행합니다.
 
 ```bash
 bun install --frozen-lockfile
 bun run check
 bun run build
 bun run dev -- --help
-bun run dev -- stat /agents/output/report.md --json
-bun run dev -- ls /agents/output --json
-bun run dev -- upload ./report.md /agents/output/report.md --mkdir --json
-bun run dev -- put ./report.md /agents/output/report.md --mkdir --json
 ```
 
-빌드 후에는 `dist/cli.js`를 직접 실행하거나 Bun으로 실행할 수 있다. 릴리스 산출물의 실행 계약은
-다음 명령으로 검증한다.
+PAT는 환경 변수 또는 권한이 제한된 credentials 파일로 전달할 수 있습니다. 저장소에는 커밋하지 마세요.
+
+```bash
+export MYBOX_PAT='...'
+```
+
+기본 사용 예시는 다음과 같습니다.
+
+```bash
+bun run dev -- stat /agents/output/report.md --json
+bun run dev -- ls /agents/output --json
+bun run dev -- ensure-dir /agents/output --json
+bun run dev -- upload ./report.md /agents/output/report.md --mkdir --json
+bun run dev -- put ./report.md /agents/output/report.md --mkdir --json
+bun run dev -- delete /agents/output/report.md --json
+```
+
+빌드 후에는 `dist/cli.js`를 직접 실행할 수 있습니다.
 
 ```bash
 bun run test:release
@@ -36,37 +120,46 @@ bun run test:release
 ./dist/cli.js stat /agents/output/report.md --json
 ```
 
-Ubuntu Server 24.04의 설치·credentials·업그레이드 절차는
-[`docs/operations/ubuntu-24.04.md`](docs/operations/ubuntu-24.04.md)를 따른다. MVP에서는 daemon이나
-systemd service를 제공하지 않으며, AI 에이전트가 필요할 때 CLI subprocess를 한 번 호출한다.
+Ubuntu Server 24.04에서 사용하는 방법은
+[`docs/operations/ubuntu-24.04.md`](docs/operations/ubuntu-24.04.md)에 정리되어 있습니다.
 
-실제 PAT는 `.env` 또는 배포 환경의 secret 파일로 전달하고 커밋하지 않는다.
+## 설정과 credentials
+
+예제 설정은 `.env.example`을 참고할 수 있습니다.
 
 ```bash
 cp .env.example .env
 ```
 
-## 문서 안내
+credentials를 다룰 때는 다음 원칙을 권장합니다.
 
-- [`PLAN.md`](PLAN.md): 전체 범위, phase 순서, 완료 정의
-- [`docs/README.md`](docs/README.md): 문서 탐색 안내
-- [`docs/PROGRESS.md`](docs/PROGRESS.md): phase 및 작업 상태의 단일 기준
-- [`docs/HANDOFF.md`](docs/HANDOFF.md): 다음 구현 에이전트가 이어서 할 작업
-- [`docs/architecture/overview.md`](docs/architecture/overview.md): 구조와 의존성 방향
-- [`docs/reference/cli-contract.md`](docs/reference/cli-contract.md): CLI/JSON/exit code 계약
-- [`docs/reference/mybox-api.md`](docs/reference/mybox-api.md): 검증된 API 사실과 미확인 항목
+- 저장소, CI 로그, issue, PR에 PAT를 포함하지 않습니다.
+- 서버에서 credentials 파일을 사용한다면 권한을 `0600`으로 제한합니다.
+- 일반 GitHub Actions push/PR CI에는 MYBOX PAT를 전달하지 않습니다.
+- 실제 MYBOX integration test는 명시적으로 opt-in합니다.
 
-## 일반 검증
+## `put`의 비교 방식
+
+`put`은 현재 content hash 대신 파일 크기와 수정 시각을 비교합니다.
+
+따라서 로컬과 원격 파일의 크기가 같고 수정 시각 차이가 2초 이내라면 실제 내용이 달라도
+`skipped`가 될 수 있습니다. 내용을 반드시 반영하려면 `--force`를 사용하세요.
+
+이 동작은 현재 MVP에서 의도한 단순한 metadata 기반 정책이며, 향후 필요성이 확인되면 hash 기반 비교를
+추가할 수 있습니다.
+
+## 개발 및 테스트
+
+일반 검증은 실제 MYBOX 계정 없이 실행할 수 있습니다.
 
 ```bash
+bun install --frozen-lockfile
 bun run check
 bun run build
+bun run test:release
 ```
 
-`bun run check`는 typecheck, Biome, build artifact, 전체 Bun test를 순서대로 실행한다. 산출물만
-검증하려면 `bun run test:release`를 사용한다.
-
-실제 계정을 사용하는 integration test는 명시적으로 opt-in한다.
+실제 계정을 사용하는 integration test는 별도로 실행합니다.
 
 ```bash
 MYBOX_PAT=... bun run test:integration
@@ -74,14 +167,36 @@ MYBOX_PAT=... bun run test:contract
 MYBOX_PAT=... bun run test:upload-probe
 ```
 
-`test:integration`은 command acceptance를 실행한다. `test:contract`는 endpoint/schema/protocol
-변경 또는 기존 API ledger와 모순되는 관찰을 조사할 때만 실행하며, 일반 phase 검증에는 포함하지
-않는다. `test:upload-probe`는 Phase 04의 100MiB streaming과 interruption resume 계약을 검증할
-때만 실행한다. 일반 `upload` acceptance는 `test:integration`에 포함되며 격리 prefix 아래의 0-byte,
-Unicode, conflict, explicit overwrite를 확인한다.
+- `test:integration`: 실제 command acceptance
+- `test:contract`: MYBOX API 계약을 다시 확인해야 할 때 사용하는 probe
+- `test:upload-probe`: 100MiB streaming 및 interruption/resume 검증
 
-## `put` 비교 한계
+일반적인 개발 과정에서는 `test:contract`나 `test:upload-probe`를 매번 실행할 필요는 없습니다.
 
-`put`은 SHA-256 같은 content hash 없이 파일 크기와 수정 시각만 비교한다. 따라서 로컬과 원격의
-크기가 같고 수정 시각 차이가 2초 이내이면 실제 내용이 달라도 `skipped`가 될 수 있다. 이 경우
-내용을 반드시 반영하려면 `--force`를 사용한다.
+## 문서
+
+프로젝트 내부 설계나 구현 상태를 더 자세히 보고 싶다면 다음 문서부터 보는 것이 좋습니다.
+
+- [`PLAN.md`](PLAN.md) — 프로젝트 범위와 phase
+- [`docs/PROGRESS.md`](docs/PROGRESS.md) — 현재 구현 및 검증 상태
+- [`docs/HANDOFF.md`](docs/HANDOFF.md) — 현재 작업 문맥과 다음 단계
+- [`docs/architecture/overview.md`](docs/architecture/overview.md) — 구조와 설계 방향
+- [`docs/reference/cli-contract.md`](docs/reference/cli-contract.md) — JSON과 exit code 계약
+- [`docs/reference/mybox-api.md`](docs/reference/mybox-api.md) — 실제로 확인한 MYBOX API 동작
+
+## Contributing
+
+버그 리포트, 문서 개선, 테스트 케이스, 코드 기여를 환영합니다.
+
+이 프로젝트는 의도적으로 범위를 작게 유지하고 있기 때문에 큰 기능을 구현하기 전에 issue에서 먼저
+필요성과 방향을 이야기해 주시면 좋습니다. 특히 MYBOX 전체 기능 지원, MCP, sync, daemon처럼 프로젝트
+성격을 크게 바꾸는 기능은 바로 구현하기보다 사용 사례를 먼저 확인하고 싶습니다.
+
+개발 환경과 PR 작성 방법은 [`CONTRIBUTING.md`](CONTRIBUTING.md)를 참고해 주세요.
+
+보안 문제나 credential 노출 가능성을 발견했다면 실제 PAT나 signed URL을 공개 issue에 첨부하지
+말아 주세요.
+
+## License
+
+`myboxctl`은 [MIT License](LICENSE)로 배포됩니다.
