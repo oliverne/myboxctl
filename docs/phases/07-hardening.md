@@ -28,6 +28,11 @@ flow를 완료한다.
 P07-A~D는 공개 CLI/API 계약을 바꾸지 않는 범위에서 독립적으로 진행할 수 있다. P07-E는 앞선
 패킷의 검증이 끝난 뒤에만 시작한다. 동일 파일을 수정하는 패킷은 직렬로 수행한다.
 
+2026-08-24 순서 변경: Phase 08이 public type, rate-limit, upload preflight 계약을 수정하므로 사용자가
+P07-E를 Phase 08 구현 이후의 최종 검증으로 이관하도록 승인했다. Phase 07은 그때까지 `in_progress`를
+유지하며 완료로 간주하지 않는다. Phase 08 구현과 CI가 끝나면 P07-E와 Phase 08 live acceptance를
+하나의 최종 flow로 2회 실행하고 두 phase를 함께 종료한다.
+
 ## 제약과 에스컬레이션
 
 - production의 search 10회/분, delete 60회/분 값과 환경 변수 계약은 변경하지 않는다.
