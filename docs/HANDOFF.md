@@ -24,15 +24,15 @@ lock으로 여러 CLI process에 공유한다. `Retry-After`가 없는 429는 60
 - 사용자가 server-returned offset 0부터 전체 파일을 한 번 재전송하는 정책을 승인했다.
 - production command의 실제 MYBOX acceptance와 100MiB bounded-memory 완료 전송이 통과했다.
 - Phase 05의 decision/command/integration flow와 Phase 06의 delete matrix/live acceptance가 통과했다.
-  Phase 07 hardening을 시작했다. 교차 프로세스 limiter, build artifact CLI 계약, 운영 문서와 최종
-  acceptance를 순서대로 검증한다.
-- Phase 07의 limiter/CLI artifact/Ubuntu 운영 문서 구현 패킷은 작성됐다. 현재 환경에 Bun과
-  MYBOX PAT가 없어 실행 검증은 아직 완료되지 않았다.
+- Phase 07의 limiter/CLI artifact/Ubuntu 운영 문서와 P07-A~D 검증은 Ubuntu 24.04/Bun 1.4.0 CI에서
+  통과했다. P07-E live acceptance만 Phase 08 종료 검증으로 이관했다.
+- 현재 Work 환경에는 MYBOX PAT가 없으므로 live acceptance는 GitHub Actions의 opt-in workflow에서
+  실행해야 한다.
 - 사용자는 Phase 08 breaking refactor 전에 P07-E live acceptance를 반복하지 않고 Phase 08 종료
   검증으로 이관하도록 승인했다. Phase 07은 그때까지 `in_progress`를 유지한다.
 - Phase 08의 search type 분리, operation별 60회/분 limiter, storage schema/cache,
   `maxFileBytes` preflight를 구현했다.
-- PR #4 CI run 26에서 Ubuntu 24.04/Bun 1.4.0, 138 pass/21 skip/0 fail과 build/diff check가
+- PR #4 CI에서 Ubuntu 24.04/Bun 1.4.0, 138 pass/21 skip/0 fail과 build/diff check가
   통과했다.
 
 ## 변경 파일
@@ -204,11 +204,11 @@ Phase 00에서 기록한 다음 항목은 여전히 미확정이다.
 - 릴리스 비차단, 자연 관찰만 수행: 429 `Retry-After` live 형식
 - 릴리스 비차단, 자연 관찰만 수행: 423 해제 및 retry 특성
 
-다음 담당자는 upload probe나 완료된 command acceptance를 반복하지 않는다. 같은 identity, 64MiB read, process hard-kill,
-pre-kill drain, post-kill settle 뒤 offset 0이 재현됐고, production uploader의 100MiB 전체 재전송,
-bounded-memory, postcondition, cleanup까지 확인했다. Phase 05 metadata policy와 Phase 06 file 및
-non-empty-folder delete도 확인했다. 다음 작업은 Bun 1.4가 설치된 환경에서 Phase 07의 새 집중
-테스트와 full check/build를 실행하고, Ubuntu 24.04 및 실제 MYBOX acceptance 2회를 검증하는 것이다.
+다음 담당자는 upload probe, 완료된 command acceptance나 Phase 07 집중 테스트를 반복하지 않는다.
+같은 identity, 64MiB read, process hard-kill, pre-kill drain, post-kill settle 뒤 offset 0이 재현됐고,
+production uploader의 100MiB 전체 재전송, bounded-memory, postcondition, cleanup까지 확인했다.
+Phase 05 metadata policy, Phase 06 delete, Phase 07 집중 테스트와 Ubuntu 24.04 일반 CI도 확인했다.
+다음 작업은 PR #4의 opt-in workflow로 실제 MYBOX acceptance를 2회 실행하는 것이다.
 
 upload의 parent/target/postcondition 검색에는 기존 공유 search limiter를 재사용한다. reservation과
 content mutation에는 generic retry를 추가하지 않고 probe로 확인한 resume/reconcile만 사용한다.
@@ -228,8 +228,9 @@ lock, cooldown, `retryAfterMs`/exit 8을 검증한다. live 429/423을 만들기
 - CI: `.github/workflows/ci.yml`에서 Ubuntu 24.04/Bun 1.4.0 frozen install, check, build
 - 검증: PR #1 CI run 3, Ubuntu 24.04/Bun 1.4.0 — frozen install, typecheck, Biome, build,
   131 pass/18 opt-in skip/0 fail
+- 검증: PR #4 CI, Ubuntu 24.04/Bun 1.4.0 — Phase 08 포함 frozen install, typecheck,
+  Biome, build, 138 pass/21 opt-in skip/0 fail, diff check 통과
 - 미실행: `MYBOX_PAT=... bun run test:integration` 2회 — 현재 환경에 PAT 없음
-- 미실행: Ubuntu Server 24.04 설치/실행 절차 — 현재 Work 환경에서 OS 증거를 만들 수 없음
 
 Phase 07의 P07-E는 Phase 08 종료 검증으로 이관됐고 contract correction과 일반 CI는
 통과했다. 다음 bounded action은 PR #4의 `phase-08-official-api-alignment` branch에서
