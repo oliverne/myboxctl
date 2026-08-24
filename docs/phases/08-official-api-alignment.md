@@ -98,12 +98,14 @@ GET /v1/drive/storage
 - cache를 도입한다면 process-local 또는 매우 단순한 bounded TTL 수준에서 시작한다.
 - quota 계산을 client가 복제하지 않는다. 최종 storage 부족은 서버의 507도 계속 처리한다.
 
-결정해야 할 항목:
+결정 및 구현:
 
-- storage 조회 시점
-- cache/TTL 여부
-- storage 조회 실패가 upload를 차단하는지 또는 reservation으로 fallback하는지
-- `maxFileBytes` 초과의 public error kind/code
+- 열린 local file handle의 크기를 확인한 직후 storage를 조회하고 remote mutation 전에 검사한다.
+- `MyboxClient`에서 process-local 5분 TTL cache를 사용한다.
+- storage 조회가 실패하면 공식 최대 크기를 확인할 수 없으므로 upload를 차단한다.
+- `size > maxFileBytes`는 `invalid-arguments`, code `FILE_TOO_LARGE`, exit 2다.
+- `size === maxFileBytes`는 허용한다.
+- `quotaBytes - usedBytes`를 계산해 선제 거부하지 않고 실제 부족은 서버 507로 처리한다.
 
 ## Task 08-02 — 현재 사용 API의 60회/분 alignment
 
@@ -144,6 +146,14 @@ POST /v1/drive/files
 - search/delete 기존 bucket regression 없음
 - mutation POST가 limiter 대기 후에도 한 번만 전송됨
 
+구현 결과:
+
+- storage, root list, folder list, resource detail, folder create, upload reservation이 서로 독립된
+  60회/분 bucket을 사용한다.
+- 기존 search/delete bucket과 shared state/atomic lock을 유지한다.
+- POST mutation은 limiter 대기 후에도 generic retry하지 않는다.
+- operation 분류, 독립성, 기존 bucket regression을 fake clock/test로 검증했다.
+
 ## Task 08-03 — file/folder search option type 분리
 
 공식 계약:
@@ -169,6 +179,12 @@ FolderSearchOptions
   semantics를 일부러 바꾸지는 않는다.
 - 현재 사용하지 않는 category/date filter는 Phase 08에서 억지로 추가하지 않는다.
 - public type 변경 영향은 tests와 reference에 기록한다.
+
+구현 결과:
+
+- 기존 `SearchOptions`를 제거하고 `FileSearchOptions`, `FolderSearchOptions`로 분리했다.
+- file search request는 `q`, `parentPath`만 직렬화하며 `path`를 전송하지 않는다.
+- 기존 resolver의 folder `path`, file `q + parentPath` 동작은 유지한다.
 
 ## Task 08-04 — 사용자/운영 문서 정합성
 
