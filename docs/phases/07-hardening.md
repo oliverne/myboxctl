@@ -2,7 +2,7 @@
 
 ## 상태
 
-`in_progress`
+`complete`
 
 ## 목표
 
@@ -23,10 +23,15 @@ flow를 완료한다.
 | P07-B | 모든 command의 final 429 JSON/exit/redaction 계약 고정 | `test/cli/hardening.test.ts` | 기존 CLI와 fake server | 집중 CLI test |
 | P07-C | build artifact의 help/version/argument/output 실행 계약 고정 | `test/cli/release-contract.test.ts` | `bun run build` | build 후 artifact test |
 | P07-D | Ubuntu Server 24.04 설치·credential·upgrade/rollback 운영 절차 | `README.md`, `docs/operations/` | P07-C의 실제 artifact 계약 | 문서 명령 수동 검증 |
-| P07-E | unique prefix 전체 acceptance 2회, leak scan, 최종 release 판정 | progress/handoff와 기존 integration suite | P07-A~D | full check/build/integration |
+| P07-E | unique prefix 전체 acceptance 1회, leak scan, 최종 release 판정 | progress/handoff와 기존 integration suite | P07-A~D | full check/build/integration |
 
 P07-A~D는 공개 CLI/API 계약을 바꾸지 않는 범위에서 독립적으로 진행할 수 있다. P07-E는 앞선
 패킷의 검증이 끝난 뒤에만 시작한다. 동일 파일을 수정하는 패킷은 직렬로 수행한다.
+
+2026-08-24 순서 변경: Phase 08이 public type, rate-limit, upload preflight 계약을 수정하므로 사용자가
+P07-E를 Phase 08 구현 이후의 최종 검증으로 이관하도록 승인했다. Phase 08 구현과 일반 CI 통과 후
+사용자가 GitHub Actions의 `live_acceptance=true` flow 1회 성공을 확인했고, 이 실행을 충분한 최종
+증거로 승인했다. 따라서 P07-E와 Phase 07을 완료한다.
 
 ## 제약과 에스컬레이션
 
@@ -104,8 +109,8 @@ MVP는 daemon/systemd service를 구현하지 않는다. AI 에이전트가 필�
 
 ### 5. Acceptance flow
 
-unique integration prefix에서 `PLAN.md`의 전체 흐름을 두 번 반복한다. 두 번째 실행에서도 이전
-실행의 resource가 결과를 오염시키지 않아야 한다.
+unique integration prefix에서 `PLAN.md`의 전체 흐름을 실행하고, 성공 후 생성 리소스가 정리되어
+후속 실행을 오염시키지 않는지 확인한다.
 
 `test:integration`만 정기 acceptance에 포함한다. broad `test:contract`는 endpoint/schema/protocol이
 바뀌었거나 API ledger와 모순되는 관찰이 있을 때만 별도로 실행한다. Phase 04 targeted upload
@@ -117,6 +122,10 @@ seconds/HTTP-date/invalid/absent fake-response test와 보수적 fallback이 통
 않는다. 429를 확인하려고 의도적으로 호출 한도를 소진하지 않는다.
 
 ## 검증
+
+2026-08-24 사용자가 PR #4 branch의 GitHub Actions `live_acceptance=true` 실행 1회 성공을 확인했고,
+이를 최종 live acceptance와 cleanup 증거로 승인했다. 일반 CI의 check/build/diff 검증과 함께
+P07-E 완료 조건을 충족한다.
 
 ```bash
 bun install --frozen-lockfile
@@ -134,7 +143,7 @@ Ubuntu 24.04 검증이 현재 환경에서 불가능하면 macOS 결과로 대�
 - build artifact에서 모든 command가 실행된다.
 - Ubuntu Server 24.04 설치/실행 증거가 있다.
 - 100MB 이상 upload의 bounded memory 증거가 있다.
-- acceptance flow가 두 번 반복 통과한다.
+- acceptance flow가 1회 통과하고 unique prefix cleanup이 확인된다.
 - search/delete limiter의 교차 프로세스 state, stale lock, 429 cooldown test가 통과한다.
 - 모든 command의 최종 429가 `retryAfterMs`와 exit 8 계약을 지킨다.
 - credential leak scan과 Git diff 검사가 통과한다.

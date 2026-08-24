@@ -30,6 +30,23 @@ function listPage(resources: TestResource[], nextCursor?: string) {
   };
 }
 
+const storageResponse = {
+  fileCounts: {
+    archive: 1,
+    audio: 2,
+    document: 3,
+    etc: 4,
+    executable: 5,
+    image: 6,
+    total: 28,
+    video: 7,
+  },
+  maxFileBytes: 10_000,
+  quotaBytes: 100_000,
+  trashAutoDeleteDays: 30,
+  usedBytes: 20_000,
+};
+
 const servers: FakeHttpServer[] = [];
 
 afterEach(() => {
@@ -74,6 +91,23 @@ describe("MyboxClient transport", () => {
     expect(server.requests[0]?.query.has("cursor")).toBe(false);
     expect(server.requests[0]?.headers.authorization).toBe("Bearer raw-pat");
     expect(server.requests[3]?.query.get("cursor")).toBe("cursor 2");
+  });
+
+  test("reads and caches official storage metadata", async () => {
+    const server = await createFakeHttpServer([{ body: storageResponse }]);
+    servers.push(server);
+    const client = new MyboxClient({
+      pat: "token",
+      baseUrl: server.baseUrl,
+      timeoutMs: 5_000,
+    });
+
+    await expect(client.getStorage()).resolves.toMatchObject({ maxFileBytes: 10_000 });
+    await expect(client.getStorage()).resolves.toMatchObject({ usedBytes: 20_000 });
+
+    expect(server.requests).toHaveLength(1);
+    expect(server.requests[0]?.path).toBe("/v1/drive/storage");
+    expect(server.requests[0]?.headers.authorization).toBe("Bearer token");
   });
 
   test("lists a nested folder through the documented direct-children endpoint", async () => {

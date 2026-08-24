@@ -13,7 +13,9 @@ import {
   resourceListResponseSchema,
   type SearchResourceItem,
   type SearchResourceListResponse,
+  type StorageResponse,
   searchResourceListResponseSchema,
+  storageResponseSchema,
 } from "./contract.ts";
 import {
   fallbackRateLimitDelayMs,
@@ -25,6 +27,7 @@ import {
 
 export const MAX_PAGE_COUNT = 1_000;
 export const MAX_ATTEMPTS = 4;
+export const STORAGE_CACHE_TTL_MS = 5 * 60_000;
 
 export type ClientConfig = {
   pat: string;
@@ -36,6 +39,7 @@ export type ClientDependencies = {
   fetch: typeof globalThis.fetch;
   sleep: (ms: number) => Promise<void>;
   random: () => number;
+  now: () => number;
   rateLimiter: RequestRateLimiter;
 };
 
@@ -54,9 +58,14 @@ type FolderListOptions = ListOptions & {
   sort?: string;
 };
 
-export type SearchOptions = ListOptions & {
+type BaseSearchOptions = ListOptions & {
   q?: string;
   parentPath?: string;
+};
+
+export type FileSearchOptions = BaseSearchOptions;
+
+export type FolderSearchOptions = BaseSearchOptions & {
   path?: string;
 };
 
@@ -79,6 +88,7 @@ const defaultDependencies: ClientDependencies = {
   fetch: globalThis.fetch,
   sleep: (ms) => Bun.sleep(ms),
   random: () => Math.random(),
+  now: () => Date.now(),
   rateLimiter: noOpRateLimiter,
 };
 
@@ -121,6 +131,7 @@ export class MyboxClient {
   readonly config: Omit<ClientConfig, "pat">;
   readonly dependencies: ClientDependencies;
   #pat: string;
+  #storageCache?: { value: StorageResponse; expiresAt: number };
 
   constructor(config: ClientConfig, dependencies: Partial<ClientDependencies> = {}) {
     this.#pat = config.pat;
@@ -244,6 +255,22 @@ export class MyboxClient {
     throw apiResponseError("MYBOX request retry limit was exceeded.");
   }
 
+  async getStorage(): Promise<StorageResponse> {
+    const now = this.dependencies.now();
+    if (this.#storageCache !== undefined && this.#storageCache.expiresAt > now) {
+      return this.#storageCache.value;
+    }
+
+    const value = await this.requestJson("GET", "/v1/drive/storage", {
+      schema: storageResponseSchema,
+    });
+    this.#storageCache = {
+      value,
+      expiresAt: now + STORAGE_CACHE_TTL_MS,
+    };
+    return value;
+  }
+
   async getResource(resourceId: string): Promise<ResourceDetail> {
     return this.requestJson("GET", `/v1/drive/resources/${encodeURIComponent(resourceId)}`, {
       schema: resourceDetailSchema,
@@ -282,7 +309,7 @@ export class MyboxClient {
     });
   }
 
-  async searchFoldersPage(options: SearchOptions = {}): Promise<SearchResourceListResponse> {
+  async searchFoldersPage(options: FolderSearchOptions = {}): Promise<SearchResourceListResponse> {
     const query: Record<string, string | number | undefined> = {
       count: options.count ?? 200,
     };
@@ -301,11 +328,11 @@ export class MyboxClient {
     });
   }
 
-  async searchFilesPage(options: SearchOptions = {}): Promise<SearchResourceListResponse> {
+  async searchFilesPage(options: FileSearchOptions = {}): Promise<SearchResourceListResponse> {
     const query: Record<string, string | number | undefined> = {
       count: options.count ?? 200,
     };
-    for (const key of ["path", "q", "parentPath"] as const) {
+    for (const key of ["q", "parentPath"] as const) {
       const value = options[key];
       if (value !== undefined) {
         query[key] = value;
@@ -370,24 +397,31 @@ export class MyboxClient {
     throw apiResponseError("MYBOX returned too many pagination pages.");
   }
 
-  async searchFolders(options: Omit<SearchOptions, "cursor"> = {}): Promise<SearchResourceItem[]> {
+  async searchFolders(
+    options: Omit<FolderSearchOptions, "cursor"> = {},
+  ): Promise<SearchResourceItem[]> {
     return this.searchAll((pageOptions) => this.searchFoldersPage(pageOptions), options);
   }
 
-  async searchFiles(options: Omit<SearchOptions, "cursor"> = {}): Promise<SearchResourceItem[]> {
+  async searchFiles(
+    options: Omit<FileSearchOptions, "cursor"> = {},
+  ): Promise<SearchResourceItem[]> {
     return this.searchAll((pageOptions) => this.searchFilesPage(pageOptions), options);
   }
 
-  private async searchAll(
-    loadPage: (options: SearchOptions) => Promise<SearchResourceListResponse>,
-    options: Omit<SearchOptions, "cursor">,
+  private async searchAll<T extends ListOptions>(
+    loadPage: (options: T) => Promise<SearchResourceListResponse>,
+    options: Omit<T, "cursor">,
   ): Promise<SearchResourceItem[]> {
     const resources: SearchResourceItem[] = [];
     const cursors = new Set<string>();
     let cursor: string | undefined;
 
     for (let page = 0; page < MAX_PAGE_COUNT; page += 1) {
-      const response = await loadPage({ ...options, ...(cursor ? { cursor } : {}) });
+      const response = await loadPage({
+        ...options,
+        ...(cursor ? { cursor } : {}),
+      } as T);
       resources.push(...response.resources);
       const nextCursor = response.responseMetaData.nextCursor;
       if (nextCursor === undefined || nextCursor === null || nextCursor.length === 0) {

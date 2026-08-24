@@ -18,6 +18,19 @@ Authorization: Bearer <MYBOX_PAT>
 
 ## 공식 문서로 확인됨
 
+### storage 속성
+
+```http
+GET /v1/drive/storage
+```
+
+공식 응답의 `fileCounts`, `maxFileBytes`, `quotaBytes`, `trashAutoDeleteDays`, `usedBytes`를
+검증한다. `upload`와 mutation을 수행하는 `put`은 `maxFileBytes`를 upload URL 예약 전
+preflight에 사용한다. 응답은 process-local 5분 cache를 사용하며 quota 부족은 클라이언트 계산 대신
+서버의 507 응답으로 판정한다.
+
+문서: <https://developers.mybox.naver.com/docs/dms_storage>
+
 ### 루트 목록
 
 ```http
@@ -135,6 +148,11 @@ DELETE /v1/drive/resources/{resourceId}
 문서에는 복원 및 그 외 기능도 별도 한도로 기재되어 있으며, API별 분당 한도는 매분,
 일일 한도는 매일 갱신된다고 설명한다. 또한 단시간 대량 호출이나 abuse가 감지되면 사전
 경고 없이 서비스 이용이 제한될 수 있다고 명시한다.
+
+현재 구현은 검색 10회/분, 삭제 60회/분을 별도 bucket으로 유지한다. storage, root 목록,
+folder 목록, resource 상세, 폴더 생성, upload URL 예약은 공식 표현대로 operation별 독립 60회/분
+bucket을 사용한다. 여러 CLI process가 같은 local state와 lock을 공유하며 mutation POST를 generic
+retry하지 않는다.
 
 공식 endpoint 문서의 오류 표에는 `429 / PLAT-429 / TOO_MANY_REQUESTS`가 포함되어 있다.
 그러나 공식 문서에서 429의 정확한 `Retry-After` 헤더 형식, 제한 기준(PAT/account/IP),

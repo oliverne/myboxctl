@@ -63,6 +63,17 @@ async function openLocalFile(path: string): Promise<{ handle: FileHandle; stats:
   }
 }
 
+async function assertWithinStorageLimit(fileSize: number, client: MyboxClient): Promise<void> {
+  const storage = await client.getStorage();
+  if (fileSize > storage.maxFileBytes) {
+    throw new DomainError(
+      "invalid-arguments",
+      "The local upload file exceeds the MYBOX maximum file size.",
+      { code: "FILE_TOO_LARGE" },
+    );
+  }
+}
+
 function isFolder(resolution: FoundResolution): boolean {
   return resolution.resource.type.toLowerCase() === "folder";
 }
@@ -177,6 +188,7 @@ export async function runUpload(
 
   const local = await openLocalFile(localPath);
   try {
+    await assertWithinStorageLimit(local.stats.size, dependencies.client);
     const parentId = await resolveParentId(target, options, dependencies.resolver);
     const existing = await dependencies.resolver.resolveExact(target);
     if (existing.kind === "root") {

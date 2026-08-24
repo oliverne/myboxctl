@@ -8,6 +8,8 @@ export const SEARCH_REQUEST_LIMIT = 10;
 export const SEARCH_WINDOW_MS = 60_000;
 export const DELETE_REQUEST_LIMIT = 60;
 export const DELETE_WINDOW_MS = 60_000;
+export const OTHER_REQUEST_LIMIT = 60;
+export const OTHER_WINDOW_MS = 60_000;
 
 const STATE_VERSION = 1;
 const LOCK_RETRY_MS = 25;
@@ -55,6 +57,8 @@ export type SharedRateLimiterPolicy = {
   searchWindowMs: number;
   deleteRequestLimit: number;
   deleteWindowMs: number;
+  otherRequestLimit: number;
+  otherWindowMs: number;
   lockRetryMs: number;
   lockTimeoutMs: number;
   staleLockMs: number;
@@ -71,6 +75,8 @@ const defaultPolicy: SharedRateLimiterPolicy = {
   searchWindowMs: SEARCH_WINDOW_MS,
   deleteRequestLimit: DELETE_REQUEST_LIMIT,
   deleteWindowMs: DELETE_WINDOW_MS,
+  otherRequestLimit: OTHER_REQUEST_LIMIT,
+  otherWindowMs: OTHER_WINDOW_MS,
   lockRetryMs: LOCK_RETRY_MS,
   lockTimeoutMs: LOCK_TIMEOUT_MS,
   staleLockMs: STALE_LOCK_MS,
@@ -168,6 +174,31 @@ function bucketForRequest(
       key: `${request.url.origin}:delete`,
       limit: policy.deleteRequestLimit,
       windowMs: policy.deleteWindowMs,
+    };
+  }
+
+  let operation: string | undefined;
+  if (method === "GET" && request.url.pathname === "/v1/drive/storage") {
+    operation = "storage";
+  } else if (method === "GET" && request.url.pathname === "/v1/drive/resources") {
+    operation = "root-list";
+  } else if (
+    method === "GET" &&
+    /^\/v1\/drive\/folders\/[^/]+\/resources$/.test(request.url.pathname)
+  ) {
+    operation = "folder-list";
+  } else if (method === "GET" && /^\/v1\/drive\/resources\/[^/]+$/.test(request.url.pathname)) {
+    operation = "resource-detail";
+  } else if (method === "POST" && request.url.pathname === "/v1/drive/folders") {
+    operation = "folder-create";
+  } else if (method === "POST" && request.url.pathname === "/v1/drive/files") {
+    operation = "upload-reservation";
+  }
+  if (operation !== undefined) {
+    return {
+      key: `${request.url.origin}:${operation}`,
+      limit: policy.otherRequestLimit,
+      windowMs: policy.otherWindowMs,
     };
   }
   return undefined;

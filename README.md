@@ -97,8 +97,12 @@ AI가 작성한 코드가 포함되어 있다는 점을 고려해 사용해 주�
 - 계정이 용량 초과 또는 제한 상태이면 API 호출이 실패할 수 있습니다.
 
 현재 `myboxctl`은 search 10회/분과 delete 60회/분을 보수적으로 여러 CLI process 사이에서
-조정합니다. 공식 API 전수 조사에서 나머지 현재 사용 endpoint의 API별 60회/분과 upload 최대 크기
-조회(`maxFileBytes`)를 추가로 정리할 필요가 확인되어 Phase 08 후속 과제로 기록했습니다.
+조정합니다. root/folder 목록, resource 상세 조회, 폴더 생성, upload URL 예약, storage 조회도 공식
+계약대로 operation별 독립 60회/분 bucket을 사용합니다.
+
+`upload`와 실제 mutation이 필요한 `put`은 `GET /v1/drive/storage`의 `maxFileBytes`를 확인하고
+초과 파일을 upload URL 예약 전에 거부합니다. storage 응답은 한 process에서 5분 동안만 cache하며,
+남은 quota를 클라이언트가 추정하지 않고 최종 용량 부족은 서버의 507 응답을 따릅니다.
 
 전체 공식 API inventory, 현재 구현 coverage와 후속 과제는
 [`docs/reference/official-api-audit.md`](docs/reference/official-api-audit.md)를 참고해 주세요.

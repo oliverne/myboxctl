@@ -25,6 +25,25 @@ function searchPage(resources: unknown[] = []) {
   return { resources, responseMetaData: {} };
 }
 
+function storageResponse(maxFileBytes = 1_000_000) {
+  return {
+    fileCounts: {
+      archive: 0,
+      audio: 0,
+      document: 0,
+      etc: 0,
+      executable: 0,
+      image: 0,
+      total: 0,
+      video: 0,
+    },
+    maxFileBytes,
+    quotaBytes: 10_000_000,
+    trashAutoDeleteDays: 30,
+    usedBytes: 0,
+  };
+}
+
 function resourceDetail(name: string, size: number) {
   return {
     resourceId: "file-1",
@@ -147,6 +166,28 @@ describe("MYBOX upload content", () => {
 });
 
 describe("upload HTTP operation", () => {
+  test("rejects a file above maxFileBytes before remote mutation", async () => {
+    const local = await localFile();
+    const server = await createFakeHttpServer({
+      handler: (request: RecordedRequest) => {
+        if (request.path === "/v1/drive/storage") {
+          return { body: storageResponse(5) };
+        }
+        return { status: 500, body: { code: "UNEXPECTED", message: "unexpected request" } };
+      },
+    });
+    servers.push(server);
+
+    await expect(
+      runUpload(local.path, "/report.txt", {}, dependencies(server)),
+    ).rejects.toMatchObject({
+      kind: "invalid-arguments",
+      code: "FILE_TOO_LARGE",
+    });
+    expect(server.requests.map((request) => request.path)).toEqual(["/v1/drive/storage"]);
+    expect(server.requests.filter((request) => request.method === "POST")).toHaveLength(0);
+  });
+
   test("follows a symlink to a stable regular file through the opened handle", async () => {
     if (process.platform === "win32") {
       return;
@@ -157,6 +198,9 @@ describe("upload HTTP operation", () => {
     await symlink(local.path, linkPath);
     const server = await createFakeHttpServer({
       handler: (request: RecordedRequest) => {
+        if (request.path === "/v1/drive/storage") {
+          return { body: storageResponse() };
+        }
         if (request.path.startsWith("/v1/search/resources/")) {
           return { body: searchPage() };
         }
@@ -191,6 +235,9 @@ describe("upload HTTP operation", () => {
     let storageCount = 0;
     const server = await createFakeHttpServer({
       handler: (request: RecordedRequest) => {
+        if (request.path === "/v1/drive/storage") {
+          return { body: storageResponse() };
+        }
         if (request.path === "/v1/search/resources/folders") {
           return { body: searchPage() };
         }
@@ -247,6 +294,9 @@ describe("upload HTTP operation", () => {
     let storageCount = 0;
     const server = await createFakeHttpServer({
       handler: (request: RecordedRequest) => {
+        if (request.path === "/v1/drive/storage") {
+          return { body: storageResponse() };
+        }
         if (request.path.startsWith("/v1/search/resources/")) {
           return { body: searchPage() };
         }
@@ -283,6 +333,9 @@ describe("upload HTTP operation", () => {
     let storageCount = 0;
     const server = await createFakeHttpServer({
       handler: (request: RecordedRequest) => {
+        if (request.path === "/v1/drive/storage") {
+          return { body: storageResponse() };
+        }
         if (request.path.startsWith("/v1/search/resources/")) {
           return { body: searchPage() };
         }
@@ -322,6 +375,9 @@ describe("upload HTTP operation", () => {
     const local = await localFile();
     const server = await createFakeHttpServer({
       handler: (request: RecordedRequest) => {
+        if (request.path === "/v1/drive/storage") {
+          return { body: storageResponse() };
+        }
         if (request.path === "/v1/search/resources/folders") {
           return { body: searchPage() };
         }
@@ -353,6 +409,9 @@ describe("upload HTTP operation", () => {
     const local = await localFile();
     const server = await createFakeHttpServer({
       handler: (request: RecordedRequest) => {
+        if (request.path === "/v1/drive/storage") {
+          return { body: storageResponse() };
+        }
         if (request.path === "/v1/search/resources/folders") {
           return { body: searchPage() };
         }
@@ -402,6 +461,9 @@ describe("upload HTTP operation", () => {
     const local = await localFile();
     const server = await createFakeHttpServer({
       handler: (request: RecordedRequest) => {
+        if (request.path === "/v1/drive/storage") {
+          return { body: storageResponse() };
+        }
         if (request.path.startsWith("/v1/search/resources/")) {
           return { body: searchPage() };
         }
@@ -441,6 +503,9 @@ describe("upload HTTP operation", () => {
     const local = await localFile();
     const server = await createFakeHttpServer({
       handler: async (request: RecordedRequest) => {
+        if (request.path === "/v1/drive/storage") {
+          return { body: storageResponse() };
+        }
         if (request.path.startsWith("/v1/search/resources/")) {
           return { body: searchPage() };
         }

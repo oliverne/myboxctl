@@ -14,8 +14,8 @@ lock으로 여러 CLI process에 공유한다. `Retry-After`가 없는 429는 60
 
 ## 현재 phase와 상태
 
-- Phase: `07-hardening`
-- 상태: `in_progress`
+- Phase: `08-official-api-alignment`
+- 상태: `complete`
 - `docs/PROGRESS.md`와 일치한다.
 - 수정된 probe를 실제 MYBOX에서 실행했다. 동일 resume identity로 64MiB를 읽은 뒤 in-process stream
   error, 즉시 worker `SIGKILL`, 2초 client-buffer drain 뒤 worker `SIGKILL`을 각각 시도했지만 모두
@@ -24,10 +24,15 @@ lock으로 여러 CLI process에 공유한다. `Retry-After`가 없는 429는 60
 - 사용자가 server-returned offset 0부터 전체 파일을 한 번 재전송하는 정책을 승인했다.
 - production command의 실제 MYBOX acceptance와 100MiB bounded-memory 완료 전송이 통과했다.
 - Phase 05의 decision/command/integration flow와 Phase 06의 delete matrix/live acceptance가 통과했다.
-  Phase 07 hardening을 시작했다. 교차 프로세스 limiter, build artifact CLI 계약, 운영 문서와 최종
-  acceptance를 순서대로 검증한다.
-- Phase 07의 limiter/CLI artifact/Ubuntu 운영 문서 구현 패킷은 작성됐다. 현재 환경에 Bun과
-  MYBOX PAT가 없어 실행 검증은 아직 완료되지 않았다.
+- Phase 07의 limiter/CLI artifact/Ubuntu 운영 문서와 P07-A~D 검증은 Ubuntu 24.04/Bun 1.4.0 CI에서
+  통과했다. P07-E는 Phase 08 종료 검증으로 이관했다.
+- GitHub Actions의 `live_acceptance=true` 실행 1회가 성공했다고 사용자가 확인했으며, 이를 충분한
+  최종 acceptance와 cleanup 증거로 승인했다.
+- 일반 CI의 credential redaction/diff 검사와 live acceptance를 근거로 Phase 07/08을 완료했다.
+- Phase 08의 search type 분리, operation별 60회/분 limiter, storage schema/cache,
+  `maxFileBytes` preflight를 구현했다.
+- PR #4 CI에서 Ubuntu 24.04/Bun 1.4.0, 138 pass/21 skip/0 fail과 build/diff check가
+  통과했다.
 
 ## 변경 파일
 
@@ -198,11 +203,12 @@ Phase 00에서 기록한 다음 항목은 여전히 미확정이다.
 - 릴리스 비차단, 자연 관찰만 수행: 429 `Retry-After` live 형식
 - 릴리스 비차단, 자연 관찰만 수행: 423 해제 및 retry 특성
 
-다음 담당자는 upload probe나 완료된 command acceptance를 반복하지 않는다. 같은 identity, 64MiB read, process hard-kill,
-pre-kill drain, post-kill settle 뒤 offset 0이 재현됐고, production uploader의 100MiB 전체 재전송,
-bounded-memory, postcondition, cleanup까지 확인했다. Phase 05 metadata policy와 Phase 06 file 및
-non-empty-folder delete도 확인했다. 다음 작업은 Bun 1.4가 설치된 환경에서 Phase 07의 새 집중
-테스트와 full check/build를 실행하고, Ubuntu 24.04 및 실제 MYBOX acceptance 2회를 검증하는 것이다.
+다음 담당자는 upload probe, 완료된 command acceptance나 Phase 07 집중 테스트를 반복하지 않는다.
+같은 identity, 64MiB read, process hard-kill, pre-kill drain, post-kill settle 뒤 offset 0이 재현됐고,
+production uploader의 100MiB 전체 재전송, bounded-memory, postcondition, cleanup까지 확인했다.
+Phase 05 metadata policy, Phase 06 delete, Phase 07 집중 테스트와 Ubuntu 24.04 일반 CI도 확인했다.
+Phase 08 이후 실제 MYBOX acceptance 1회와 cleanup도 통과했다. MVP 구현 phase의 필수 검증은
+완료됐으며, 다음 작업은 별도의 릴리스 여부 결정 또는 실제 요구에 따른 후속 phase 정의다.
 
 upload의 parent/target/postcondition 검색에는 기존 공유 search limiter를 재사용한다. reservation과
 content mutation에는 generic retry를 추가하지 않고 probe로 확인한 resume/reconcile만 사용한다.
@@ -222,9 +228,11 @@ lock, cooldown, `retryAfterMs`/exit 8을 검증한다. live 429/423을 만들기
 - CI: `.github/workflows/ci.yml`에서 Ubuntu 24.04/Bun 1.4.0 frozen install, check, build
 - 검증: PR #1 CI run 3, Ubuntu 24.04/Bun 1.4.0 — frozen install, typecheck, Biome, build,
   131 pass/18 opt-in skip/0 fail
-- 미실행: `MYBOX_PAT=... bun run test:integration` 2회 — 현재 환경에 PAT 없음
-- 미실행: Ubuntu Server 24.04 설치/실행 절차 — 현재 Work 환경에서 OS 증거를 만들 수 없음
+- 검증: PR #4 CI, Ubuntu 24.04/Bun 1.4.0 — Phase 08 포함 frozen install, typecheck,
+  Biome, build, 138 pass/21 opt-in skip/0 fail, diff check 통과
+- 검증: PR #4 branch의 GitHub Actions `live_acceptance=true` 실행 1회 성공 — 사용자 확인,
+  integration suite의 unique prefix cleanup 포함
 
-다음 bounded action은 PAT가 제공되는 안전한 환경에서 `bun run test:integration`의 전체 acceptance
-flow를 두 번 실행하고 unique prefix cleanup을 확인하는 것이다. 이후 credential leak/diff 최종
-검사를 수행한다. Phase 07 완료 표시는 모든 완료 조건이 충족될 때까지 금지한다.
+Phase 07의 P07-E와 Phase 08 contract correction 검증을 완료했다. 사용자는 live acceptance 1회를
+충분한 최종 증거로 승인했고, 일반 CI의 credential redaction/diff 검사까지 근거로 Phase 07/08을
+함께 종료했다. 다음 bounded action은 별도 릴리스 결정 또는 실제 요구가 확인된 후속 phase 정의다.

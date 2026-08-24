@@ -136,6 +136,10 @@ reconcile한 경우에는 상태를 안전하게 `existing`으로 보고한다.
 
 성공 action은 `uploaded` 또는 `overwritten`이다.
 
+업로드 mutation 전에 공식 storage 응답의 `maxFileBytes`와 열린 로컬 file handle의 크기를
+비교한다. 최대 크기를 초과하면 mutation 없이 `invalid-arguments`, code `FILE_TOO_LARGE`, exit 2로
+실패한다. 같은 크기는 허용한다. 남은 quota는 클라이언트가 계산하지 않으며 서버의 507 응답을 따른다.
+
 ```json
 {
   "ok": true,

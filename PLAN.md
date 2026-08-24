@@ -72,9 +72,11 @@ myboxctl delete /agents/output/old-report.md --json
 | `docs/architecture/*.md` | 설계 원칙과 트레이드오프                | 설계 결정 변경 시       |
 | `docs/reference/*.md`    | CLI/API 등 안정적인 계약과 coverage     | 관찰/계약 변경 시       |
 
-상태 값은 `pending`, `in_progress`, `blocked`, `complete`만 사용한다. 동시에 하나의
-phase만 `in_progress`일 수 있다. phase 완료는 코드 작성 여부가 아니라 해당 phase 문서의
-검증 및 handoff 조건으로 판정한다.
+상태 값은 `pending`, `in_progress`, `blocked`, `complete`만 사용한다. 원칙적으로 동시에 하나의
+phase만 `in_progress`일 수 있다. 단, Phase 07의 마지막 live acceptance를 breaking contract correction
+이후로 이관한 전환 기간에는 Phase 07과 Phase 08을 함께 `in_progress`로 둘 수 있으며, 예외 사유와
+통합 종료 조건을 `docs/PROGRESS.md`에 기록한다. phase 완료는 코드 작성 여부가 아니라 해당 phase
+문서의 검증 및 handoff 조건으로 판정한다.
 
 ## 5. Phase 로드맵
 
@@ -169,6 +171,7 @@ contract probe를 다시 실행한다. 후속 phase의 미확정 항목은 해�
 - CLI subprocess contract test
 - Ubuntu Server 24.04 설치 및 운영 문서
 - 실제 MYBOX acceptance test
+- Phase 08의 breaking contract correction 이후 최종 live acceptance를 1회 실행하도록 P07-E를 이관
 
 ### Phase 08 — Official API alignment
 
@@ -184,6 +187,7 @@ contract probe를 다시 실행한다. 후속 phase의 미확정 항목은 해�
 - 기존 search/delete limiter와 mutation no-generic-retry 정책 regression 검증
 - pre-release 단계에서는 기존 구현과의 호환성 유지보다 공식 API에 맞는 단순하고 정확한 구조를 우선
 - 잘못된 abstraction/type/test를 유지하기 위한 shim 없이 필요한 breaking refactor 수행
+- Phase 07은 완료 처리하지 않되, 중복 검증을 피하기 위해 남은 P07-E live acceptance를 Phase 08 최종 검증과 통합
 
 Phase 08은 MYBOX API 전체 기능 추가 phase가 아니다. 다운로드, rename/move/copy, favorite, trash 관리
 등 공식 API의 미구현 기능은 inventory에 남기고 실제 요구가 확인될 때만 별도 범위로 승격한다.

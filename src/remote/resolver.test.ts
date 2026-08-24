@@ -91,6 +91,7 @@ describe("RemoteResolver", () => {
     ]);
     expect(server.requests[3]?.query.get("q")).toBe("bar.txt");
     expect(server.requests[3]?.query.get("parentPath")).toBe("/foo");
+    expect(server.requests[3]?.query.has("path")).toBe(false);
     expect(server.requests[2]?.query.get("cursor")).toBe("next");
   });
 

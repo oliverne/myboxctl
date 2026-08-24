@@ -4,6 +4,7 @@ import {
   createUploadResponseSchema,
   resourceItemSchema,
   searchResourceListResponseSchema,
+  storageResponseSchema,
 } from "./contract.ts";
 
 describe("MYBOX response schemas", () => {
@@ -47,6 +48,29 @@ describe("MYBOX response schemas", () => {
       resources: [],
       responseMetaData: {},
     });
+  });
+
+  test("accepts the official storage response and rejects non-integer limits", () => {
+    const response = {
+      fileCounts: {
+        archive: 1,
+        audio: 2,
+        document: 3,
+        etc: 4,
+        executable: 5,
+        image: 6,
+        total: 28,
+        video: 7,
+      },
+      maxFileBytes: 10_000,
+      quotaBytes: 100_000,
+      trashAutoDeleteDays: 30,
+      usedBytes: 20_000,
+    };
+
+    expect(storageResponseSchema.safeParse(response).success).toBe(true);
+    expect(storageResponseSchema.safeParse({ ...response, maxFileBytes: 1.5 }).success).toBe(false);
+    expect(storageResponseSchema.safeParse({ ...response, fileCounts: {} }).success).toBe(false);
   });
 
   test("rejects malformed reservation responses", () => {

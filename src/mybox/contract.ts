@@ -3,6 +3,7 @@ import { z } from "zod";
 const nonEmptyString = z.string().min(1);
 const finiteNumber = z.number().refine(Number.isFinite, "must be finite");
 const nonNegativeNumber = finiteNumber.nonnegative();
+const nonNegativeInteger = z.number().int().nonnegative();
 
 export const resourceItemSchema = z
   .object({
@@ -80,6 +81,29 @@ export const createUploadResponseSchema = z
   })
   .passthrough();
 
+export const storageFileCountsSchema = z
+  .object({
+    archive: nonNegativeInteger,
+    audio: nonNegativeInteger,
+    document: nonNegativeInteger,
+    etc: nonNegativeInteger,
+    executable: nonNegativeInteger,
+    image: nonNegativeInteger,
+    total: nonNegativeInteger,
+    video: nonNegativeInteger,
+  })
+  .passthrough();
+
+export const storageResponseSchema = z
+  .object({
+    fileCounts: storageFileCountsSchema,
+    maxFileBytes: nonNegativeInteger,
+    quotaBytes: nonNegativeInteger,
+    trashAutoDeleteDays: nonNegativeInteger,
+    usedBytes: nonNegativeInteger,
+  })
+  .passthrough();
+
 export const uploadContentResponseSchema = z
   .object({
     resourceId: nonEmptyString,
@@ -105,5 +129,7 @@ export type ResourceListResponse = z.infer<typeof resourceListResponseSchema>;
 export type SearchResourceListResponse = z.infer<typeof searchResourceListResponseSchema>;
 export type CreateFolderResponse = z.infer<typeof createFolderResponseSchema>;
 export type CreateUploadResponse = z.infer<typeof createUploadResponseSchema>;
+export type StorageFileCounts = z.infer<typeof storageFileCountsSchema>;
+export type StorageResponse = z.infer<typeof storageResponseSchema>;
 export type UploadContentResponse = z.infer<typeof uploadContentResponseSchema>;
 export type MyboxError = z.infer<typeof myboxErrorSchema>;

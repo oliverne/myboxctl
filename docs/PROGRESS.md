@@ -5,9 +5,9 @@
 
 ## 현재 상태
 
-- 현재 phase: `07-hardening`
-- 상태: `in_progress`
-- 다음 담당자: 구현 에이전트 (Phase 07 hardening)
+- 현재 phase: `08-official-api-alignment`
+- 상태: `complete`
+- 다음 담당자: 릴리스 또는 후속 요구사항 담당자
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
 - 마지막 갱신: 2026-08-24
 
@@ -22,8 +22,8 @@
 | 04 Upload               | complete    | 실제 소형 acceptance와 100MiB bounded-memory resume 완료 전송 통과              | [`phases/04-upload.md`](phases/04-upload.md)                       |
 | 05 Put                  | complete    | 순수 decision, CLI/fake HTTP, 실제 metadata policy flow 및 cleanup 통과         | [`phases/05-put.md`](phases/05-put.md)                             |
 | 06 Delete               | complete    | file/non-empty-folder 실제 삭제, ID reconcile, limiter 및 cleanup 통과          | [`phases/06-delete.md`](phases/06-delete.md)                       |
-| 07 Hardening            | in_progress | limiter/CLI artifact 테스트와 Ubuntu 운영 문서 구현, 실행 검증 대기            | [`phases/07-hardening.md`](phases/07-hardening.md)                 |
-| 08 Official API alignment | pending   | 공식 Open API 전수 조사와 현재 구현 대조 완료, 구현은 Phase 07 이후 진행       | [`phases/08-official-api-alignment.md`](phases/08-official-api-alignment.md) |
+| 07 Hardening            | complete    | P07-A~D CI 및 통합 P07-E live acceptance 1회와 cleanup 확인                     | [`phases/07-hardening.md`](phases/07-hardening.md)                 |
+| 08 Official API alignment | complete    | 공식 API correction, 일반 CI와 실제 MYBOX acceptance 통과                       | [`phases/08-official-api-alignment.md`](phases/08-official-api-alignment.md) |
 
 ## 초기화 상태
 
@@ -137,9 +137,10 @@ shebang/help/version/argument 오류 계약도 subprocess test로 추가했다. 
 연 regular-file handle을 사용하며 경로를 다시 resolve하지 않는 정책을 test/reference에 고정했다.
 
 Ubuntu Server 24.04의 frozen install, 0600 credentials, AI agent subprocess, retry/exit code,
-upgrade/rollback 문서를 추가했다. 현재 실행 환경에는 Bun, Biome, TypeScript compiler와 MYBOX PAT가
-없어 새 테스트, `bun run check`, `bun run build`, integration과 Ubuntu 실환경 절차는 실행하지
-못했다. 따라서 Phase 07은 `in_progress`이며 구현 패킷을 완료 증거로 간주하지 않는다.
+upgrade/rollback 문서를 추가했다. 최초 작성 환경에는 Bun, Biome, TypeScript compiler와 MYBOX PAT가
+없어 새 테스트, `bun run check`, `bun run build`, integration과 Ubuntu 실환경 절차를 실행하지
+못했으며, 당시에는 Phase 07을 `in_progress`로 유지했다. 이후 Ubuntu 24.04/Bun 1.4 GitHub Actions
+CI와 opt-in live acceptance로 필요한 증거를 보완했다.
 
 GitHub Actions CI를 추가해 `ubuntu-24.04`와 Bun 1.4.0에서 frozen install, check, build를 실행한다.
 CI에는 secret을 전달하지 않으며 MYBOX integration은 opt-in 상태로 유지한다. workflow run 결과는
@@ -147,18 +148,43 @@ CI에는 secret을 전달하지 않으며 MYBOX integration은 opt-in 상태로 
 
 PR #1의 GitHub Actions CI run 3에서 Ubuntu 24.04/Bun 1.4.0 검증이 통과했다. frozen install,
 typecheck, Biome, build artifact와 전체 test가 성공했으며 결과는 131 pass, 18 opt-in skip, 0 fail이다.
-별도 build step도 104 modules bundle에 성공했다. Phase 07의 남은 필수 검증은 실제 MYBOX acceptance
-2회와 credential leak/diff 최종 검사다.
+별도 build step도 104 modules bundle에 성공했다. 당시 Phase 07의 남은 필수 검증은 실제 MYBOX
+acceptance와 credential leak/diff 최종 검사였다.
 
-2026-08-24 공식 MYBOX Open API 문서를 전수 조사하고 현재 `MyboxClient`와 대조했다. 공식 문서에서
-20개 endpoint operation을 확인했고 현재 구현은 그중 8개를 직접 사용한다. 나머지 12개는 API가
-존재한다는 이유만으로 구현하지 않고 향후 사용 사례 기반 후보로 남긴다. 조사 결과와 분류는
-`docs/reference/official-api-audit.md`에 기록했다.
+2026-08-24 공식 MYBOX Open API 문서를 전수 조사하고 현재 `MyboxClient`와 대조했다. 조사
+시점에는 공식 20개 operation 중 8개를 사용했고 12개는 비범위 후보였다. 이후 Phase 08에서
+`GET /v1/drive/storage`를 추가해 현재 coverage는 9/20이며, 나머지 11개는 사용 사례가 생길 때만
+검토한다. 조사 결과와 분류는 `docs/reference/official-api-audit.md`에 기록했다.
 
-현재 CLI와 직접 관련된 후속 항목은 Phase 08로 분리했다. `GET /v1/drive/storage`의 `maxFileBytes`
-활용 여부, 검색/삭제 외 현재 사용 API의 공식 `API별 60회/분` 한도, file search에서 공식 문서에
-없는 `path` option 노출을 다룬다. 이번 작업은 문서만 변경하며 production code와 기존 검증 상태는
-변경하지 않는다. Phase 08은 Phase 07 완료 후에만 `in_progress`로 전환한다.
+사용자는 P07-E live acceptance를 Phase 08 breaking correction 이후로 이관하도록 승인했다. 이
+전환에 한해 Phase 07과 Phase 08을 함께 `in_progress`로 두었고, Phase 08에서는 storage preflight,
+현재 사용 operation별 limiter와 file/folder search type 분리를 production code와 테스트에 반영했다.
+구현과 일반 CI 통과 후 사용자는 `live_acceptance=true` 실행 1회 성공을 충분한 최종 증거로 승인했다.
+
+## Phase 08 구현 및 일반 CI 검증
+
+Phase 08의 contract correction을 구현했다.
+
+- `SearchOptions`를 `FileSearchOptions`와 `FolderSearchOptions`로 교체하고 file search의
+  undocumented `path` 직렬화를 제거했다.
+- storage/root list/folder list/resource detail/folder create/upload reservation에 operation별 독립
+  60회/분 shared bucket을 추가했다.
+- 공식 storage response schema와 process-local 5분 cache를 추가했다.
+- upload와 mutation이 필요한 put은 `maxFileBytes` 초과를 reservation 전에 `FILE_TOO_LARGE`로
+  거부한다. quota 부족은 서버 507을 따른다.
+- PR #4 CI에서 Ubuntu 24.04/Bun 1.4.0 frozen install, typecheck, Biome, build,
+  138 pass/21 opt-in skip/0 fail, diff check가 통과했다.
+
+2026-08-24 GitHub Actions의 `live_acceptance=true` 실행 1회가 성공했다고 사용자가 확인했다. 해당
+integration suite의 unique prefix cleanup과 일반 CI의 credential redaction/diff 검사를 최종 증거로
+채택해 Phase 07과 Phase 08을 모두 `complete`로 변경했다.
+
+## Phase 07/08 검증 순서 결정
+
+2026-08-24 사용자는 Phase 08의 breaking refactor 전에 Phase 07 live acceptance를 실행하지 않고 최종
+검증으로 통합하도록 승인했다. 이후 일반 CI와 통합 live acceptance 1회가 성공했고, 사용자는 1회를
+충분한 최종 기준으로 승인했다. unique prefix cleanup, credential redaction과 diff 검증을 포함한
+증거를 근거로 두 phase를 완료 처리했다.
 
 ## 상태 변경 규칙
 
