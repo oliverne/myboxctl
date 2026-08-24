@@ -14,6 +14,8 @@ import {
   type SearchResourceItem,
   type SearchResourceListResponse,
   searchResourceListResponseSchema,
+  type StorageResponse,
+  storageResponseSchema,
 } from "./contract.ts";
 import {
   fallbackRateLimitDelayMs,
@@ -25,6 +27,7 @@ import {
 
 export const MAX_PAGE_COUNT = 1_000;
 export const MAX_ATTEMPTS = 4;
+export const STORAGE_CACHE_TTL_MS = 5 * 60_000;
 
 export type ClientConfig = {
   pat: string;
@@ -36,6 +39,7 @@ export type ClientDependencies = {
   fetch: typeof globalThis.fetch;
   sleep: (ms: number) => Promise<void>;
   random: () => number;
+  now: () => number;
   rateLimiter: RequestRateLimiter;
 };
 
@@ -84,6 +88,7 @@ const defaultDependencies: ClientDependencies = {
   fetch: globalThis.fetch,
   sleep: (ms) => Bun.sleep(ms),
   random: () => Math.random(),
+  now: () => Date.now(),
   rateLimiter: noOpRateLimiter,
 };
 
@@ -126,6 +131,7 @@ export class MyboxClient {
   readonly config: Omit<ClientConfig, "pat">;
   readonly dependencies: ClientDependencies;
   #pat: string;
+  #storageCache?: { value: StorageResponse; expiresAt: number };
 
   constructor(config: ClientConfig, dependencies: Partial<ClientDependencies> = {}) {
     this.#pat = config.pat;
@@ -247,6 +253,22 @@ export class MyboxClient {
     }
 
     throw apiResponseError("MYBOX request retry limit was exceeded.");
+  }
+
+  async getStorage(): Promise<StorageResponse> {
+    const now = this.dependencies.now();
+    if (this.#storageCache !== undefined && this.#storageCache.expiresAt > now) {
+      return this.#storageCache.value;
+    }
+
+    const value = await this.requestJson("GET", "/v1/drive/storage", {
+      schema: storageResponseSchema,
+    });
+    this.#storageCache = {
+      value,
+      expiresAt: now + STORAGE_CACHE_TTL_MS,
+    };
+    return value;
   }
 
   async getResource(resourceId: string): Promise<ResourceDetail> {
