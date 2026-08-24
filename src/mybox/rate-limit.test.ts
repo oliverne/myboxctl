@@ -248,9 +248,7 @@ describe("SharedRateLimiter", () => {
     };
     const folderList = {
       method: "GET",
-      url: new URL(
-        "https://open-api.mybox.naver.com/v1/drive/folders/folder-1/resources",
-      ),
+      url: new URL("https://open-api.mybox.naver.com/v1/drive/folders/folder-1/resources"),
     };
 
     await limiter.beforeRequest(rootList);
