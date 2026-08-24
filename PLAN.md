@@ -169,6 +169,7 @@ contract probe를 다시 실행한다. 후속 phase의 미확정 항목은 해�
 - CLI subprocess contract test
 - Ubuntu Server 24.04 설치 및 운영 문서
 - 실제 MYBOX acceptance test
+- Phase 08의 breaking contract correction 이후 최종 live acceptance를 2회 실행하도록 P07-E를 이관
 
 ### Phase 08 — Official API alignment
 
@@ -184,6 +185,7 @@ contract probe를 다시 실행한다. 후속 phase의 미확정 항목은 해�
 - 기존 search/delete limiter와 mutation no-generic-retry 정책 regression 검증
 - pre-release 단계에서는 기존 구현과의 호환성 유지보다 공식 API에 맞는 단순하고 정확한 구조를 우선
 - 잘못된 abstraction/type/test를 유지하기 위한 shim 없이 필요한 breaking refactor 수행
+- Phase 07은 완료 처리하지 않되, 중복 검증을 피하기 위해 남은 P07-E live acceptance를 Phase 08 최종 검증과 통합
 
 Phase 08은 MYBOX API 전체 기능 추가 phase가 아니다. 다운로드, rename/move/copy, favorite, trash 관리
 등 공식 API의 미구현 기능은 inventory에 남기고 실제 요구가 확인될 때만 별도 범위로 승격한다.
