@@ -14,8 +14,8 @@ lock으로 여러 CLI process에 공유한다. `Retry-After`가 없는 429는 60
 
 ## 현재 phase와 상태
 
-- Phase: `06-delete`
-- 상태: `complete`
+- Phase: `07-hardening`
+- 상태: `in_progress`
 - `docs/PROGRESS.md`와 일치한다.
 - 수정된 probe를 실제 MYBOX에서 실행했다. 동일 resume identity로 64MiB를 읽은 뒤 in-process stream
   error, 즉시 worker `SIGKILL`, 2초 client-buffer drain 뒤 worker `SIGKILL`을 각각 시도했지만 모두
@@ -24,7 +24,10 @@ lock으로 여러 CLI process에 공유한다. `Retry-After`가 없는 429는 60
 - 사용자가 server-returned offset 0부터 전체 파일을 한 번 재전송하는 정책을 승인했다.
 - production command의 실제 MYBOX acceptance와 100MiB bounded-memory 완료 전송이 통과했다.
 - Phase 05의 decision/command/integration flow와 Phase 06의 delete matrix/live acceptance가 통과했다.
-  Phase 07은 아직 시작하지 않았다.
+  Phase 07 hardening을 시작했다. 교차 프로세스 limiter, build artifact CLI 계약, 운영 문서와 최종
+  acceptance를 순서대로 검증한다.
+- Phase 07의 limiter/CLI artifact/Ubuntu 운영 문서 구현 패킷은 작성됐다. 현재 환경에 Bun과
+  MYBOX PAT가 없어 실행 검증은 아직 완료되지 않았다.
 
 ## 변경 파일
 
@@ -198,7 +201,8 @@ Phase 00에서 기록한 다음 항목은 여전히 미확정이다.
 다음 담당자는 upload probe나 완료된 command acceptance를 반복하지 않는다. 같은 identity, 64MiB read, process hard-kill,
 pre-kill drain, post-kill settle 뒤 offset 0이 재현됐고, production uploader의 100MiB 전체 재전송,
 bounded-memory, postcondition, cleanup까지 확인했다. Phase 05 metadata policy와 Phase 06 file 및
-non-empty-folder delete도 확인했다. 다음 작업은 Phase 07 hardening 시작 여부를 결정하는 것이다.
+non-empty-folder delete도 확인했다. 다음 작업은 Bun 1.4가 설치된 환경에서 Phase 07의 새 집중
+테스트와 full check/build를 실행하고, Ubuntu 24.04 및 실제 MYBOX acceptance 2회를 검증하는 것이다.
 
 upload의 parent/target/postcondition 검색에는 기존 공유 search limiter를 재사용한다. reservation과
 content mutation에는 generic retry를 추가하지 않고 probe로 확인한 resume/reconcile만 사용한다.
@@ -206,3 +210,21 @@ Phase 05는 이 정책을 그대로 재사용하고, Phase 06은 같은 state/lo
 동일 resource ID 기반 429 reconcile을 추가한다. Phase 07에서 두 Bun process의 slot 공유, stale
 lock, cooldown, `retryAfterMs`/exit 8을 검증한다. live 429/423을 만들기 위해 호출 한도나 lock을
 고의로 유발하지 않는다.
+
+## Phase 07 구현 및 검증 상태
+
+- 구현: test-only limiter policy, 두 Bun process slot/cooldown worker test, stale/active lock과 손상
+  state fail-closed test
+- 구현: 모든 command의 final 429 JSON/exit/redaction subprocess test
+- 구현: build artifact shebang/help/version/invalid-argument test와 `test:release` script
+- 구현: symbolic-link regular-file handle 정책 test/reference
+- 문서: Ubuntu Server 24.04 설치, credentials, agent 호출, upgrade/rollback
+- CI: `.github/workflows/ci.yml`에서 Ubuntu 24.04/Bun 1.4.0 frozen install, check, build
+- 미실행: `bun run check`, `bun run build`, `bun run test:release` — 현재 환경에 Bun/toolchain 없음
+- 미실행: `MYBOX_PAT=... bun run test:integration` 2회 — 현재 환경에 PAT 없음
+- 미실행: Ubuntu Server 24.04 설치/실행 절차 — 현재 Work 환경에서 OS 증거를 만들 수 없음
+
+다음 bounded action은 Bun 1.4 환경에서 `bun install --frozen-lockfile`, `bun run check`,
+`bun run test:release`를 실행해 새 테스트의 compile/runtime 실패를 수정하는 것이다. 이 검증 후에만
+MYBOX acceptance 2회와 Ubuntu 24.04 검증으로 진행한다. Phase 07 완료 표시는 모든 완료 조건이
+충족될 때까지 금지한다.

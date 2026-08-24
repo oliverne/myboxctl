@@ -154,6 +154,10 @@ content 전송이 retryable하게 실패하면 동일한 파일 identity로 예�
 재예약 응답의 offset이 0이면 전체 파일을 한 번 다시 보내고, non-zero면 해당 지점부터 남은 byte만
 보낸다. 두 번째 전송 실패 뒤에는 세 번째 시도를 하지 않는다.
 
+`local-path`가 symbolic link이면 명령 시작 시 link target을 연 file handle로 전송한다. 열린 대상이
+regular file이 아니면 거부하며, 업로드 전후 같은 handle의 size와 mtime이 달라지면
+`local-file-changed`로 실패한다. 경로를 다시 resolve해 다른 target으로 전환하지 않는다.
+
 ### `put <local-path> <remote-path>`
 
 지원 옵션은 `--force`, `--mkdir`, `--json`이다.

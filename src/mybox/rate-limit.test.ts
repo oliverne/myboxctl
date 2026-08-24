@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import {
   DELETE_REQUEST_LIMIT,
@@ -27,6 +27,61 @@ async function temporaryStatePath(): Promise<string> {
   const directory = await mkdtemp(join(tmpdir(), "myboxctl-rate-limit-"));
   temporaryDirectories.push(directory);
   return join(directory, "rate-limit.json");
+}
+
+async function runRateLimitWorker(
+  statePath: string,
+  mode: "reserve" | "cooldown",
+  options: {
+    readyDirectory?: string;
+    startFile?: string;
+    windowMs?: number;
+    retryAfter?: string;
+  } = {},
+): Promise<{ durationMs: number }> {
+  const worker = Bun.spawn([
+    process.execPath,
+    join(import.meta.dir, "../../test/helpers/rate-limit-worker.ts"),
+  ], {
+    env: {
+      PATH: process.env.PATH ?? "",
+      TMPDIR: process.env.TMPDIR ?? tmpdir(),
+      MYBOX_RATE_LIMIT_WORKER_STATE_PATH: statePath,
+      MYBOX_RATE_LIMIT_WORKER_MODE: mode,
+      MYBOX_RATE_LIMIT_WORKER_LIMIT: "1",
+      MYBOX_RATE_LIMIT_WORKER_WINDOW_MS: String(options.windowMs ?? 250),
+      ...(options.readyDirectory === undefined
+        ? {}
+        : { MYBOX_RATE_LIMIT_WORKER_READY_DIRECTORY: options.readyDirectory }),
+      ...(options.startFile === undefined
+        ? {}
+        : { MYBOX_RATE_LIMIT_WORKER_START_FILE: options.startFile }),
+      ...(options.retryAfter === undefined
+        ? {}
+        : { MYBOX_RATE_LIMIT_WORKER_RETRY_AFTER: options.retryAfter }),
+    },
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [stdout, exitCode] = await Promise.all([
+    new Response(worker.stdout).text(),
+    worker.exited,
+  ]);
+  if (exitCode !== 0) {
+    throw new Error(`rate-limit worker exited with ${exitCode}`);
+  }
+  return JSON.parse(stdout) as { durationMs: number };
+}
+
+async function waitForWorkers(readyDirectory: string, expectedCount: number): Promise<void> {
+  const deadline = Date.now() + 5_000;
+  while (Date.now() < deadline) {
+    if ((await readdir(readyDirectory)).length >= expectedCount) {
+      return;
+    }
+    await Bun.sleep(5);
+  }
+  throw new Error("rate-limit workers did not become ready");
 }
 
 function fakeClock(start = 100_000) {
@@ -88,6 +143,41 @@ describe("SharedRateLimiter", () => {
     const state = await Bun.file(statePath).text();
     expect(state).not.toContain("resources/folders");
     expect(state).not.toContain("path=%2Fa");
+    expect(state).not.toContain("test-pat");
+    expect(state).not.toContain("request-body");
+    expect(await Bun.file(`${statePath}.lock`).exists()).toBe(false);
+  });
+
+  test(
+    "atomically shares a search slot across Bun child processes without persisting request data",
+    async () => {
+      const statePath = await temporaryStatePath();
+      const readyDirectory = join(dirname(statePath), "worker-ready");
+      const startFile = join(dirname(statePath), "worker-start");
+      await mkdir(readyDirectory);
+      const firstWorker = runRateLimitWorker(statePath, "reserve", { readyDirectory, startFile });
+      const secondWorker = runRateLimitWorker(statePath, "reserve", { readyDirectory, startFile });
+      await waitForWorkers(readyDirectory, 2);
+      await writeFile(startFile, "");
+      const [first, second] = await Promise.all([firstWorker, secondWorker]);
+
+      expect(Math.max(first.durationMs, second.durationMs)).toBeGreaterThanOrEqual(100);
+      const state = await Bun.file(statePath).text();
+      expect(state).not.toContain("worker-query-secret");
+      expect(state).not.toContain("worker-pat-secret");
+      expect(state).not.toContain("worker-body-secret");
+      expect(state).not.toContain("resources/folders");
+      expect(await Bun.file(`${statePath}.lock`).exists()).toBe(false);
+    },
+  );
+
+  test("shares a 429 cooldown across Bun child processes", async () => {
+    const statePath = await temporaryStatePath();
+    await runRateLimitWorker(statePath, "cooldown", { retryAfter: "0.6" });
+
+    const result = await runRateLimitWorker(statePath, "reserve", { windowMs: 250 });
+
+    expect(result.durationMs).toBeGreaterThanOrEqual(150);
   });
 
   test("blocks all processes for Retry-After after a search 429", async () => {
@@ -172,5 +262,57 @@ describe("SharedRateLimiter", () => {
       kind: "api-unavailable",
       code: "RATE_LIMIT_STATE_UNAVAILABLE",
     });
+  });
+
+  test("fails closed when a state bucket has an invalid cooldown", async () => {
+    const statePath = await temporaryStatePath();
+    await Bun.write(
+      statePath,
+      JSON.stringify({
+        version: 1,
+        buckets: { "https://example.test:search": { requests: [], blockedUntil: "soon" } },
+      }),
+    );
+    const limiter = new SharedRateLimiter({ statePath });
+
+    await expect(limiter.beforeRequest(searchRequest)).rejects.toMatchObject({
+      kind: "api-unavailable",
+      code: "RATE_LIMIT_STATE_UNAVAILABLE",
+    });
+  });
+
+  test("recovers an empty stale lock directory using an injected test policy", async () => {
+    const statePath = await temporaryStatePath();
+    const lockPath = `${statePath}.lock`;
+    await mkdir(lockPath);
+    const staleAt = new Date(Date.now() - 1_000);
+    await utimes(lockPath, staleAt, staleAt);
+    const limiter = new SharedRateLimiter(
+      { statePath },
+      { policy: { staleLockMs: 10, lockRetryMs: 1, lockTimeoutMs: 100 } },
+    );
+
+    await limiter.beforeRequest(searchRequest);
+
+    expect(await Bun.file(lockPath).exists()).toBe(false);
+  });
+
+  test("fails closed instead of bypassing an active lock after the injected timeout", async () => {
+    const statePath = await temporaryStatePath();
+    const clock = fakeClock(Date.now());
+    await mkdir(`${statePath}.lock`);
+    const limiter = new SharedRateLimiter(
+      { statePath },
+      {
+        ...clock,
+        policy: { staleLockMs: 60_000, lockRetryMs: 5, lockTimeoutMs: 10 },
+      },
+    );
+
+    await expect(limiter.beforeRequest(searchRequest)).rejects.toMatchObject({
+      kind: "api-unavailable",
+      code: "RATE_LIMIT_STATE_UNAVAILABLE",
+    });
+    expect(await readdir(`${statePath}.lock`)).toEqual([]);
   });
 });

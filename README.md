@@ -4,9 +4,9 @@
 로컬 AI 에이전트 등 자동화된 호출자가 subprocess와 JSON으로 안정적으로 사용할 수 있도록 하는 것을
 우선하며, 양방향 sync는 제공하지 않는다.
 
-현재 Phase 06 Delete까지 완료했다. 원격 경로의 exact `stat`, direct-child `ls`, 누락 계층을 만드는
-`ensure-dir`, bounded-memory streaming `upload`, metadata 기반 조건부 `put`, idempotent `delete`를
-제공하며 상태는
+현재 Phase 06 Delete까지 완료했고 Phase 07 안정화·배포 검증을 진행 중이다. 원격 경로의 exact `stat`,
+direct-child `ls`, 누락 계층을 만드는 `ensure-dir`, bounded-memory streaming `upload`, metadata 기반
+조건부 `put`, idempotent `delete`를 제공하며 상태는
 [`docs/PROGRESS.md`](docs/PROGRESS.md), [`docs/HANDOFF.md`](docs/HANDOFF.md)를 확인한다.
 
 ## 요구사항
@@ -17,7 +17,7 @@
 ## 시작하기
 
 ```bash
-bun install
+bun install --frozen-lockfile
 bun run check
 bun run build
 bun run dev -- --help
@@ -26,6 +26,19 @@ bun run dev -- ls /agents/output --json
 bun run dev -- upload ./report.md /agents/output/report.md --mkdir --json
 bun run dev -- put ./report.md /agents/output/report.md --mkdir --json
 ```
+
+빌드 후에는 `dist/cli.js`를 직접 실행하거나 Bun으로 실행할 수 있다. 릴리스 산출물의 실행 계약은
+다음 명령으로 검증한다.
+
+```bash
+bun run test:release
+./dist/cli.js --version
+./dist/cli.js stat /agents/output/report.md --json
+```
+
+Ubuntu Server 24.04의 설치·credentials·업그레이드 절차는
+[`docs/operations/ubuntu-24.04.md`](docs/operations/ubuntu-24.04.md)를 따른다. MVP에서는 daemon이나
+systemd service를 제공하지 않으며, AI 에이전트가 필요할 때 CLI subprocess를 한 번 호출한다.
 
 실제 PAT는 `.env` 또는 배포 환경의 secret 파일로 전달하고 커밋하지 않는다.
 
@@ -49,6 +62,9 @@ cp .env.example .env
 bun run check
 bun run build
 ```
+
+`bun run check`는 typecheck, Biome, build artifact, 전체 Bun test를 순서대로 실행한다. 산출물만
+검증하려면 `bun run test:release`를 사용한다.
 
 실제 계정을 사용하는 integration test는 명시적으로 opt-in한다.
 

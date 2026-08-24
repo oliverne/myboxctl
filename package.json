@@ -19,10 +19,11 @@
     "format:code": "biome check --write .",
     "format:md": "prettier --write \"**/*.md\"",
     "test": "bun test",
+    "test:release": "bun run build && bun test test/cli/release-contract.test.ts",
     "test:integration": "MYBOX_INTEGRATION=1 bun test test/integration",
     "test:upload-probe": "MYBOX_UPLOAD_PROBE=1 bun test test/integration/upload-contract.test.ts",
     "test:contract": "MYBOX_CONTRACT=1 bun test test/integration/api-contract.test.ts",
-    "check": "bun run typecheck && bun run lint && bun test"
+    "check": "bun run typecheck && bun run lint && bun run build && bun test"
   },
   "dependencies": {
     "commander": "^15.0.0",

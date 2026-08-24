@@ -1,5 +1,9 @@
 # Phase 07 — Hardening and release readiness
 
+## 상태
+
+`in_progress`
+
 ## 목표
 
 모든 명령의 cross-cutting failure path와 Ubuntu Server 24.04 운영 방식을 검증하고 MVP acceptance
@@ -10,6 +14,29 @@ flow를 완료한다.
 - Phase 00~06이 모두 `complete`다.
 - public CLI contract 변경이 동결되어 있다.
 - `docs/PROGRESS.md`의 Phase 07이 `in_progress`다.
+
+## 작업 패킷과 의존성
+
+| 패킷 | 결과 | 주 소유 파일 | 의존성 | 검증 |
+| --- | --- | --- | --- | --- |
+| P07-A | 두 Bun process의 search/delete slot·cooldown 공유와 lock/state fail-closed 보장 | `src/mybox/rate-limit.ts`, 관련 worker/test | 없음 | 집중 Bun test, typecheck |
+| P07-B | 모든 command의 final 429 JSON/exit/redaction 계약 고정 | `test/cli/hardening.test.ts` | 기존 CLI와 fake server | 집중 CLI test |
+| P07-C | build artifact의 help/version/argument/output 실행 계약 고정 | `test/cli/release-contract.test.ts` | `bun run build` | build 후 artifact test |
+| P07-D | Ubuntu Server 24.04 설치·credential·upgrade/rollback 운영 절차 | `README.md`, `docs/operations/` | P07-C의 실제 artifact 계약 | 문서 명령 수동 검증 |
+| P07-E | unique prefix 전체 acceptance 2회, leak scan, 최종 release 판정 | progress/handoff와 기존 integration suite | P07-A~D | full check/build/integration |
+
+P07-A~D는 공개 CLI/API 계약을 바꾸지 않는 범위에서 독립적으로 진행할 수 있다. P07-E는 앞선
+패킷의 검증이 끝난 뒤에만 시작한다. 동일 파일을 수정하는 패킷은 직렬로 수행한다.
+
+## 제약과 에스컬레이션
+
+- production의 search 10회/분, delete 60회/분 값과 환경 변수 계약은 변경하지 않는다.
+- test-only timing/limit 주입은 constructor dependency로만 제공하며 production runtime에서 노출하지
+  않는다.
+- 새 dependency, public JSON schema, exit code, mutation retry, credential 저장 방식 변경은 계획
+  재검토 대상으로 보고 구현을 중단한다.
+- MYBOX PAT, Ubuntu 24.04 또는 Bun 1.4 실행 환경이 없으면 관련 검증을 성공으로 간주하지 않고
+  `in_progress` 또는 `blocked` 증거로 남긴다.
 
 ## 작업 범위
 

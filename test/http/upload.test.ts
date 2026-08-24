@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtemp, open, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, open, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -147,6 +147,44 @@ describe("MYBOX upload content", () => {
 });
 
 describe("upload HTTP operation", () => {
+  test("follows a symlink to a stable regular file through the opened handle", async () => {
+    if (process.platform === "win32") {
+      return;
+    }
+
+    const local = await localFile();
+    const linkPath = join(local.directory, "report-link.txt");
+    await symlink(local.path, linkPath);
+    const server = await createFakeHttpServer({
+      handler: (request: RecordedRequest) => {
+        if (request.path.startsWith("/v1/search/resources/")) {
+          return { body: searchPage() };
+        }
+        if (request.path === "/v1/drive/files") {
+          return {
+            status: 201,
+            body: { uploadUrl: `${server.baseUrl}/storage/upload`, offset: 0 },
+          };
+        }
+        if (request.path === "/storage/upload") {
+          return { body: { resourceId: "file-1", name: "report.txt", fileSize: 6 } };
+        }
+        if (request.path === "/v1/drive/resources/file-1") {
+          return { body: resourceDetail("report.txt", 6) };
+        }
+        return { status: 500, body: { code: "UNEXPECTED", message: "unexpected request" } };
+      },
+    });
+    servers.push(server);
+
+    const result = await runUpload(linkPath, "/report.txt", {}, dependencies(server));
+
+    expect(result.action).toBe("uploaded");
+    expect(
+      server.requests.find((request) => request.path === "/storage/upload")?.bodyText,
+    ).toContain("abcdef\r\n--");
+  });
+
   test("restarts once from offset zero after the first content failure", async () => {
     const local = await localFile();
     let reservationCount = 0;

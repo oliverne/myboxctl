@@ -5,11 +5,11 @@
 
 ## 현재 상태
 
-- 현재 phase: `06-delete`
-- 상태: `complete`
-- 다음 담당자: 미정
+- 현재 phase: `07-hardening`
+- 상태: `in_progress`
+- 다음 담당자: 구현 에이전트 (Phase 07 hardening)
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
-- 마지막 갱신: 2026-08-23
+- 마지막 갱신: 2026-08-24
 
 ## Phase 상태
 
@@ -22,7 +22,7 @@
 | 04 Upload           | complete | 실제 소형 acceptance와 100MiB bounded-memory resume 완료 전송 통과              | [`phases/04-upload.md`](phases/04-upload.md)               |
 | 05 Put              | complete | 순수 decision, CLI/fake HTTP, 실제 metadata policy flow 및 cleanup 통과         | [`phases/05-put.md`](phases/05-put.md)                     |
 | 06 Delete           | complete | file/non-empty-folder 실제 삭제, ID reconcile, limiter 및 cleanup 통과          | [`phases/06-delete.md`](phases/06-delete.md)               |
-| 07 Hardening        | pending  | 없음                                                                            | [`phases/07-hardening.md`](phases/07-hardening.md)         |
+| 07 Hardening        | in_progress | limiter/CLI artifact 테스트와 Ubuntu 운영 문서 구현, 실행 검증 대기            | [`phases/07-hardening.md`](phases/07-hardening.md)         |
 
 ## 초기화 상태
 
@@ -127,6 +127,22 @@ folder DELETE가 204, 같은 ID 재삭제가 404임을 확인했다. 단독 acce
 `bun run test:integration`은 6 pass, 6 opt-in skip, 0 fail이었다. active integration prefix cleanup은
 완료됐고 unique test resources는 MYBOX 삭제 의미에 따라 휴지통에 남는다. `bun run check`는 121
 pass, 18 skip, 0 fail이었고 build와 diff check도 통과했다.
+
+Phase 07 Hardening을 시작했다. `SharedRateLimiter`에 production 기본값을 바꾸지 않는 test-only policy
+주입을 추가하고, 두 Bun child process의 search slot 및 429 cooldown 공유, stale lock 복구, active
+lock timeout fail-closed, malformed state fail-closed, state 비밀정보 비저장 테스트를 작성했다. 모든
+command의 최종 429 JSON 한 줄/exit 8/`retryAfterMs`/redaction 계약과 build artifact의
+shebang/help/version/argument 오류 계약도 subprocess test로 추가했다. symbolic link는 명령 시작 시
+연 regular-file handle을 사용하며 경로를 다시 resolve하지 않는 정책을 test/reference에 고정했다.
+
+Ubuntu Server 24.04의 frozen install, 0600 credentials, AI agent subprocess, retry/exit code,
+upgrade/rollback 문서를 추가했다. 현재 실행 환경에는 Bun, Biome, TypeScript compiler와 MYBOX PAT가
+없어 새 테스트, `bun run check`, `bun run build`, integration과 Ubuntu 실환경 절차는 실행하지
+못했다. 따라서 Phase 07은 `in_progress`이며 구현 패킷을 완료 증거로 간주하지 않는다.
+
+GitHub Actions CI를 추가해 `ubuntu-24.04`와 Bun 1.4.0에서 frozen install, check, build를 실행한다.
+CI에는 secret을 전달하지 않으며 MYBOX integration은 opt-in 상태로 유지한다. workflow run 결과는
+원격 반영 후 확인해 Phase 07 검증 증거에 추가한다.
 
 ## 상태 변경 규칙
 

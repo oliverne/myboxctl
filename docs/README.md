@@ -30,6 +30,11 @@
 - [`reference/cli-contract.md`](reference/cli-contract.md): 명령, JSON, exit code
 - [`reference/mybox-api.md`](reference/mybox-api.md): 공식 문서로 확인된 API와 미확인 계약
 
+### 운영
+
+- [`operations/ubuntu-24.04.md`](operations/ubuntu-24.04.md): Ubuntu Server 24.04 설치, credentials,
+  AI 에이전트 subprocess 호출, 업그레이드·rollback
+
 ## 유지 규칙
 
 - `PROGRESS.md`만 phase 상태를 소유한다.

@@ -43,12 +43,37 @@ export type SharedRateLimiterDependencies = {
   now: () => number;
   sleep: (ms: number) => Promise<void>;
   random: () => number;
+  policy?: Partial<SharedRateLimiterPolicy>;
+};
+
+/**
+ * Test-only timing and bucket overrides. Production callers use the conservative defaults below;
+ * these values deliberately have no environment-variable or CLI surface.
+ */
+export type SharedRateLimiterPolicy = {
+  searchRequestLimit: number;
+  searchWindowMs: number;
+  deleteRequestLimit: number;
+  deleteWindowMs: number;
+  lockRetryMs: number;
+  lockTimeoutMs: number;
+  staleLockMs: number;
 };
 
 const defaultDependencies: SharedRateLimiterDependencies = {
   now: () => Date.now(),
   sleep: (ms) => Bun.sleep(ms),
   random: () => Math.random(),
+};
+
+const defaultPolicy: SharedRateLimiterPolicy = {
+  searchRequestLimit: SEARCH_REQUEST_LIMIT,
+  searchWindowMs: SEARCH_WINDOW_MS,
+  deleteRequestLimit: DELETE_REQUEST_LIMIT,
+  deleteWindowMs: DELETE_WINDOW_MS,
+  lockRetryMs: LOCK_RETRY_MS,
+  lockTimeoutMs: LOCK_TIMEOUT_MS,
+  staleLockMs: STALE_LOCK_MS,
 };
 
 export const noOpRateLimiter: RequestRateLimiter = {
@@ -104,12 +129,13 @@ function parseState(contents: string): RateLimitState {
       throw new Error("Invalid rate-limit bucket");
     }
 
-    const blockedUntil =
-      "blockedUntil" in rawBucket &&
-      typeof rawBucket.blockedUntil === "number" &&
-      Number.isFinite(rawBucket.blockedUntil)
-        ? rawBucket.blockedUntil
-        : undefined;
+    const blockedUntil = "blockedUntil" in rawBucket ? rawBucket.blockedUntil : undefined;
+    if (
+      blockedUntil !== undefined &&
+      (typeof blockedUntil !== "number" || !Number.isFinite(blockedUntil))
+    ) {
+      throw new Error("Invalid rate-limit bucket cooldown");
+    }
     buckets[key] = {
       requests,
       ...(blockedUntil === undefined ? {} : { blockedUntil }),
@@ -125,20 +151,23 @@ type BucketConfig = {
   windowMs: number;
 };
 
-function bucketForRequest(request: RateLimitRequest): BucketConfig | undefined {
+function bucketForRequest(
+  request: RateLimitRequest,
+  policy: SharedRateLimiterPolicy,
+): BucketConfig | undefined {
   const method = request.method.toUpperCase();
   if (method === "GET" && request.url.pathname.startsWith("/v1/search/")) {
     return {
       key: `${request.url.origin}:search`,
-      limit: SEARCH_REQUEST_LIMIT,
-      windowMs: SEARCH_WINDOW_MS,
+      limit: policy.searchRequestLimit,
+      windowMs: policy.searchWindowMs,
     };
   }
   if (method === "DELETE" && /^\/v1\/drive\/resources\/[^/]+$/.test(request.url.pathname)) {
     return {
       key: `${request.url.origin}:delete`,
-      limit: DELETE_REQUEST_LIMIT,
-      windowMs: DELETE_WINDOW_MS,
+      limit: policy.deleteRequestLimit,
+      windowMs: policy.deleteWindowMs,
     };
   }
   return undefined;
@@ -191,13 +220,19 @@ export function defaultRateLimitStatePath(
 export class SharedRateLimiter implements RequestRateLimiter {
   readonly statePath: string;
   readonly dependencies: SharedRateLimiterDependencies;
+  readonly policy: SharedRateLimiterPolicy;
 
   constructor(
     options: { statePath: string },
     dependencies: Partial<SharedRateLimiterDependencies> = {},
   ) {
     this.statePath = options.statePath;
-    this.dependencies = { ...defaultDependencies, ...dependencies };
+    this.dependencies = {
+      ...defaultDependencies,
+      ...dependencies,
+      policy: dependencies.policy ?? {},
+    };
+    this.policy = { ...defaultPolicy, ...(this.dependencies.policy ?? {}) };
   }
 
   private async acquireLock(): Promise<void> {
@@ -216,7 +251,7 @@ export class SharedRateLimiter implements RequestRateLimiter {
 
         try {
           const lockStats = await stat(lockPath);
-          if (Date.now() - lockStats.mtimeMs > STALE_LOCK_MS) {
+          if (this.dependencies.now() - lockStats.mtimeMs > this.policy.staleLockMs) {
             await rmdir(lockPath);
             continue;
           }
@@ -226,10 +261,10 @@ export class SharedRateLimiter implements RequestRateLimiter {
           }
         }
 
-        if (this.dependencies.now() - startedAt >= LOCK_TIMEOUT_MS) {
+        if (this.dependencies.now() - startedAt >= this.policy.lockTimeoutMs) {
           throw stateError(error);
         }
-        await this.dependencies.sleep(LOCK_RETRY_MS);
+        await this.dependencies.sleep(this.policy.lockRetryMs);
       }
     }
   }
@@ -269,7 +304,7 @@ export class SharedRateLimiter implements RequestRateLimiter {
   }
 
   async beforeRequest(request: RateLimitRequest): Promise<void> {
-    const config = bucketForRequest(request);
+    const config = bucketForRequest(request, this.policy);
     if (config === undefined) {
       return;
     }
@@ -302,7 +337,7 @@ export class SharedRateLimiter implements RequestRateLimiter {
   }
 
   async recordResponse(request: RateLimitRequest, response: RateLimitResponse): Promise<void> {
-    const config = bucketForRequest(request);
+    const config = bucketForRequest(request, this.policy);
     if (config === undefined || response.status !== 429) {
       return;
     }
