@@ -7,6 +7,7 @@ import {
   DELETE_REQUEST_LIMIT,
   DELETE_WINDOW_MS,
   defaultRateLimitStatePath,
+  OTHER_WINDOW_MS,
   parseRetryAfterMs,
   SEARCH_REQUEST_LIMIT,
   SEARCH_WINDOW_MS,
@@ -104,6 +105,15 @@ const deleteRequest = {
   method: "DELETE",
   url: new URL("https://open-api.mybox.naver.com/v1/drive/resources/file-1"),
 };
+
+const otherRequests = [
+  { method: "GET", path: "/v1/drive/storage" },
+  { method: "GET", path: "/v1/drive/resources" },
+  { method: "GET", path: "/v1/drive/folders/folder-1/resources" },
+  { method: "GET", path: "/v1/drive/resources/file-1" },
+  { method: "POST", path: "/v1/drive/folders" },
+  { method: "POST", path: "/v1/drive/files" },
+] as const;
 
 describe("SharedRateLimiter", () => {
   test("derives its state path from an explicit override or XDG state home", () => {
@@ -204,6 +214,53 @@ describe("SharedRateLimiter", () => {
     expect(clock.sleeps).toEqual([DELETE_WINDOW_MS]);
   });
 
+  test("applies an independent 60 per minute window to each current drive operation", async () => {
+    for (const request of otherRequests) {
+      const statePath = await temporaryStatePath();
+      const clock = fakeClock();
+      const limiter = new SharedRateLimiter({ statePath }, clock);
+
+      for (let index = 0; index < 60; index += 1) {
+        await limiter.beforeRequest({
+          method: request.method,
+          url: new URL(request.path, "https://open-api.mybox.naver.com"),
+        });
+      }
+      await limiter.beforeRequest({
+        method: request.method,
+        url: new URL(request.path, "https://open-api.mybox.naver.com"),
+      });
+
+      expect(clock.sleeps).toEqual([OTHER_WINDOW_MS]);
+    }
+  });
+
+  test("does not merge different drive operations into one global bucket", async () => {
+    const statePath = await temporaryStatePath();
+    const clock = fakeClock();
+    const limiter = new SharedRateLimiter(
+      { statePath },
+      { ...clock, policy: { otherRequestLimit: 1, otherWindowMs: 100 } },
+    );
+    const rootList = {
+      method: "GET",
+      url: new URL("https://open-api.mybox.naver.com/v1/drive/resources"),
+    };
+    const folderList = {
+      method: "GET",
+      url: new URL(
+        "https://open-api.mybox.naver.com/v1/drive/folders/folder-1/resources",
+      ),
+    };
+
+    await limiter.beforeRequest(rootList);
+    await limiter.beforeRequest(folderList);
+    expect(clock.sleeps).toEqual([]);
+
+    await limiter.beforeRequest(rootList);
+    expect(clock.sleeps).toEqual([100]);
+  });
+
   test("shares delete 429 cooldown without blocking the search bucket", async () => {
     const statePath = await temporaryStatePath();
     const clock = fakeClock();
@@ -240,7 +297,7 @@ describe("SharedRateLimiter", () => {
 
     await limiter.beforeRequest({
       method: "GET",
-      url: new URL("https://open-api.mybox.naver.com/v1/drive/resources"),
+      url: new URL("https://open-api.mybox.naver.com/v1/drive/trash"),
     });
 
     expect(clock.sleeps).toEqual([]);
