@@ -72,9 +72,11 @@ myboxctl delete /agents/output/old-report.md --json
 | `docs/architecture/*.md` | 설계 원칙과 트레이드오프                | 설계 결정 변경 시       |
 | `docs/reference/*.md`    | CLI/API 등 안정적인 계약과 coverage     | 관찰/계약 변경 시       |
 
-상태 값은 `pending`, `in_progress`, `blocked`, `complete`만 사용한다. 동시에 하나의
-phase만 `in_progress`일 수 있다. phase 완료는 코드 작성 여부가 아니라 해당 phase 문서의
-검증 및 handoff 조건으로 판정한다.
+상태 값은 `pending`, `in_progress`, `blocked`, `complete`만 사용한다. 원칙적으로 동시에 하나의
+phase만 `in_progress`일 수 있다. 단, Phase 07의 마지막 live acceptance를 breaking contract correction
+이후로 이관한 전환 기간에는 Phase 07과 Phase 08을 함께 `in_progress`로 둘 수 있으며, 예외 사유와
+통합 종료 조건을 `docs/PROGRESS.md`에 기록한다. phase 완료는 코드 작성 여부가 아니라 해당 phase
+문서의 검증 및 handoff 조건으로 판정한다.
 
 ## 5. Phase 로드맵
 
