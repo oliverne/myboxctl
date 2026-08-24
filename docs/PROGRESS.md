@@ -150,15 +150,16 @@ typecheck, Biome, build artifact와 전체 test가 성공했으며 결과는 131
 별도 build step도 104 modules bundle에 성공했다. Phase 07의 남은 필수 검증은 실제 MYBOX acceptance
 2회와 credential leak/diff 최종 검사다.
 
-2026-08-24 공식 MYBOX Open API 문서를 전수 조사하고 현재 `MyboxClient`와 대조했다. 공식 문서에서
-20개 endpoint operation을 확인했고 현재 구현은 그중 8개를 직접 사용한다. 나머지 12개는 API가
-존재한다는 이유만으로 구현하지 않고 향후 사용 사례 기반 후보로 남긴다. 조사 결과와 분류는
-`docs/reference/official-api-audit.md`에 기록했다.
+2026-08-24 공식 MYBOX Open API 문서를 전수 조사하고 현재 `MyboxClient`와 대조했다. 조사
+시점에는 공식 20개 operation 중 8개를 사용했고 12개는 비범위 후보였다. 이후 Phase 08에서
+`GET /v1/drive/storage`를 추가해 현재 coverage는 9/20이며, 나머지 11개는 사용 사례가 생길 때만
+검토한다. 조사 결과와 분류는 `docs/reference/official-api-audit.md`에 기록했다.
 
-현재 CLI와 직접 관련된 후속 항목은 Phase 08로 분리했다. `GET /v1/drive/storage`의 `maxFileBytes`
-활용 여부, 검색/삭제 외 현재 사용 API의 공식 `API별 60회/분` 한도, file search에서 공식 문서에
-없는 `path` option 노출을 다룬다. 이번 작업은 문서만 변경하며 production code와 기존 검증 상태는
-변경하지 않는다. Phase 08은 Phase 07 완료 후에만 `in_progress`로 전환한다.
+사용자는 P07-E live acceptance를 Phase 08 breaking correction 이후로 이관하도록 승인했다. 이
+전환에 한해 Phase 07과 Phase 08을 함께 `in_progress`로 두며, Phase 08 구현과 일반 CI가 끝난 뒤
+통합 live acceptance 2회, unique prefix cleanup, credential leak/diff 확인으로 두 phase를 함께
+종료한다. Phase 08에서는 storage preflight, 현재 사용 operation별 limiter와 file/folder search
+type 분리를 production code와 테스트에 반영했다.
 
 ## Phase 08 구현 및 일반 CI 검증
 
@@ -171,7 +172,7 @@ Phase 08의 contract correction을 구현했다.
 - 공식 storage response schema와 process-local 5분 cache를 추가했다.
 - upload와 mutation이 필요한 put은 `maxFileBytes` 초과를 reservation 전에 `FILE_TOO_LARGE`로
   거부한다. quota 부족은 서버 507을 따른다.
-- PR #4 CI run 26, Ubuntu 24.04/Bun 1.4.0에서 frozen install, typecheck, Biome, build,
+- PR #4 CI에서 Ubuntu 24.04/Bun 1.4.0 frozen install, typecheck, Biome, build,
   138 pass/21 opt-in skip/0 fail, diff check가 통과했다.
 
 아직 실행하지 않은 증거는 Phase 07/08 통합 live acceptance 2회와 unique prefix cleanup이다.
