@@ -220,11 +220,11 @@ lock, cooldown, `retryAfterMs`/exit 8을 검증한다. live 429/423을 만들기
 - 구현: symbolic-link regular-file handle 정책 test/reference
 - 문서: Ubuntu Server 24.04 설치, credentials, agent 호출, upgrade/rollback
 - CI: `.github/workflows/ci.yml`에서 Ubuntu 24.04/Bun 1.4.0 frozen install, check, build
-- 미실행: `bun run check`, `bun run build`, `bun run test:release` — 현재 환경에 Bun/toolchain 없음
+- 검증: PR #1 CI run 3, Ubuntu 24.04/Bun 1.4.0 — frozen install, typecheck, Biome, build,
+  131 pass/18 opt-in skip/0 fail
 - 미실행: `MYBOX_PAT=... bun run test:integration` 2회 — 현재 환경에 PAT 없음
 - 미실행: Ubuntu Server 24.04 설치/실행 절차 — 현재 Work 환경에서 OS 증거를 만들 수 없음
 
-다음 bounded action은 Bun 1.4 환경에서 `bun install --frozen-lockfile`, `bun run check`,
-`bun run test:release`를 실행해 새 테스트의 compile/runtime 실패를 수정하는 것이다. 이 검증 후에만
-MYBOX acceptance 2회와 Ubuntu 24.04 검증으로 진행한다. Phase 07 완료 표시는 모든 완료 조건이
-충족될 때까지 금지한다.
+다음 bounded action은 PAT가 제공되는 안전한 환경에서 `bun run test:integration`의 전체 acceptance
+flow를 두 번 실행하고 unique prefix cleanup을 확인하는 것이다. 이후 credential leak/diff 최종
+검사를 수행한다. Phase 07 완료 표시는 모든 완료 조건이 충족될 때까지 금지한다.

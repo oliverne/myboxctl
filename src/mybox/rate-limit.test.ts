@@ -39,34 +39,31 @@ async function runRateLimitWorker(
     retryAfter?: string;
   } = {},
 ): Promise<{ durationMs: number }> {
-  const worker = Bun.spawn([
-    process.execPath,
-    join(import.meta.dir, "../../test/helpers/rate-limit-worker.ts"),
-  ], {
-    env: {
-      PATH: process.env.PATH ?? "",
-      TMPDIR: process.env.TMPDIR ?? tmpdir(),
-      MYBOX_RATE_LIMIT_WORKER_STATE_PATH: statePath,
-      MYBOX_RATE_LIMIT_WORKER_MODE: mode,
-      MYBOX_RATE_LIMIT_WORKER_LIMIT: "1",
-      MYBOX_RATE_LIMIT_WORKER_WINDOW_MS: String(options.windowMs ?? 250),
-      ...(options.readyDirectory === undefined
-        ? {}
-        : { MYBOX_RATE_LIMIT_WORKER_READY_DIRECTORY: options.readyDirectory }),
-      ...(options.startFile === undefined
-        ? {}
-        : { MYBOX_RATE_LIMIT_WORKER_START_FILE: options.startFile }),
-      ...(options.retryAfter === undefined
-        ? {}
-        : { MYBOX_RATE_LIMIT_WORKER_RETRY_AFTER: options.retryAfter }),
+  const worker = Bun.spawn(
+    [process.execPath, join(import.meta.dir, "../../test/helpers/rate-limit-worker.ts")],
+    {
+      env: {
+        PATH: process.env.PATH ?? "",
+        TMPDIR: process.env.TMPDIR ?? tmpdir(),
+        MYBOX_RATE_LIMIT_WORKER_STATE_PATH: statePath,
+        MYBOX_RATE_LIMIT_WORKER_MODE: mode,
+        MYBOX_RATE_LIMIT_WORKER_LIMIT: "1",
+        MYBOX_RATE_LIMIT_WORKER_WINDOW_MS: String(options.windowMs ?? 250),
+        ...(options.readyDirectory === undefined
+          ? {}
+          : { MYBOX_RATE_LIMIT_WORKER_READY_DIRECTORY: options.readyDirectory }),
+        ...(options.startFile === undefined
+          ? {}
+          : { MYBOX_RATE_LIMIT_WORKER_START_FILE: options.startFile }),
+        ...(options.retryAfter === undefined
+          ? {}
+          : { MYBOX_RATE_LIMIT_WORKER_RETRY_AFTER: options.retryAfter }),
+      },
+      stdout: "pipe",
+      stderr: "pipe",
     },
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const [stdout, exitCode] = await Promise.all([
-    new Response(worker.stdout).text(),
-    worker.exited,
-  ]);
+  );
+  const [stdout, exitCode] = await Promise.all([new Response(worker.stdout).text(), worker.exited]);
   if (exitCode !== 0) {
     throw new Error(`rate-limit worker exited with ${exitCode}`);
   }
@@ -148,28 +145,25 @@ describe("SharedRateLimiter", () => {
     expect(await Bun.file(`${statePath}.lock`).exists()).toBe(false);
   });
 
-  test(
-    "atomically shares a search slot across Bun child processes without persisting request data",
-    async () => {
-      const statePath = await temporaryStatePath();
-      const readyDirectory = join(dirname(statePath), "worker-ready");
-      const startFile = join(dirname(statePath), "worker-start");
-      await mkdir(readyDirectory);
-      const firstWorker = runRateLimitWorker(statePath, "reserve", { readyDirectory, startFile });
-      const secondWorker = runRateLimitWorker(statePath, "reserve", { readyDirectory, startFile });
-      await waitForWorkers(readyDirectory, 2);
-      await writeFile(startFile, "");
-      const [first, second] = await Promise.all([firstWorker, secondWorker]);
+  test("atomically shares a search slot across Bun child processes without persisting request data", async () => {
+    const statePath = await temporaryStatePath();
+    const readyDirectory = join(dirname(statePath), "worker-ready");
+    const startFile = join(dirname(statePath), "worker-start");
+    await mkdir(readyDirectory);
+    const firstWorker = runRateLimitWorker(statePath, "reserve", { readyDirectory, startFile });
+    const secondWorker = runRateLimitWorker(statePath, "reserve", { readyDirectory, startFile });
+    await waitForWorkers(readyDirectory, 2);
+    await writeFile(startFile, "");
+    const [first, second] = await Promise.all([firstWorker, secondWorker]);
 
-      expect(Math.max(first.durationMs, second.durationMs)).toBeGreaterThanOrEqual(100);
-      const state = await Bun.file(statePath).text();
-      expect(state).not.toContain("worker-query-secret");
-      expect(state).not.toContain("worker-pat-secret");
-      expect(state).not.toContain("worker-body-secret");
-      expect(state).not.toContain("resources/folders");
-      expect(await Bun.file(`${statePath}.lock`).exists()).toBe(false);
-    },
-  );
+    expect(Math.max(first.durationMs, second.durationMs)).toBeGreaterThanOrEqual(100);
+    const state = await Bun.file(statePath).text();
+    expect(state).not.toContain("worker-query-secret");
+    expect(state).not.toContain("worker-pat-secret");
+    expect(state).not.toContain("worker-body-secret");
+    expect(state).not.toContain("resources/folders");
+    expect(await Bun.file(`${statePath}.lock`).exists()).toBe(false);
+  });
 
   test("shares a 429 cooldown across Bun child processes", async () => {
     const statePath = await temporaryStatePath();
