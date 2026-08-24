@@ -30,7 +30,10 @@ lock으로 여러 CLI process에 공유한다. `Retry-After`가 없는 429는 60
   MYBOX PAT가 없어 실행 검증은 아직 완료되지 않았다.
 - 사용자는 Phase 08 breaking refactor 전에 P07-E live acceptance를 반복하지 않고 Phase 08 종료
   검증으로 이관하도록 승인했다. Phase 07은 그때까지 `in_progress`를 유지한다.
-- Phase 08 공식 API 정합성 구현을 시작한다.
+- Phase 08의 search type 분리, operation별 60회/분 limiter, storage schema/cache,
+  `maxFileBytes` preflight를 구현했다.
+- PR #4 CI run 26에서 Ubuntu 24.04/Bun 1.4.0, 138 pass/21 skip/0 fail과 build/diff check가
+  통과했다.
 
 ## 변경 파일
 
@@ -228,8 +231,8 @@ lock, cooldown, `retryAfterMs`/exit 8을 검증한다. live 429/423을 만들기
 - 미실행: `MYBOX_PAT=... bun run test:integration` 2회 — 현재 환경에 PAT 없음
 - 미실행: Ubuntu Server 24.04 설치/실행 절차 — 현재 Work 환경에서 OS 증거를 만들 수 없음
 
-Phase 07의 P07-E는 Phase 08 종료 검증으로 이관됐다. 다음 bounded action은
-`src/mybox/client.ts`의 file/folder search option type을 공식 계약에 맞게 분리하고 resolver/client
-테스트를 수정하는 것이다. 이후 operation별 60회/분 limiter와 storage preflight를 구현한다. 모든
-contract correction과 일반 CI가 통과한 뒤 live acceptance를 2회 실행한다. Phase 07과 Phase 08은
-최종 증거가 모두 충족될 때까지 완료 표시하지 않는다.
+Phase 07의 P07-E는 Phase 08 종료 검증으로 이관됐고 contract correction과 일반 CI는
+통과했다. 다음 bounded action은 PR #4의 `phase-08-official-api-alignment` branch에서
+`live_acceptance=true` workflow를 실행해 전체 flow 2회와 unique prefix cleanup을 확인하는 것이다.
+그 뒤 credential leak/diff를 최종 확인하고 Phase 07/08 상태를 함께 종료한다. 최종 증거가 충족되기
+전에는 두 phase를 완료 표시하지 않는다.
