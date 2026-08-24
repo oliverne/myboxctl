@@ -160,6 +160,23 @@ typecheck, Biome, build artifact와 전체 test가 성공했으며 결과는 131
 없는 `path` option 노출을 다룬다. 이번 작업은 문서만 변경하며 production code와 기존 검증 상태는
 변경하지 않는다. Phase 08은 Phase 07 완료 후에만 `in_progress`로 전환한다.
 
+## Phase 08 구현 및 일반 CI 검증
+
+Phase 08의 contract correction을 구현했다.
+
+- `SearchOptions`를 `FileSearchOptions`와 `FolderSearchOptions`로 교체하고 file search의
+  undocumented `path` 직렬화를 제거했다.
+- storage/root list/folder list/resource detail/folder create/upload reservation에 operation별 독립
+  60회/분 shared bucket을 추가했다.
+- 공식 storage response schema와 process-local 5분 cache를 추가했다.
+- upload와 mutation이 필요한 put은 `maxFileBytes` 초과를 reservation 전에 `FILE_TOO_LARGE`로
+  거부한다. quota 부족은 서버 507을 따른다.
+- PR #4 CI run 26, Ubuntu 24.04/Bun 1.4.0에서 frozen install, typecheck, Biome, build,
+  138 pass/21 opt-in skip/0 fail, diff check가 통과했다.
+
+아직 실행하지 않은 증거는 Phase 07/08 통합 live acceptance 2회와 unique prefix cleanup이다.
+따라서 두 phase 모두 `in_progress`다.
+
 ## Phase 07/08 검증 순서 결정
 
 2026-08-24 사용자는 Phase 08의 breaking refactor 전에 Phase 07 live acceptance를 실행하지 않고 최종
