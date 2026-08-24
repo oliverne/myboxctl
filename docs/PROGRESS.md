@@ -5,9 +5,9 @@
 
 ## 현재 상태
 
-- 현재 phase: `07-hardening`
+- 현재 phase: `08-official-api-alignment`
 - 상태: `in_progress`
-- 다음 담당자: 구현 에이전트 (Phase 07 hardening)
+- 다음 담당자: 구현 에이전트 (Phase 08 official API alignment)
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
 - 마지막 갱신: 2026-08-24
 
@@ -22,8 +22,8 @@
 | 04 Upload               | complete    | 실제 소형 acceptance와 100MiB bounded-memory resume 완료 전송 통과              | [`phases/04-upload.md`](phases/04-upload.md)                       |
 | 05 Put                  | complete    | 순수 decision, CLI/fake HTTP, 실제 metadata policy flow 및 cleanup 통과         | [`phases/05-put.md`](phases/05-put.md)                             |
 | 06 Delete               | complete    | file/non-empty-folder 실제 삭제, ID reconcile, limiter 및 cleanup 통과          | [`phases/06-delete.md`](phases/06-delete.md)                       |
-| 07 Hardening            | in_progress | limiter/CLI artifact 테스트와 Ubuntu 운영 문서 구현, 실행 검증 대기            | [`phases/07-hardening.md`](phases/07-hardening.md)                 |
-| 08 Official API alignment | pending   | 공식 Open API 전수 조사와 현재 구현 대조 완료, 구현은 Phase 07 이후 진행       | [`phases/08-official-api-alignment.md`](phases/08-official-api-alignment.md) |
+| 07 Hardening            | in_progress | P07-A~D CI 통과, P07-E live acceptance는 Phase 08 종료 검증으로 이관            | [`phases/07-hardening.md`](phases/07-hardening.md)                 |
+| 08 Official API alignment | in_progress | 공식 API 대조 완료, contract correction 구현 시작                              | [`phases/08-official-api-alignment.md`](phases/08-official-api-alignment.md) |
 
 ## 초기화 상태
 
@@ -159,6 +159,13 @@ typecheck, Biome, build artifact와 전체 test가 성공했으며 결과는 131
 활용 여부, 검색/삭제 외 현재 사용 API의 공식 `API별 60회/분` 한도, file search에서 공식 문서에
 없는 `path` option 노출을 다룬다. 이번 작업은 문서만 변경하며 production code와 기존 검증 상태는
 변경하지 않는다. Phase 08은 Phase 07 완료 후에만 `in_progress`로 전환한다.
+
+## Phase 07/08 검증 순서 결정
+
+2026-08-24 사용자는 Phase 08의 breaking refactor 전에 Phase 07 live acceptance를 실행하지 않고 최종
+검증으로 통합하도록 승인했다. Phase 07은 완료 처리하지 않는다. Phase 08 구현과 일반 CI가 끝난 뒤
+전체 live acceptance를 2회 실행하고 unique prefix cleanup, credential leak, diff를 확인한 후 두
+phase의 완료 상태를 갱신한다.
 
 ## 상태 변경 규칙
 
