@@ -28,7 +28,9 @@
 ### 계약 reference
 
 - [`reference/cli-contract.md`](reference/cli-contract.md): 명령, JSON, exit code
-- [`reference/mybox-api.md`](reference/mybox-api.md): 공식 문서로 확인된 API와 미확인 계약
+- [`reference/mybox-api.md`](reference/mybox-api.md): 구현 endpoint의 공식 계약과 실제 integration 관찰
+- [`reference/official-api-audit.md`](reference/official-api-audit.md): 공식 Open API 전체 inventory,
+  현재 구현 coverage, 의도적 비범위와 후속 과제
 
 ### 운영
 
@@ -40,5 +42,6 @@
 - `PROGRESS.md`만 phase 상태를 소유한다.
 - `HANDOFF.md`는 현재 작업의 사실만 담고 과거 일지는 만들지 않는다. Git history가 과거 기록이다.
 - 새로운 API 관찰은 재현 절차와 함께 `reference/mybox-api.md`에 추가한다.
+- 공식 API endpoint inventory나 coverage가 바뀌면 `reference/official-api-audit.md`를 갱신한다.
 - 기존 설계를 바꾸면 해당 architecture 문서에 이유와 영향을 기록한다.
 - phase 범위가 바뀌면 `PLAN.md`, 해당 phase 문서, `PROGRESS.md`를 함께 갱신한다.

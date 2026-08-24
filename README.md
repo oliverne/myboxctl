@@ -59,6 +59,10 @@ delete      원격 파일/폴더를 MYBOX 휴지통으로 이동
 - FUSE mount, GUI, TUI
 - 다중 MYBOX 계정
 
+NAVER 공식 API에는 download, rename, move, copy, favorite, 휴지통 복원/영구 삭제 같은 기능도 있지만,
+`myboxctl`은 API coverage 자체를 목표로 하지 않습니다. 실제 agent workflow에서 필요성이 확인되면
+선택적으로 추가합니다.
+
 이 범위는 프로젝트의 제약이라기보다 방향에 가깝습니다. 실제로 필요한 기능이 생기면 추가할 수 있지만,
 작고 단순한 CLI라는 성격은 유지하려고 합니다.
 
@@ -78,6 +82,28 @@ AI가 작성한 코드가 포함되어 있다는 점을 고려해 사용해 주�
 - CLI/JSON 계약은 안정화 과정에서 아직 변경될 수 있습니다.
 
 `myboxctl`은 NAVER의 공식 제품이 아니며 NAVER와 제휴하거나 보증을 받은 프로젝트가 아닙니다.
+
+## NAVER Open API 제약
+
+`myboxctl` 자체의 설계와 별개로 NAVER MYBOX Open API에 다음 제약이 있습니다.
+
+- PAT는 계정당 최대 5개까지 만들 수 있고 유효기간은 30/60/90/180일 중 선택합니다.
+- **암호 폴더와 공유 받은 폴더는 Open API에서 지원하지 않습니다.**
+- 요금제와 API 종류에 따라 호출 한도가 있습니다.
+  - 검색: 최소 요금제 기준 10회/분
+  - 삭제: 최소 요금제 기준 60회/분
+  - 그 외 기능: API별 60회/분
+  - 다운로드: 요금제별 일일 한도
+- 계정이 용량 초과 또는 제한 상태이면 API 호출이 실패할 수 있습니다.
+
+현재 `myboxctl`은 search 10회/분과 delete 60회/분을 보수적으로 여러 CLI process 사이에서
+조정합니다. 공식 API 전수 조사에서 나머지 현재 사용 endpoint의 API별 60회/분과 upload 최대 크기
+조회(`maxFileBytes`)를 추가로 정리할 필요가 확인되어 Phase 08 후속 과제로 기록했습니다.
+
+전체 공식 API inventory, 현재 구현 coverage와 후속 과제는
+[`docs/reference/official-api-audit.md`](docs/reference/official-api-audit.md)를 참고해 주세요.
+
+공식 문서: <https://developers.mybox.naver.com/getting-started>
 
 ## 요구사항
 
@@ -137,6 +163,7 @@ credentials를 다룰 때는 다음 원칙을 권장합니다.
 - 서버에서 credentials 파일을 사용한다면 권한을 `0600`으로 제한합니다.
 - 일반 GitHub Actions push/PR CI에는 MYBOX PAT를 전달하지 않습니다.
 - 실제 MYBOX integration test는 명시적으로 opt-in합니다.
+- PAT는 만료 전에 교체하고 더 이상 사용하지 않는 토큰은 MYBOX 웹에서 삭제합니다.
 
 ## `put`의 비교 방식
 
@@ -182,7 +209,9 @@ MYBOX_PAT=... bun run test:upload-probe
 - [`docs/HANDOFF.md`](docs/HANDOFF.md) — 현재 작업 문맥과 다음 단계
 - [`docs/architecture/overview.md`](docs/architecture/overview.md) — 구조와 설계 방향
 - [`docs/reference/cli-contract.md`](docs/reference/cli-contract.md) — JSON과 exit code 계약
-- [`docs/reference/mybox-api.md`](docs/reference/mybox-api.md) — 실제로 확인한 MYBOX API 동작
+- [`docs/reference/mybox-api.md`](docs/reference/mybox-api.md) — 구현 API의 공식 계약과 실제 관찰
+- [`docs/reference/official-api-audit.md`](docs/reference/official-api-audit.md) — 공식 API 전체 inventory와
+  현재 구현 대조
 
 ## Contributing
 

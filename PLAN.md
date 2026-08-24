@@ -35,6 +35,7 @@ myboxctl delete /agents/output/old-report.md --json
 - 다중 MYBOX 계정
 - MVP 이전 daemon/watch 모드
 - 완전한 rclone 호환
+- MYBOX Open API 전체 기능의 wrapper
 
 ## 3. 핵심 결정
 
@@ -47,9 +48,13 @@ myboxctl delete /agents/output/old-report.md --json
 - 변경 요청은 공통 fetch retry로 재실행하지 않고 operation별 reconcile/resume 정책을 사용한다.
 - 검색 요청은 문서상 최저 한도인 10회/분을 기본값으로 프로세스 간 공유 조정한다.
 - 실제 API 사실은 공식 문서 또는 재현 가능한 integration test로만 확정한다.
+- 공식 API에 존재한다는 이유만으로 새 command를 추가하지 않는다. 실제 agent workflow가 필요성을 보여줄
+  때만 범위를 확장한다.
 
 상세 근거와 의존성 방향은 [`docs/architecture/overview.md`](docs/architecture/overview.md),
 안정성 정책은 [`docs/architecture/reliability.md`](docs/architecture/reliability.md)를 따른다.
+공식 API 전체 inventory와 현재 구현 coverage는
+[`docs/reference/official-api-audit.md`](docs/reference/official-api-audit.md)를 따른다.
 
 ## 4. 문서 구조와 상태 관리
 
@@ -60,7 +65,7 @@ myboxctl delete /agents/output/old-report.md --json
 | `docs/HANDOFF.md`        | 다음 에이전트가 즉시 이어받을 현재 문맥 | 모든 작업 종료 전       |
 | `docs/phases/*.md`       | 각 phase의 실행 가능한 상세 계획        | 해당 phase 계획 변경 시 |
 | `docs/architecture/*.md` | 설계 원칙과 트레이드오프                | 설계 결정 변경 시       |
-| `docs/reference/*.md`    | CLI/API 등 안정적인 계약                | 관찰/계약 변경 시       |
+| `docs/reference/*.md`    | CLI/API 등 안정적인 계약과 coverage     | 관찰/계약 변경 시       |
 
 상태 값은 `pending`, `in_progress`, `blocked`, `complete`만 사용한다. 동시에 하나의
 phase만 `in_progress`일 수 있다. phase 완료는 코드 작성 여부가 아니라 해당 phase 문서의
@@ -160,6 +165,22 @@ contract probe를 다시 실행한다. 후속 phase의 미확정 항목은 해�
 - Ubuntu Server 24.04 설치 및 운영 문서
 - 실제 MYBOX acceptance test
 
+### Phase 08 — Official API alignment
+
+문서: [`docs/phases/08-official-api-alignment.md`](docs/phases/08-official-api-alignment.md)
+
+2026-08-24 공식 Open API 전수 조사 결과 중 **현재 CLI의 안정성과 계약 정합성에 직접 영향을 주는
+항목만** 반영한다.
+
+- `GET /v1/drive/storage`의 `maxFileBytes`를 upload/put preflight에 활용할지 결정하고 구현
+- 검색/삭제 외 현재 사용 API의 공식 `API별 60회/분` 한도 alignment
+- file search에서 공식 문서에 없는 `path` query를 public type/request가 표현하지 못하도록 정리
+- PAT 유효기간, 암호 폴더/공유 받은 폴더 미지원 등 공식 제약과 사용자 문서 정합성 확인
+- 기존 search/delete limiter와 mutation no-generic-retry 정책 regression 검증
+
+Phase 08은 MYBOX API 전체 기능 추가 phase가 아니다. 다운로드, rename/move/copy, favorite, trash 관리
+등 공식 API의 미구현 기능은 inventory에 남기고 실제 요구가 확인될 때만 별도 범위로 승격한다.
+
 ## 6. 전체 MVP 완료 조건
 
 다음 조건을 모두 충족해야 MVP를 완료할 수 있다.
@@ -192,7 +213,7 @@ probe 결과는 API ledger와 handoff에 이미 남아 있어야 한다.
 - 정상적인 대용량 업로드에서 메모리가 파일 크기에 비례해 증가하지 않는다.
 - PAT, Authorization header, upload/download URL이 출력과 로그에 나타나지 않는다.
 - 원격 mutation은 unique integration-test prefix 밖에서 실행되지 않는다.
-- 모든 phase가 `complete`이고 `docs/HANDOFF.md`에 미완료 구현 작업이 없다.
+- Phase 00~08이 모두 `complete`이고 `docs/HANDOFF.md`에 미완료 MVP 구현 작업이 없다.
 
 ## 7. 이후 후보
 
@@ -202,5 +223,13 @@ MVP 완료 후 실제 요구가 확인된 경우에만 검토한다.
 - resumable upload 고도화
 - watch daemon
 - systemd unit
+- download
+- rename/move/copy
+- favorite/unfavorite
+- trash list/restore
+
+휴지통 영구 삭제, 휴지통 전체 비우기, 계정 수준의 휴지통 보존 설정은 특히 파괴적이거나 전역적인
+작업이므로 단순 편의 기능으로 추가하지 않는다. 공식 API 전체 후보와 검토 조건은
+[`docs/reference/official-api-audit.md`](docs/reference/official-api-audit.md)에 기록한다.
 
 watch가 추가되더라도 로컬 삭제는 원격 삭제로 전파하지 않는다.

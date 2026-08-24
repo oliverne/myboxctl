@@ -13,16 +13,17 @@
 
 ## Phase 상태
 
-| Phase               | 상태     | 완료 증거                                                                       | 문서                                                       |
-| ------------------- | -------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| 00 API contract     | complete | contract test 4회 성공, resolver/upload 결과 및 미확정 항목을 API ledger에 기록 | [`phases/00-api-contract.md`](phases/00-api-contract.md)   |
-| 01 Foundation       | complete | config/error/output/client 및 fake HTTP test 통과, typecheck/lint/build 통과    | [`phases/01-foundation.md`](phases/01-foundation.md)       |
-| 02 Read commands    | complete | path/resolver/stat/ls 구현, fake HTTP/subprocess 및 실제 MYBOX smoke 통과       | [`phases/02-read-commands.md`](phases/02-read-commands.md) |
-| 03 Ensure directory | complete | ensure-dir, 공유 검색 limiter, fake/subprocess/실제 MYBOX acceptance 통과       | [`phases/03-ensure-dir.md`](phases/03-ensure-dir.md)       |
-| 04 Upload           | complete | 실제 소형 acceptance와 100MiB bounded-memory resume 완료 전송 통과              | [`phases/04-upload.md`](phases/04-upload.md)               |
-| 05 Put              | complete | 순수 decision, CLI/fake HTTP, 실제 metadata policy flow 및 cleanup 통과         | [`phases/05-put.md`](phases/05-put.md)                     |
-| 06 Delete           | complete | file/non-empty-folder 실제 삭제, ID reconcile, limiter 및 cleanup 통과          | [`phases/06-delete.md`](phases/06-delete.md)               |
-| 07 Hardening        | in_progress | limiter/CLI artifact 테스트와 Ubuntu 운영 문서 구현, 실행 검증 대기            | [`phases/07-hardening.md`](phases/07-hardening.md)         |
+| Phase                   | 상태        | 완료 증거                                                                       | 문서                                                               |
+| ----------------------- | ----------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| 00 API contract         | complete    | contract test 4회 성공, resolver/upload 결과 및 미확정 항목을 API ledger에 기록 | [`phases/00-api-contract.md`](phases/00-api-contract.md)           |
+| 01 Foundation           | complete    | config/error/output/client 및 fake HTTP test 통과, typecheck/lint/build 통과    | [`phases/01-foundation.md`](phases/01-foundation.md)               |
+| 02 Read commands        | complete    | path/resolver/stat/ls 구현, fake HTTP/subprocess 및 실제 MYBOX smoke 통과       | [`phases/02-read-commands.md`](phases/02-read-commands.md)         |
+| 03 Ensure directory     | complete    | ensure-dir, 공유 검색 limiter, fake/subprocess/실제 MYBOX acceptance 통과       | [`phases/03-ensure-dir.md`](phases/03-ensure-dir.md)               |
+| 04 Upload               | complete    | 실제 소형 acceptance와 100MiB bounded-memory resume 완료 전송 통과              | [`phases/04-upload.md`](phases/04-upload.md)                       |
+| 05 Put                  | complete    | 순수 decision, CLI/fake HTTP, 실제 metadata policy flow 및 cleanup 통과         | [`phases/05-put.md`](phases/05-put.md)                             |
+| 06 Delete               | complete    | file/non-empty-folder 실제 삭제, ID reconcile, limiter 및 cleanup 통과          | [`phases/06-delete.md`](phases/06-delete.md)                       |
+| 07 Hardening            | in_progress | limiter/CLI artifact 테스트와 Ubuntu 운영 문서 구현, 실행 검증 대기            | [`phases/07-hardening.md`](phases/07-hardening.md)                 |
+| 08 Official API alignment | pending   | 공식 Open API 전수 조사와 현재 구현 대조 완료, 구현은 Phase 07 이후 진행       | [`phases/08-official-api-alignment.md`](phases/08-official-api-alignment.md) |
 
 ## 초기화 상태
 
@@ -148,6 +149,16 @@ PR #1의 GitHub Actions CI run 3에서 Ubuntu 24.04/Bun 1.4.0 검증이 통과�
 typecheck, Biome, build artifact와 전체 test가 성공했으며 결과는 131 pass, 18 opt-in skip, 0 fail이다.
 별도 build step도 104 modules bundle에 성공했다. Phase 07의 남은 필수 검증은 실제 MYBOX acceptance
 2회와 credential leak/diff 최종 검사다.
+
+2026-08-24 공식 MYBOX Open API 문서를 전수 조사하고 현재 `MyboxClient`와 대조했다. 공식 문서에서
+20개 endpoint operation을 확인했고 현재 구현은 그중 8개를 직접 사용한다. 나머지 12개는 API가
+존재한다는 이유만으로 구현하지 않고 향후 사용 사례 기반 후보로 남긴다. 조사 결과와 분류는
+`docs/reference/official-api-audit.md`에 기록했다.
+
+현재 CLI와 직접 관련된 후속 항목은 Phase 08로 분리했다. `GET /v1/drive/storage`의 `maxFileBytes`
+활용 여부, 검색/삭제 외 현재 사용 API의 공식 `API별 60회/분` 한도, file search에서 공식 문서에
+없는 `path` option 노출을 다룬다. 이번 작업은 문서만 변경하며 production code와 기존 검증 상태는
+변경하지 않는다. Phase 08은 Phase 07 완료 후에만 `in_progress`로 전환한다.
 
 ## 상태 변경 규칙
 
