@@ -6,8 +6,8 @@
 ## 현재 상태
 
 - 현재 phase: `08-official-api-alignment`
-- 상태: `in_progress`
-- 다음 담당자: 구현 에이전트 (Phase 08 official API alignment)
+- 상태: `complete`
+- 다음 담당자: 릴리스 또는 후속 요구사항 담당자
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
 - 마지막 갱신: 2026-08-24
 
@@ -22,8 +22,8 @@
 | 04 Upload               | complete    | 실제 소형 acceptance와 100MiB bounded-memory resume 완료 전송 통과              | [`phases/04-upload.md`](phases/04-upload.md)                       |
 | 05 Put                  | complete    | 순수 decision, CLI/fake HTTP, 실제 metadata policy flow 및 cleanup 통과         | [`phases/05-put.md`](phases/05-put.md)                             |
 | 06 Delete               | complete    | file/non-empty-folder 실제 삭제, ID reconcile, limiter 및 cleanup 통과          | [`phases/06-delete.md`](phases/06-delete.md)                       |
-| 07 Hardening            | in_progress | P07-A~D CI 통과, P07-E live acceptance는 Phase 08 종료 검증으로 이관            | [`phases/07-hardening.md`](phases/07-hardening.md)                 |
-| 08 Official API alignment | in_progress | 공식 API 대조 완료, contract correction 구현 시작                              | [`phases/08-official-api-alignment.md`](phases/08-official-api-alignment.md) |
+| 07 Hardening            | complete    | P07-A~D CI 및 통합 P07-E live acceptance 1회와 cleanup 확인                     | [`phases/07-hardening.md`](phases/07-hardening.md)                 |
+| 08 Official API alignment | complete    | 공식 API correction, 일반 CI와 실제 MYBOX acceptance 통과                       | [`phases/08-official-api-alignment.md`](phases/08-official-api-alignment.md) |
 
 ## 초기화 상태
 
@@ -147,8 +147,8 @@ CI에는 secret을 전달하지 않으며 MYBOX integration은 opt-in 상태로 
 
 PR #1의 GitHub Actions CI run 3에서 Ubuntu 24.04/Bun 1.4.0 검증이 통과했다. frozen install,
 typecheck, Biome, build artifact와 전체 test가 성공했으며 결과는 131 pass, 18 opt-in skip, 0 fail이다.
-별도 build step도 104 modules bundle에 성공했다. Phase 07의 남은 필수 검증은 실제 MYBOX acceptance
-2회와 credential leak/diff 최종 검사다.
+별도 build step도 104 modules bundle에 성공했다. 당시 Phase 07의 남은 필수 검증은 실제 MYBOX
+acceptance와 credential leak/diff 최종 검사였다.
 
 2026-08-24 공식 MYBOX Open API 문서를 전수 조사하고 현재 `MyboxClient`와 대조했다. 조사
 시점에는 공식 20개 operation 중 8개를 사용했고 12개는 비범위 후보였다. 이후 Phase 08에서
@@ -156,10 +156,9 @@ typecheck, Biome, build artifact와 전체 test가 성공했으며 결과는 131
 검토한다. 조사 결과와 분류는 `docs/reference/official-api-audit.md`에 기록했다.
 
 사용자는 P07-E live acceptance를 Phase 08 breaking correction 이후로 이관하도록 승인했다. 이
-전환에 한해 Phase 07과 Phase 08을 함께 `in_progress`로 두며, Phase 08 구현과 일반 CI가 끝난 뒤
-통합 live acceptance 2회, unique prefix cleanup, credential leak/diff 확인으로 두 phase를 함께
-종료한다. Phase 08에서는 storage preflight, 현재 사용 operation별 limiter와 file/folder search
-type 분리를 production code와 테스트에 반영했다.
+전환에 한해 Phase 07과 Phase 08을 함께 `in_progress`로 두었고, Phase 08에서는 storage preflight,
+현재 사용 operation별 limiter와 file/folder search type 분리를 production code와 테스트에 반영했다.
+구현과 일반 CI 통과 후 사용자는 `live_acceptance=true` 실행 1회 성공을 충분한 최종 증거로 승인했다.
 
 ## Phase 08 구현 및 일반 CI 검증
 
@@ -175,15 +174,16 @@ Phase 08의 contract correction을 구현했다.
 - PR #4 CI에서 Ubuntu 24.04/Bun 1.4.0 frozen install, typecheck, Biome, build,
   138 pass/21 opt-in skip/0 fail, diff check가 통과했다.
 
-아직 실행하지 않은 증거는 Phase 07/08 통합 live acceptance 2회와 unique prefix cleanup이다.
-따라서 두 phase 모두 `in_progress`다.
+2026-08-24 GitHub Actions의 `live_acceptance=true` 실행 1회가 성공했다고 사용자가 확인했다. 해당
+integration suite의 unique prefix cleanup과 일반 CI의 credential redaction/diff 검사를 최종 증거로
+채택해 Phase 07과 Phase 08을 모두 `complete`로 변경했다.
 
 ## Phase 07/08 검증 순서 결정
 
 2026-08-24 사용자는 Phase 08의 breaking refactor 전에 Phase 07 live acceptance를 실행하지 않고 최종
-검증으로 통합하도록 승인했다. Phase 07은 완료 처리하지 않는다. Phase 08 구현과 일반 CI가 끝난 뒤
-전체 live acceptance를 2회 실행하고 unique prefix cleanup, credential leak, diff를 확인한 후 두
-phase의 완료 상태를 갱신한다.
+검증으로 통합하도록 승인했다. 이후 일반 CI와 통합 live acceptance 1회가 성공했고, 사용자는 1회를
+충분한 최종 기준으로 승인했다. unique prefix cleanup, credential redaction과 diff 검증을 포함한
+증거를 근거로 두 phase를 완료 처리했다.
 
 ## 상태 변경 규칙
 
