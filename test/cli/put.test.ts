@@ -47,6 +47,25 @@ function resourceDetail(size: number, modifiedAt: string) {
   };
 }
 
+function storageResponse(maxFileBytes = 1_000_000) {
+  return {
+    fileCounts: {
+      archive: 0,
+      audio: 0,
+      document: 0,
+      etc: 0,
+      executable: 0,
+      image: 0,
+      total: 0,
+      video: 0,
+    },
+    maxFileBytes,
+    quotaBytes: 10_000_000,
+    trashAutoDeleteDays: 30,
+    usedBytes: 0,
+  };
+}
+
 async function runCli(args: string[], baseUrl: string) {
   const subprocess = Bun.spawn(["bun", "run", "src/cli.ts", ...args], {
     cwd: process.cwd(),
@@ -87,6 +106,9 @@ describe("put command subprocess contract", () => {
     const modifiedAt = new Date(local.stats.mtimeMs).toISOString();
     const server = await createFakeHttpServer({
       handler: (request: RecordedRequest) => {
+        if (request.path === "/v1/drive/storage") {
+          return { body: storageResponse() };
+        }
         if (request.path === "/v1/search/resources/folders") {
           return { body: searchPage() };
         }
@@ -124,6 +146,9 @@ describe("put command subprocess contract", () => {
     const remoteModifiedAt = new Date(local.stats.mtimeMs + 10_000).toISOString();
     const server = await createFakeHttpServer({
       handler: (request: RecordedRequest) => {
+        if (request.path === "/v1/drive/storage") {
+          return { body: storageResponse() };
+        }
         if (request.path === "/v1/search/resources/folders") {
           return { body: searchPage() };
         }
