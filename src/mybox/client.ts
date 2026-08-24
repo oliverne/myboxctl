@@ -54,9 +54,14 @@ type FolderListOptions = ListOptions & {
   sort?: string;
 };
 
-export type SearchOptions = ListOptions & {
+type BaseSearchOptions = ListOptions & {
   q?: string;
   parentPath?: string;
+};
+
+export type FileSearchOptions = BaseSearchOptions;
+
+export type FolderSearchOptions = BaseSearchOptions & {
   path?: string;
 };
 
@@ -282,7 +287,7 @@ export class MyboxClient {
     });
   }
 
-  async searchFoldersPage(options: SearchOptions = {}): Promise<SearchResourceListResponse> {
+  async searchFoldersPage(options: FolderSearchOptions = {}): Promise<SearchResourceListResponse> {
     const query: Record<string, string | number | undefined> = {
       count: options.count ?? 200,
     };
@@ -301,11 +306,11 @@ export class MyboxClient {
     });
   }
 
-  async searchFilesPage(options: SearchOptions = {}): Promise<SearchResourceListResponse> {
+  async searchFilesPage(options: FileSearchOptions = {}): Promise<SearchResourceListResponse> {
     const query: Record<string, string | number | undefined> = {
       count: options.count ?? 200,
     };
-    for (const key of ["path", "q", "parentPath"] as const) {
+    for (const key of ["q", "parentPath"] as const) {
       const value = options[key];
       if (value !== undefined) {
         query[key] = value;
@@ -370,24 +375,27 @@ export class MyboxClient {
     throw apiResponseError("MYBOX returned too many pagination pages.");
   }
 
-  async searchFolders(options: Omit<SearchOptions, "cursor"> = {}): Promise<SearchResourceItem[]> {
+  async searchFolders(options: Omit<FolderSearchOptions, "cursor"> = {}): Promise<SearchResourceItem[]> {
     return this.searchAll((pageOptions) => this.searchFoldersPage(pageOptions), options);
   }
 
-  async searchFiles(options: Omit<SearchOptions, "cursor"> = {}): Promise<SearchResourceItem[]> {
+  async searchFiles(options: Omit<FileSearchOptions, "cursor"> = {}): Promise<SearchResourceItem[]> {
     return this.searchAll((pageOptions) => this.searchFilesPage(pageOptions), options);
   }
 
-  private async searchAll(
-    loadPage: (options: SearchOptions) => Promise<SearchResourceListResponse>,
-    options: Omit<SearchOptions, "cursor">,
+  private async searchAll<T extends ListOptions>(
+    loadPage: (options: T) => Promise<SearchResourceListResponse>,
+    options: Omit<T, "cursor">,
   ): Promise<SearchResourceItem[]> {
     const resources: SearchResourceItem[] = [];
     const cursors = new Set<string>();
     let cursor: string | undefined;
 
     for (let page = 0; page < MAX_PAGE_COUNT; page += 1) {
-      const response = await loadPage({ ...options, ...(cursor ? { cursor } : {}) });
+      const response = await loadPage({
+        ...options,
+        ...(cursor ? { cursor } : {}),
+      } as T);
       resources.push(...response.resources);
       const nextCursor = response.responseMetaData.nextCursor;
       if (nextCursor === undefined || nextCursor === null || nextCursor.length === 0) {
