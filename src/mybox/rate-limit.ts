@@ -187,10 +187,7 @@ function bucketForRequest(
     /^\/v1\/drive\/folders\/[^/]+\/resources$/.test(request.url.pathname)
   ) {
     operation = "folder-list";
-  } else if (
-    method === "GET" &&
-    /^\/v1\/drive\/resources\/[^/]+$/.test(request.url.pathname)
-  ) {
+  } else if (method === "GET" && /^\/v1\/drive\/resources\/[^/]+$/.test(request.url.pathname)) {
     operation = "resource-detail";
   } else if (method === "POST" && request.url.pathname === "/v1/drive/folders") {
     operation = "folder-create";
