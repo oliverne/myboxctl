@@ -144,6 +144,11 @@ GitHub Actions CI를 추가해 `ubuntu-24.04`와 Bun 1.4.0에서 frozen install,
 CI에는 secret을 전달하지 않으며 MYBOX integration은 opt-in 상태로 유지한다. workflow run 결과는
 원격 반영 후 확인해 Phase 07 검증 증거에 추가한다.
 
+PR #1의 GitHub Actions CI run 3에서 Ubuntu 24.04/Bun 1.4.0 검증이 통과했다. frozen install,
+typecheck, Biome, build artifact와 전체 test가 성공했으며 결과는 131 pass, 18 opt-in skip, 0 fail이다.
+별도 build step도 104 modules bundle에 성공했다. Phase 07의 남은 필수 검증은 실제 MYBOX acceptance
+2회와 credential leak/diff 최종 검사다.
+
 ## 상태 변경 규칙
 
 - phase를 시작할 때만 `pending → in_progress`로 변경한다.
