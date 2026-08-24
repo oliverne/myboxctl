@@ -46,11 +46,11 @@ upload/put 안정성과 직접 관련된 후속 API로 분류했다.
 실행하지 않고, Phase 08 구현 이후 최종 acceptance로 통합하는 것을 승인했다.
 
 - Phase 07의 P07-A~D 구현과 Ubuntu 24.04/Bun 1.4 CI 증거는 유지한다.
-- 아직 실행하지 않은 P07-E live acceptance 때문에 Phase 07을 `complete`로 표시하지 않는다.
-- Phase 08은 Phase 07이 `in_progress`인 상태에서 시작할 수 있다.
-- Phase 08 구현과 일반 CI가 통과한 뒤 전체 live acceptance를 2회 실행하고 unique prefix cleanup,
-  credential leak, diff 검사를 함께 확인한다.
-- 최종 증거가 모두 충족된 close-out에서 Phase 07과 Phase 08의 상태를 갱신한다.
+- P07-E live acceptance 전까지 Phase 07을 `complete`로 표시하지 않았다.
+- Phase 08은 Phase 07이 `in_progress`인 상태에서 시작했다.
+- Phase 08 구현과 일반 CI 통과 후 사용자가 `live_acceptance=true` workflow 1회 성공을 확인하고,
+  이를 unique prefix cleanup을 포함한 충분한 최종 증거로 승인했다.
+- 일반 CI의 credential redaction/diff 검사와 live acceptance를 근거로 Phase 07과 Phase 08을 함께 종료한다.
 
 ## 구현 원칙 — pre-release contract correction
 
@@ -235,7 +235,7 @@ Phase 08을 `complete`로 변경하려면 다음을 모두 만족해야 한다.
 
 ## Handoff
 
-Phase 08을 `in_progress`로 시작한다. 첫 bounded action은 file/folder search option type을 공식 계약에
-맞게 분리하고 관련 resolver/client test를 수정하는 것이다. 이후 operation별 rate-limit과 storage
-preflight를 순서대로 구현한다. live acceptance는 모든 contract correction과 일반 CI가 끝난 뒤 2회
-실행한다.
+Phase 08의 file/folder search option type 분리, operation별 rate-limit, storage preflight와 관련
+테스트·reference 갱신을 완료했다. Ubuntu 24.04/Bun 1.4 일반 CI와 사용자가 확인한 GitHub Actions
+`live_acceptance=true` 실행 1회가 통과했다. 사용자는 이 live 실행을 충분한 최종 증거로 승인했으며,
+Phase 07과 Phase 08을 함께 `complete`로 종료한다.
