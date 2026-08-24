@@ -13,8 +13,8 @@ import {
   resourceListResponseSchema,
   type SearchResourceItem,
   type SearchResourceListResponse,
-  searchResourceListResponseSchema,
   type StorageResponse,
+  searchResourceListResponseSchema,
   storageResponseSchema,
 } from "./contract.ts";
 import {
@@ -397,11 +397,15 @@ export class MyboxClient {
     throw apiResponseError("MYBOX returned too many pagination pages.");
   }
 
-  async searchFolders(options: Omit<FolderSearchOptions, "cursor"> = {}): Promise<SearchResourceItem[]> {
+  async searchFolders(
+    options: Omit<FolderSearchOptions, "cursor"> = {},
+  ): Promise<SearchResourceItem[]> {
     return this.searchAll((pageOptions) => this.searchFoldersPage(pageOptions), options);
   }
 
-  async searchFiles(options: Omit<FileSearchOptions, "cursor"> = {}): Promise<SearchResourceItem[]> {
+  async searchFiles(
+    options: Omit<FileSearchOptions, "cursor"> = {},
+  ): Promise<SearchResourceItem[]> {
     return this.searchAll((pageOptions) => this.searchFilesPage(pageOptions), options);
   }
 
