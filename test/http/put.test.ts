@@ -35,6 +35,25 @@ function searchFile() {
   };
 }
 
+function storageResponse(maxFileBytes = 1_000_000) {
+  return {
+    fileCounts: {
+      archive: 0,
+      audio: 0,
+      document: 0,
+      etc: 0,
+      executable: 0,
+      image: 0,
+      total: 0,
+      video: 0,
+    },
+    maxFileBytes,
+    quotaBytes: 10_000_000,
+    trashAutoDeleteDays: 30,
+    usedBytes: 0,
+  };
+}
+
 function resourceDetail(size: number, modifiedAt: string) {
   return {
     resourceId: "file-1",
@@ -77,6 +96,9 @@ describe("put HTTP operation", () => {
     const modifiedAt = new Date(local.stats.mtimeMs).toISOString();
     const server = await createFakeHttpServer({
       handler: (request: RecordedRequest) => {
+        if (request.path === "/v1/drive/storage") {
+          return { body: storageResponse() };
+        }
         if (request.path === "/v1/search/resources/folders") {
           return { body: searchPage() };
         }
@@ -111,6 +133,9 @@ describe("put HTTP operation", () => {
     const remoteModifiedAt = new Date(local.stats.mtimeMs + 2_001).toISOString();
     const server = await createFakeHttpServer({
       handler: (request: RecordedRequest) => {
+        if (request.path === "/v1/drive/storage") {
+          return { body: storageResponse() };
+        }
         if (request.path === "/v1/search/resources/folders") {
           return { body: searchPage() };
         }
@@ -136,6 +161,9 @@ describe("put HTTP operation", () => {
     const modifiedAt = "2026-08-23T10:00:01Z";
     const server = await createFakeHttpServer({
       handler: (request: RecordedRequest) => {
+        if (request.path === "/v1/drive/storage") {
+          return { body: storageResponse() };
+        }
         if (request.path.startsWith("/v1/search/resources/")) {
           return { body: searchPage() };
         }
@@ -166,11 +194,37 @@ describe("put HTTP operation", () => {
     expect(server.requests.filter((request) => request.path === "/storage/upload")).toHaveLength(1);
   });
 
+  test("rejects an absent oversized target before upload mutation", async () => {
+    const local = await localFile();
+    const server = await createFakeHttpServer({
+      handler: (request: RecordedRequest) => {
+        if (request.path === "/v1/drive/storage") {
+          return { body: storageResponse(5) };
+        }
+        if (request.path.startsWith("/v1/search/resources/")) {
+          return { body: searchPage() };
+        }
+        return { status: 500, body: { code: "UNEXPECTED", message: "unexpected request" } };
+      },
+    });
+    servers.push(server);
+
+    await expect(runPut(local.path, "/report.txt", {}, dependencies(server))).rejects.toMatchObject({
+      kind: "invalid-arguments",
+      code: "FILE_TOO_LARGE",
+    });
+    expect(server.requests.filter((request) => request.method === "POST")).toHaveLength(0);
+    expect(server.requests.filter((request) => request.path === "/v1/drive/storage")).toHaveLength(1);
+  });
+
   test("force overwrites a newer remote file", async () => {
     const local = await localFile();
     const remoteModifiedAt = new Date(local.stats.mtimeMs + 10_000).toISOString();
     const server = await createFakeHttpServer({
       handler: (request: RecordedRequest) => {
+        if (request.path === "/v1/drive/storage") {
+          return { body: storageResponse() };
+        }
         if (request.path === "/v1/search/resources/folders") {
           return { body: searchPage() };
         }
