@@ -137,9 +137,10 @@ shebang/help/version/argument 오류 계약도 subprocess test로 추가했다. 
 연 regular-file handle을 사용하며 경로를 다시 resolve하지 않는 정책을 test/reference에 고정했다.
 
 Ubuntu Server 24.04의 frozen install, 0600 credentials, AI agent subprocess, retry/exit code,
-upgrade/rollback 문서를 추가했다. 현재 실행 환경에는 Bun, Biome, TypeScript compiler와 MYBOX PAT가
-없어 새 테스트, `bun run check`, `bun run build`, integration과 Ubuntu 실환경 절차는 실행하지
-못했다. 따라서 Phase 07은 `in_progress`이며 구현 패킷을 완료 증거로 간주하지 않는다.
+upgrade/rollback 문서를 추가했다. 최초 작성 환경에는 Bun, Biome, TypeScript compiler와 MYBOX PAT가
+없어 새 테스트, `bun run check`, `bun run build`, integration과 Ubuntu 실환경 절차를 실행하지
+못했으며, 당시에는 Phase 07을 `in_progress`로 유지했다. 이후 Ubuntu 24.04/Bun 1.4 GitHub Actions
+CI와 opt-in live acceptance로 필요한 증거를 보완했다.
 
 GitHub Actions CI를 추가해 `ubuntu-24.04`와 Bun 1.4.0에서 frozen install, check, build를 실행한다.
 CI에는 secret을 전달하지 않으며 MYBOX integration은 opt-in 상태로 유지한다. workflow run 결과는
