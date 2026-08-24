@@ -209,12 +209,16 @@ describe("put HTTP operation", () => {
     });
     servers.push(server);
 
-    await expect(runPut(local.path, "/report.txt", {}, dependencies(server))).rejects.toMatchObject({
-      kind: "invalid-arguments",
-      code: "FILE_TOO_LARGE",
-    });
+    await expect(runPut(local.path, "/report.txt", {}, dependencies(server))).rejects.toMatchObject(
+      {
+        kind: "invalid-arguments",
+        code: "FILE_TOO_LARGE",
+      },
+    );
     expect(server.requests.filter((request) => request.method === "POST")).toHaveLength(0);
-    expect(server.requests.filter((request) => request.path === "/v1/drive/storage")).toHaveLength(1);
+    expect(server.requests.filter((request) => request.path === "/v1/drive/storage")).toHaveLength(
+      1,
+    );
   });
 
   test("force overwrites a newer remote file", async () => {
