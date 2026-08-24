@@ -17,6 +17,8 @@ lock으로 여러 CLI process에 공유한다. `Retry-After`가 없는 429는 60
 - Phase: `08-official-api-alignment`
 - 상태: `complete`
 - `docs/PROGRESS.md`와 일치한다.
+- 공개 릴리스는 2026-08-24 사용자 결정으로 보류됐다.
+- 현재 활성 구현 phase는 없다. 실제 후속 요구사항이 확정되면 별도 phase를 정의한다.
 - 수정된 probe를 실제 MYBOX에서 실행했다. 동일 resume identity로 64MiB를 읽은 뒤 in-process stream
   error, 즉시 worker `SIGKILL`, 2초 client-buffer drain 뒤 worker `SIGKILL`을 각각 시도했지만 모두
   resume reservation이 `201 / offset: 0`을 반환했다.
@@ -235,4 +237,6 @@ lock, cooldown, `retryAfterMs`/exit 8을 검증한다. live 429/423을 만들기
 
 Phase 07의 P07-E와 Phase 08 contract correction 검증을 완료했다. 사용자는 live acceptance 1회를
 충분한 최종 증거로 승인했고, 일반 CI의 credential redaction/diff 검사까지 근거로 Phase 07/08을
-함께 종료했다. 다음 bounded action은 별도 릴리스 결정 또는 실제 요구가 확인된 후속 phase 정의다.
+함께 종료했다. 공개 릴리스는 보류 상태다. 다음 bounded action은 실제 요구사항을 확정하고 별도
+후속 phase를 정의하는 것이다. download를 포함한 미구현 공식 API는 후보일 뿐 아직 다음 작업으로
+선택되지 않았다.

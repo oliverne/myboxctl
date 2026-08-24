@@ -7,7 +7,9 @@
 
 - 현재 phase: `08-official-api-alignment`
 - 상태: `complete`
-- 다음 담당자: 릴리스 또는 후속 요구사항 담당자
+- 릴리스 상태: `보류`
+- 활성 구현 phase: 없음
+- 다음 담당자: 후속 요구사항 정의 담당자
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
 - 마지막 갱신: 2026-08-24
 
@@ -185,6 +187,13 @@ integration suite의 unique prefix cleanup과 일반 CI의 credential redaction/
 검증으로 통합하도록 승인했다. 이후 일반 CI와 통합 live acceptance 1회가 성공했고, 사용자는 1회를
 충분한 최종 기준으로 승인했다. unique prefix cleanup, credential redaction과 diff 검증을 포함한
 증거를 근거로 두 phase를 완료 처리했다.
+
+## 릴리스 결정
+
+2026-08-24 사용자는 현재 MVP의 공개 릴리스를 보류했다. Phase 00~08의 완료 상태와 기존 검증 증거는
+유지하며, 릴리스 작업이나 새 구현을 자동으로 시작하지 않는다. 다음 작업은 실제 요구사항이 확정된 뒤
+별도 phase로 정의한다. 공식 API의 download, rename, move, copy, favorite, 휴지통 관리 기능은 계속
+후보로만 유지하며 아직 선택된 다음 작업이 아니다.
 
 ## 상태 변경 규칙
 
