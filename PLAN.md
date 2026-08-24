@@ -50,6 +50,11 @@ myboxctl delete /agents/output/old-report.md --json
 - 실제 API 사실은 공식 문서 또는 재현 가능한 integration test로만 확정한다.
 - 공식 API에 존재한다는 이유만으로 새 command를 추가하지 않는다. 실제 agent workflow가 필요성을 보여줄
   때만 범위를 확장한다.
+- **첫 stable release 전에는 기존 코드 호환성보다 공식 MYBOX API 계약 정합성을 우선한다.** 현재
+  public TypeScript type, 내부 abstraction, 테스트가 공식 계약을 잘못 모델링한다면 breaking change를
+  허용하고 구조 자체를 바로잡는다.
+- 잘못된 기존 구조를 유지하기 위한 compatibility shim, deprecated alias, dual behavior는 기본적으로
+  추가하지 않는다. 테스트도 기존 동작 보존이 아니라 올바른 공식 계약을 검증하도록 수정한다.
 
 상세 근거와 의존성 방향은 [`docs/architecture/overview.md`](docs/architecture/overview.md),
 안정성 정책은 [`docs/architecture/reliability.md`](docs/architecture/reliability.md)를 따른다.
@@ -177,6 +182,8 @@ contract probe를 다시 실행한다. 후속 phase의 미확정 항목은 해�
 - file search에서 공식 문서에 없는 `path` query를 public type/request가 표현하지 못하도록 정리
 - PAT 유효기간, 암호 폴더/공유 받은 폴더 미지원 등 공식 제약과 사용자 문서 정합성 확인
 - 기존 search/delete limiter와 mutation no-generic-retry 정책 regression 검증
+- pre-release 단계에서는 기존 구현과의 호환성 유지보다 공식 API에 맞는 단순하고 정확한 구조를 우선
+- 잘못된 abstraction/type/test를 유지하기 위한 shim 없이 필요한 breaking refactor 수행
 
 Phase 08은 MYBOX API 전체 기능 추가 phase가 아니다. 다운로드, rename/move/copy, favorite, trash 관리
 등 공식 API의 미구현 기능은 inventory에 남기고 실제 요구가 확인될 때만 별도 범위로 승격한다.
