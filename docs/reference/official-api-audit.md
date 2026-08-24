@@ -2,7 +2,7 @@
 
 - 조사일: 2026-08-24
 - 기준: <https://developers.mybox.naver.com/>
-- 대상 구현: `main` at `8ce18963f8836798da5515a5d648f6ff53a07da3`
+- 대상 구현: Phase 08 alignment branch based on `e08e5fed0944e9b5ddccb6d8948ab904cb1632ab`
 - 목적: 공식 Open API 문서 전체를 현재 `myboxctl` 구현과 대조하고, 구현하지 않은 기능을 의도적 비범위 또는 후속 과제로 분류한다.
 
 이 문서는 **API coverage audit**다. 실제로 구현에 사용 중인 endpoint의 세부 계약과 integration probe 결과는
@@ -11,15 +11,14 @@
 ## 1. 조사 결과 요약
 
 2026-08-24 기준 공식 사이트에서 확인한 문서화된 endpoint operation은 20개다. 현재
-`MyboxClient`가 직접 사용하는 operation은 8개이며, 나머지 12개는 구현하지 않았다.
+`MyboxClient`가 직접 사용하는 operation은 9개이며, 나머지 11개는 구현하지 않았다.
 
-- 현재 구현: 8/20
-- 미구현: 12/20
-- 미구현 12개 중 현재 MVP 안정성에 직접 영향을 주는 API: `GET /v1/drive/storage`
-- 현재 구현과 공식 계약 사이의 정리 필요 사항:
-  - 검색/삭제 외 현재 사용 API에도 공식적으로 API별 60회/분 한도가 있다.
-  - file search client type이 공식 문서에 없는 `path` 파라미터를 표현할 수 있다.
-  - 업로드 전에 계정별 `maxFileBytes`를 조회하지 않는다.
+- 현재 구현: 9/20
+- 미구현: 11/20
+- Phase 08 반영:
+  - `GET /v1/drive/storage`와 `maxFileBytes` upload preflight
+  - 현재 사용 operation별 독립 60회/분 bucket
+  - file/folder search option type 분리와 undocumented file `path` 제거
 
 이 수치는 목표 coverage가 아니다. `myboxctl`은 MYBOX API 전체 wrapper가 아니며, 필요한 기능만 좁게
 제공한다.
@@ -77,7 +76,7 @@
 
 | # | 공식 기능 | Method / Path | 상태 | 현재 프로젝트 판단 |
 | ---: | --- | --- | --- | --- |
-| 1 | 내 파일 속성 조회 | `GET /v1/drive/storage` | follow-up | `maxFileBytes`, quota 확인이 upload/put preflight에 유용. CLI command 노출은 불필요 |
+| 1 | 내 파일 속성 조회 | `GET /v1/drive/storage` | implemented | `maxFileBytes`를 upload/put 내부 preflight에 사용. CLI command는 노출하지 않음 |
 | 2 | 루트 목록 조회 | `GET /v1/drive/resources` | implemented | `ls /`, resolver에서 사용 |
 | 3 | 특정 폴더 목록 조회 | `GET /v1/drive/folders/{folderId}/resources` | implemented | nested `ls`에서 사용 |
 | 4 | 개별 속성 조회 | `GET /v1/drive/resources/{resourceId}` | implemented | `stat`, postcondition에서 사용 |
@@ -125,9 +124,10 @@
 
 ### 4.1 구현 endpoint
 
-`src/mybox/client.ts`에서 직접 사용하는 공식 endpoint는 다음 8개다.
+`src/mybox/client.ts`에서 직접 사용하는 공식 endpoint는 다음 9개다.
 
 ```text
+GET    /v1/drive/storage
 GET    /v1/drive/resources
 GET    /v1/drive/folders/{folderId}/resources
 GET    /v1/drive/resources/{resourceId}
@@ -150,27 +150,26 @@ integration probe 결과를 [`mybox-api.md`](mybox-api.md)에 별도로 유지�
 - upload reservation에서 `resume: true`이면 `modifiedTime`을 함께 전송한다.
 - mutation은 generic retry하지 않고 operation-specific reconcile/resume 정책을 사용한다.
 
-### 4.3 Phase 08에서 정리할 항목
+### 4.3 Phase 08 반영 항목
 
 #### A08-01 — `GET /v1/drive/storage` 기반 upload preflight
 
-공식 응답에는 `maxFileBytes`, `quotaBytes`, `usedBytes`가 있다. 현재 upload/put은 로컬 파일 크기를
-알고도 계정별 최대 업로드 크기를 사전 조회하지 않는다.
+공식 응답에는 `maxFileBytes`, `quotaBytes`, `usedBytes`가 있다. upload/put의 mutation 경로는 열린 로컬 파일 크기와 계정별 최대 업로드 크기를 사전 비교한다.
 
-Phase 08에서는 최소한 다음을 결정한다.
+Phase 08에서는 다음 정책을 반영했다.
 
 1. `storage`를 public CLI command로 노출하지 않는다.
-2. upload/put 내부 preflight에서 `maxFileBytes`를 사용할지 결정한다.
-3. quota 부족은 실제 reservation의 `507 INSUFFICIENT_STORAGE` 처리와 중복되지 않게 설계한다.
-4. 조회 자체도 `그 외 기능 60회/분` 대상이므로 cache/호출 빈도를 함께 결정한다.
+2. upload/put mutation 전에 `maxFileBytes`를 검사한다.
+3. quota 부족은 실제 reservation의 `507 INSUFFICIENT_STORAGE` 처리에 맡긴다.
+4. storage 조회는 독립 60회/분 bucket과 process-local 5분 cache를 사용한다.
 
 #### A08-02 — 현재 사용 중인 `그 외 기능`의 60회/분
 
 현재 공유 limiter가 선제 관리하는 것은 search와 delete다. 그러나 공식 문서는 root/list/detail/create
 folder/upload reservation 등의 기능도 각각 60회/분 한도로 설명한다.
 
-Phase 08에서는 **API operation별 bucket**을 추가하되 mutation retry와 혼동하지 않는다. 선제 throttle은
-호출 전에 기다리는 정책이고, mutation 재전송은 계속 금지한다.
+Phase 08에서 **API operation별 bucket**을 추가했다. 선제 throttle은 호출 전에 기다리는 정책이고,
+mutation 재전송은 계속 금지한다.
 
 #### A08-03 — file search의 `path` 타입 노출
 
@@ -181,7 +180,7 @@ Phase 08에서는 **API operation별 bucket**을 추가하되 mutation retry와 
 현재 resolver가 file exact resolve에서 `q + parentPath`를 사용하므로 정상 CLI 경로에서는 문제가 없지만,
 public client contract는 공식 문서보다 넓다.
 
-Phase 08에서는 file/folder search option type을 분리해 undocumented `path` 전송 가능성을 제거한다.
+Phase 08에서 file/folder search option type을 분리해 undocumented `path` 전송 가능성을 제거했다.
 
 #### A08-04 — 공통 오류/계정 상태 문서화
 
