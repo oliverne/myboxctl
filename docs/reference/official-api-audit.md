@@ -60,9 +60,9 @@
 일일 한도는 매일, API별 분당 한도는 매분 갱신된다. 단시간 대량 호출이나 abuse로 판단되면 별도 제한이
 적용될 수 있다.
 
-현재 구현은 검색 10회/분과 삭제 60회/분을 보수적으로 프로세스 간 공유하지만, root/list/detail,
-폴더 생성, upload reservation 같은 **그 외 기능의 API별 60회/분은 선제 조정하지 않는다**. 429 자체는
-공통 오류로 처리하지만, 공식 한도를 호출 전에 지키는 범위가 완전하지 않다.
+현재 구현은 검색 10회/분, 삭제 60회/분과 함께 storage/root-list/folder-list/resource-detail,
+폴더 생성, upload reservation을 각각 독립된 API operation bucket으로 프로세스 간 공유 조정한다.
+선제 throttle은 호출 전에 대기하며 mutation 요청을 generic retry하지 않는 정책은 그대로 유지한다.
 
 문서: <https://developers.mybox.naver.com/getting-started>
 
@@ -165,10 +165,9 @@ Phase 08에서는 다음 정책을 반영했다.
 
 #### A08-02 — 현재 사용 중인 `그 외 기능`의 60회/분
 
-현재 공유 limiter가 선제 관리하는 것은 search와 delete다. 그러나 공식 문서는 root/list/detail/create
-folder/upload reservation 등의 기능도 각각 60회/분 한도로 설명한다.
-
-Phase 08에서 **API operation별 bucket**을 추가했다. 선제 throttle은 호출 전에 기다리는 정책이고,
+조사 당시 공유 limiter는 search와 delete만 선제 관리했다. 공식 문서는 root/list/detail/create
+folder/upload reservation 등의 기능도 각각 60회/분 한도로 설명하므로, Phase 08에서 storage를
+포함한 **API operation별 독립 bucket**을 추가했다. 선제 throttle은 호출 전에 기다리는 정책이고,
 mutation 재전송은 계속 금지한다.
 
 #### A08-03 — file search의 `path` 타입 노출
@@ -176,11 +175,10 @@ mutation 재전송은 계속 금지한다.
 공식 파일 검색 문서에는 `path` query가 없고 `q`, `category`, 날짜 범위, `parentPath`가 있다. `path`는
 폴더 검색에만 문서화되어 있다.
 
-현재 `SearchOptions`를 file/folder 검색이 공유하고 `searchFilesPage()`도 `path`를 query로 보낼 수 있다.
-현재 resolver가 file exact resolve에서 `q + parentPath`를 사용하므로 정상 CLI 경로에서는 문제가 없지만,
-public client contract는 공식 문서보다 넓다.
-
-Phase 08에서 file/folder search option type을 분리해 undocumented `path` 전송 가능성을 제거했다.
+조사 당시에는 `SearchOptions`를 file/folder 검색이 공유해 `searchFilesPage()`가 `path`를 query로
+보낼 수 있었다. Phase 08에서 `FileSearchOptions`와 `FolderSearchOptions`를 분리하고 file search
+직렬화에서 `path`를 제거해, undocumented query를 public client contract와 요청 모두에서 표현할 수
+없도록 바로잡았다.
 
 #### A08-04 — 공통 오류/계정 상태 문서화
 
