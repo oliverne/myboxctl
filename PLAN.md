@@ -171,7 +171,7 @@ contract probe를 다시 실행한다. 후속 phase의 미확정 항목은 해�
 - CLI subprocess contract test
 - Ubuntu Server 24.04 설치 및 운영 문서
 - 실제 MYBOX acceptance test
-- Phase 08의 breaking contract correction 이후 최종 live acceptance를 2회 실행하도록 P07-E를 이관
+- Phase 08의 breaking contract correction 이후 최종 live acceptance를 1회 실행하도록 P07-E를 이관
 
 ### Phase 08 — Official API alignment
 
