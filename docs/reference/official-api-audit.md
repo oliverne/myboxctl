@@ -49,13 +49,13 @@
 
 ### 사용 한도
 
-| 구분 | 공식 최소 한도 | 비고 |
-| --- | ---: | --- |
-| 다운로드 | 500회/일 | 요금제에 따라 최대 50,000회/일 |
-| 검색 | 10회/분 | 180GB 이상은 30회/분 |
-| 삭제 | 60회/분 | 180GB 이상은 API별 240회/분 |
-| 복원 | 180회/분 | 문서 표의 별도 복원 한도 |
-| 그 외 기능 | API별 60회/분 | 요금제와 무관하게 문서 표에 60회/분으로 기재 |
+| 구분       | 공식 최소 한도 | 비고                                         |
+| ---------- | -------------: | -------------------------------------------- |
+| 다운로드   |       500회/일 | 요금제에 따라 최대 50,000회/일               |
+| 검색       |        10회/분 | 180GB 이상은 30회/분                         |
+| 삭제       |        60회/분 | 180GB 이상은 API별 240회/분                  |
+| 복원       |       180회/분 | 문서 표의 별도 복원 한도                     |
+| 그 외 기능 |  API별 60회/분 | 요금제와 무관하게 문서 표에 60회/분으로 기재 |
 
 일일 한도는 매일, API별 분당 한도는 매분 갱신된다. 단시간 대량 호출이나 abuse로 판단되면 별도 제한이
 적용될 수 있다.
@@ -72,30 +72,31 @@
 
 - `implemented`: 현재 코드가 직접 사용하며 CLI 기능에서 필요하다.
 - `follow-up`: 현재 MVP 안정성/계약 정합성 때문에 Phase 08에서 검토 또는 구현한다.
+- `planned`: 후속 phase로 선택됐지만 아직 production code에서 사용하지 않는다.
 - `future`: 공식 API에는 있지만 현재 프로젝트 목표상 구현하지 않는다. 실제 사용 사례가 생길 때 검토한다.
 
-| # | 공식 기능 | Method / Path | 상태 | 현재 프로젝트 판단 |
-| ---: | --- | --- | --- | --- |
-| 1 | 내 파일 속성 조회 | `GET /v1/drive/storage` | implemented | `maxFileBytes`를 upload/put 내부 preflight에 사용. CLI command는 노출하지 않음 |
-| 2 | 루트 목록 조회 | `GET /v1/drive/resources` | implemented | `ls /`, resolver에서 사용 |
-| 3 | 특정 폴더 목록 조회 | `GET /v1/drive/folders/{folderId}/resources` | implemented | nested `ls`에서 사용 |
-| 4 | 개별 속성 조회 | `GET /v1/drive/resources/{resourceId}` | implemented | `stat`, postcondition에서 사용 |
-| 5 | 즐겨찾기 표시 | `POST /v1/drive/resources/{resourceId}/favorite` | future | 현재 파일 관리 최소 범위에 필요 없음 |
-| 6 | 즐겨찾기 해제 | `POST /v1/drive/resources/{resourceId}/unfavorite` | future | 현재 파일 관리 최소 범위에 필요 없음 |
-| 7 | 파일 검색 | `GET /v1/search/resources/files` | implemented | exact path resolve의 일부로 사용 |
-| 8 | 폴더 검색 | `GET /v1/search/resources/folders` | implemented | exact path resolve의 일부로 사용 |
-| 9 | 폴더 생성 | `POST /v1/drive/folders` | implemented | `ensure-dir`, `--mkdir`에서 사용 |
-| 10 | 업로드 URL 생성 | `POST /v1/drive/files` | implemented | `upload`, `put`에서 reservation에 사용 |
-| 11 | 다운로드 URL 생성 | `GET /v1/drive/files/{fileId}/download` | future | 현재 CLI 목표에 download가 없음. URL은 1회용, 10분 유효 |
-| 12 | 이름 변경 | `POST /v1/drive/resources/{resourceId}/rename` | future | 필요 사례가 확인될 때 command 후보 |
-| 13 | 이동 | `POST /v1/drive/resources/{resourceId}/move` | future | 필요 사례가 확인될 때 command 후보 |
-| 14 | 복사 | `POST /v1/drive/resources/{resourceId}/copy` | future | 필요 사례가 확인될 때 command 후보 |
-| 15 | 삭제(휴지통 이동) | `DELETE /v1/drive/resources/{resourceId}` | implemented | `delete`에서 사용 |
-| 16 | 휴지통 목록 | `GET /v1/drive/trash` | future | 현재 delete는 휴지통 이동까지만 책임짐 |
-| 17 | 휴지통 복원 | `POST /v1/drive/trash/{resourceId}/restore` | future | delete undo 기능을 요구할 때 검토 |
-| 18 | 휴지통 개별 영구 삭제 | `DELETE /v1/drive/trash/{resourceId}` | future | 파괴적 작업이라 기본 범위에 넣지 않음 |
-| 19 | 휴지통 전체 삭제 | `DELETE /v1/drive/trash` | future | 매우 파괴적이며 기본 범위에 넣지 않음 |
-| 20 | 휴지통 자동 삭제 주기 설정 | `PATCH /v1/drive/storage` | future | 계정 설정 변경은 CLI의 현재 목적 밖 |
+|   # | 공식 기능                  | Method / Path                                      | 상태        | 현재 프로젝트 판단                                                             |
+| --: | -------------------------- | -------------------------------------------------- | ----------- | ------------------------------------------------------------------------------ |
+|   1 | 내 파일 속성 조회          | `GET /v1/drive/storage`                            | implemented | `maxFileBytes`를 upload/put 내부 preflight에 사용. CLI command는 노출하지 않음 |
+|   2 | 루트 목록 조회             | `GET /v1/drive/resources`                          | implemented | `ls /`, resolver에서 사용                                                      |
+|   3 | 특정 폴더 목록 조회        | `GET /v1/drive/folders/{folderId}/resources`       | implemented | nested `ls`에서 사용                                                           |
+|   4 | 개별 속성 조회             | `GET /v1/drive/resources/{resourceId}`             | implemented | `stat`, postcondition에서 사용                                                 |
+|   5 | 즐겨찾기 표시              | `POST /v1/drive/resources/{resourceId}/favorite`   | future      | 현재 파일 관리 최소 범위에 필요 없음                                           |
+|   6 | 즐겨찾기 해제              | `POST /v1/drive/resources/{resourceId}/unfavorite` | future      | 현재 파일 관리 최소 범위에 필요 없음                                           |
+|   7 | 파일 검색                  | `GET /v1/search/resources/files`                   | implemented | exact path resolve의 일부로 사용                                               |
+|   8 | 폴더 검색                  | `GET /v1/search/resources/folders`                 | implemented | exact path resolve의 일부로 사용                                               |
+|   9 | 폴더 생성                  | `POST /v1/drive/folders`                           | implemented | `ensure-dir`, `--mkdir`에서 사용                                               |
+|  10 | 업로드 URL 생성            | `POST /v1/drive/files`                             | implemented | `upload`, `put`에서 reservation에 사용                                         |
+|  11 | 다운로드 URL 생성          | `GET /v1/drive/files/{fileId}/download`            | planned     | Phase 09 계획 승인, 아직 미구현. URL은 1회용, 10분 유효                        |
+|  12 | 이름 변경                  | `POST /v1/drive/resources/{resourceId}/rename`     | future      | 필요 사례가 확인될 때 command 후보                                             |
+|  13 | 이동                       | `POST /v1/drive/resources/{resourceId}/move`       | future      | 필요 사례가 확인될 때 command 후보                                             |
+|  14 | 복사                       | `POST /v1/drive/resources/{resourceId}/copy`       | future      | 필요 사례가 확인될 때 command 후보                                             |
+|  15 | 삭제(휴지통 이동)          | `DELETE /v1/drive/resources/{resourceId}`          | implemented | `delete`에서 사용                                                              |
+|  16 | 휴지통 목록                | `GET /v1/drive/trash`                              | future      | 현재 delete는 휴지통 이동까지만 책임짐                                         |
+|  17 | 휴지통 복원                | `POST /v1/drive/trash/{resourceId}/restore`        | future      | delete undo 기능을 요구할 때 검토                                              |
+|  18 | 휴지통 개별 영구 삭제      | `DELETE /v1/drive/trash/{resourceId}`              | future      | 파괴적 작업이라 기본 범위에 넣지 않음                                          |
+|  19 | 휴지통 전체 삭제           | `DELETE /v1/drive/trash`                           | future      | 매우 파괴적이며 기본 범위에 넣지 않음                                          |
+|  20 | 휴지통 자동 삭제 주기 설정 | `PATCH /v1/drive/storage`                          | future      | 계정 설정 변경은 CLI의 현재 목적 밖                                            |
 
 ### 공식 문서 URL
 
@@ -193,16 +194,16 @@ PAT 만료, 계정 용량 초과, 암호 폴더/공유 받은 폴더 미지원�
 
 다음 항목은 **누락 버그가 아니라 현재 비범위**다. 사용 사례가 확인되기 전에는 구현하지 않는다.
 
-| 후보 | 관련 공식 API | 검토 조건 |
-| --- | --- | --- |
-| `download` | 다운로드 URL 생성 | 에이전트가 MYBOX → 로컬 파일 전송을 실제로 요구할 때 |
-| `rename` | 이름 변경 | 별도 rename이 upload/put보다 명확한 사용 사례를 가질 때 |
-| `move` | 이동 | 원격 파일 재배치 요구가 확인될 때 |
-| `copy` | 복사 | 서버 측 복사가 upload보다 유리한 실제 workflow가 있을 때 |
-| favorite 제어 | favorite/unfavorite | 에이전트 workflow에서 favorite가 의미 있는 상태가 될 때 |
-| trash 조회/복원 | trash list/restore | delete undo가 제품 요구가 될 때 |
-| trash 영구 삭제 | single/all clean | 강한 안전장치와 명시적 파괴적 command 요구가 있을 때 |
-| 휴지통 보존 설정 | storage PATCH | 계정 설정 관리가 프로젝트 범위로 승인될 때 |
+| 후보             | 관련 공식 API       | 검토 조건                                                |
+| ---------------- | ------------------- | -------------------------------------------------------- |
+| `download`       | 다운로드 URL 생성   | Phase 09 `pending`; 구현 시작 시 targeted probe부터 수행 |
+| `rename`         | 이름 변경           | 별도 rename이 upload/put보다 명확한 사용 사례를 가질 때  |
+| `move`           | 이동                | 원격 파일 재배치 요구가 확인될 때                        |
+| `copy`           | 복사                | 서버 측 복사가 upload보다 유리한 실제 workflow가 있을 때 |
+| favorite 제어    | favorite/unfavorite | 에이전트 workflow에서 favorite가 의미 있는 상태가 될 때  |
+| trash 조회/복원  | trash list/restore  | delete undo가 제품 요구가 될 때                          |
+| trash 영구 삭제  | single/all clean    | 강한 안전장치와 명시적 파괴적 command 요구가 있을 때     |
+| 휴지통 보존 설정 | storage PATCH       | 계정 설정 관리가 프로젝트 범위로 승인될 때               |
 
 특히 휴지통 영구 삭제와 전체 비우기는 단순 편의 기능으로 추가하지 않는다.
 
@@ -222,6 +223,7 @@ PAT 만료, 계정 용량 초과, 암호 폴더/공유 받은 폴더 미지원�
 
 - 공식 API 문서에 endpoint가 추가/삭제/변경되면 이 inventory를 갱신한다.
 - 현재 구현 endpoint의 실제 관찰과 protocol detail은 `mybox-api.md`에 기록한다.
+- `planned` API는 production coverage에 포함하지 않고 phase 완료 후 `implemented`로 변경한다.
 - `future` API는 inventory에 존재한다는 이유만으로 구현하지 않는다.
 - `follow-up` 항목은 [`../phases/08-official-api-alignment.md`](../phases/08-official-api-alignment.md)의
   완료 조건을 따른다.

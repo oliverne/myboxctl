@@ -14,7 +14,8 @@ NAVER MYBOX Open API를 이용하여 다음 작업을 결정적으로 수행하�
 3. 로컬 파일의 신규 업로드와 명시적 덮어쓰기
 4. 로컬/원격 메타데이터를 비교하는 조건부 `put`
 5. 원격 파일과 폴더를 MYBOX 휴지통으로 이동
-6. 다양한 AI 에이전트가 파싱할 수 있는 안정적인 JSON과 exit code 제공
+6. 원격 파일을 로컬 파일로 안전하게 다운로드
+7. 다양한 AI 에이전트가 파싱할 수 있는 안정적인 JSON과 exit code 제공
 
 예상 사용 방식:
 
@@ -22,12 +23,13 @@ NAVER MYBOX Open API를 이용하여 다음 작업을 결정적으로 수행하�
 myboxctl stat /agents/output/report.md --json
 myboxctl ensure-dir /agents/output --json
 myboxctl put ./report.md /agents/output/report.md --json
+myboxctl download /agents/output/report.md ./report.md --json
 myboxctl delete /agents/output/old-report.md --json
 ```
 
 ## 2. 비목표
 
-- 양방향 sync 또는 원격 변경의 로컬 반영
+- 양방향 sync 또는 원격 변경의 자동 로컬 반영
 - 로컬 삭제에 따른 자동 원격 삭제
 - 전체 디렉터리 미러링
 - conflict resolution 엔진
@@ -192,6 +194,25 @@ contract probe를 다시 실행한다. 후속 phase의 미확정 항목은 해�
 Phase 08은 MYBOX API 전체 기능 추가 phase가 아니다. 다운로드, rename/move/copy, favorite, trash 관리
 등 공식 API의 미구현 기능은 inventory에 남기고 실제 요구가 확인될 때만 별도 범위로 승격한다.
 
+### Phase 09 — `download`
+
+문서: [`docs/phases/09-download.md`](docs/phases/09-download.md)
+
+Phase 00~08 MVP 완료 후 선택한 첫 후속 vertical slice다.
+
+- exact remote file resolve와 folder/type conflict
+- 1회용·10분 유효 signed download URL의 targeted contract probe
+- signed URL과 PAT를 출력하지 않는 bounded-memory streaming
+- 기존 로컬 파일을 기본적으로 보존하고 `--overwrite`에서만 명시적으로 교체
+- 임시 파일과 원자적 commit을 통한 partial file 비노출
+- 원격 metadata와 실제 byte count를 이용한 postcondition
+- download URL 발급 한도와 retry 정책의 공식 계약 정합성
+- fake HTTP, CLI subprocess, 실제 MYBOX acceptance 및 세 운영체제의 로컬 파일 commit 검증
+
+Phase 09는 계획만 승인된 `pending` 상태다. 구현을 시작할 때
+`docs/PROGRESS.md`를 `in_progress`로 변경하며, Phase 00~08의 기존 MVP 완료 판정을 소급해 변경하지
+않는다.
+
 ## 6. 전체 MVP 완료 조건
 
 다음 조건을 모두 충족해야 MVP를 완료할 수 있다.
@@ -234,7 +255,6 @@ MVP 완료 후 실제 요구가 확인된 경우에만 검토한다.
 - resumable upload 고도화
 - watch daemon
 - systemd unit
-- download
 - rename/move/copy
 - favorite/unfavorite
 - trash list/restore

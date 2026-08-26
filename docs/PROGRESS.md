@@ -5,27 +5,28 @@
 
 ## 현재 상태
 
-- 현재 phase: `08-official-api-alignment`
-- 상태: `complete`
+- 현재 phase: `09-download`
+- 상태: `pending`
 - 릴리스 상태: `보류`
 - 활성 구현 phase: 없음
-- 다음 담당자: 후속 요구사항 정의 담당자
+- 다음 담당자: Phase 09 구현 담당자
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
-- 마지막 갱신: 2026-08-24
+- 마지막 갱신: 2026-08-27
 
 ## Phase 상태
 
-| Phase                   | 상태        | 완료 증거                                                                       | 문서                                                               |
-| ----------------------- | ----------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| 00 API contract         | complete    | contract test 4회 성공, resolver/upload 결과 및 미확정 항목을 API ledger에 기록 | [`phases/00-api-contract.md`](phases/00-api-contract.md)           |
-| 01 Foundation           | complete    | config/error/output/client 및 fake HTTP test 통과, typecheck/lint/build 통과    | [`phases/01-foundation.md`](phases/01-foundation.md)               |
-| 02 Read commands        | complete    | path/resolver/stat/ls 구현, fake HTTP/subprocess 및 실제 MYBOX smoke 통과       | [`phases/02-read-commands.md`](phases/02-read-commands.md)         |
-| 03 Ensure directory     | complete    | ensure-dir, 공유 검색 limiter, fake/subprocess/실제 MYBOX acceptance 통과       | [`phases/03-ensure-dir.md`](phases/03-ensure-dir.md)               |
-| 04 Upload               | complete    | 실제 소형 acceptance와 100MiB bounded-memory resume 완료 전송 통과              | [`phases/04-upload.md`](phases/04-upload.md)                       |
-| 05 Put                  | complete    | 순수 decision, CLI/fake HTTP, 실제 metadata policy flow 및 cleanup 통과         | [`phases/05-put.md`](phases/05-put.md)                             |
-| 06 Delete               | complete    | file/non-empty-folder 실제 삭제, ID reconcile, limiter 및 cleanup 통과          | [`phases/06-delete.md`](phases/06-delete.md)                       |
-| 07 Hardening            | complete    | P07-A~D CI 및 통합 P07-E live acceptance 1회와 cleanup 확인                     | [`phases/07-hardening.md`](phases/07-hardening.md)                 |
-| 08 Official API alignment | complete    | 공식 API correction, 일반 CI와 실제 MYBOX acceptance 통과                       | [`phases/08-official-api-alignment.md`](phases/08-official-api-alignment.md) |
+| Phase                     | 상태     | 완료 증거                                                                       | 문서                                                                         |
+| ------------------------- | -------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| 00 API contract           | complete | contract test 4회 성공, resolver/upload 결과 및 미확정 항목을 API ledger에 기록 | [`phases/00-api-contract.md`](phases/00-api-contract.md)                     |
+| 01 Foundation             | complete | config/error/output/client 및 fake HTTP test 통과, typecheck/lint/build 통과    | [`phases/01-foundation.md`](phases/01-foundation.md)                         |
+| 02 Read commands          | complete | path/resolver/stat/ls 구현, fake HTTP/subprocess 및 실제 MYBOX smoke 통과       | [`phases/02-read-commands.md`](phases/02-read-commands.md)                   |
+| 03 Ensure directory       | complete | ensure-dir, 공유 검색 limiter, fake/subprocess/실제 MYBOX acceptance 통과       | [`phases/03-ensure-dir.md`](phases/03-ensure-dir.md)                         |
+| 04 Upload                 | complete | 실제 소형 acceptance와 100MiB bounded-memory resume 완료 전송 통과              | [`phases/04-upload.md`](phases/04-upload.md)                                 |
+| 05 Put                    | complete | 순수 decision, CLI/fake HTTP, 실제 metadata policy flow 및 cleanup 통과         | [`phases/05-put.md`](phases/05-put.md)                                       |
+| 06 Delete                 | complete | file/non-empty-folder 실제 삭제, ID reconcile, limiter 및 cleanup 통과          | [`phases/06-delete.md`](phases/06-delete.md)                                 |
+| 07 Hardening              | complete | P07-A~D CI 및 통합 P07-E live acceptance 1회와 cleanup 확인                     | [`phases/07-hardening.md`](phases/07-hardening.md)                           |
+| 08 Official API alignment | complete | 공식 API correction, 일반 CI와 실제 MYBOX acceptance 통과                       | [`phases/08-official-api-alignment.md`](phases/08-official-api-alignment.md) |
+| 09 Download               | pending  | 실행 계획 승인, 구현·검증 미착수                                                | [`phases/09-download.md`](phases/09-download.md)                             |
 
 ## 초기화 상태
 
@@ -192,8 +193,16 @@ integration suite의 unique prefix cleanup과 일반 CI의 credential redaction/
 
 2026-08-24 사용자는 현재 MVP의 공개 릴리스를 보류했다. Phase 00~08의 완료 상태와 기존 검증 증거는
 유지하며, 릴리스 작업이나 새 구현을 자동으로 시작하지 않는다. 다음 작업은 실제 요구사항이 확정된 뒤
-별도 phase로 정의한다. 공식 API의 download, rename, move, copy, favorite, 휴지통 관리 기능은 계속
-후보로만 유지하며 아직 선택된 다음 작업이 아니다.
+별도 phase로 정의한다.
+
+## Phase 09 계획
+
+2026-08-27 사용자는 미구현 공식 API 중 download를 다음 phase로 선택하고 계획 문서 저장을 요청했다.
+[`phases/09-download.md`](phases/09-download.md)에 contract-first probe, local no-clobber/atomic commit,
+bounded-memory streaming, secret redaction, fake/CLI/실제 MYBOX 및 세 운영체제 검증 조건을 기록했다.
+
+Phase 09는 계획만 승인된 `pending` 상태다. 구현과 검증은 시작하지 않았고 기존 공개 릴리스 보류 결정도
+유지한다. rename, move, copy, favorite와 휴지통 관리 기능은 계속 미선택 후보로 남긴다.
 
 ## 상태 변경 규칙
 
