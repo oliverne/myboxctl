@@ -4,6 +4,7 @@ import { Command, CommanderError } from "commander";
 
 import { DomainError, normalizeError } from "./errors.ts";
 import { runDelete } from "./features/delete.ts";
+import { runDownload } from "./features/download.ts";
 import { runEnsureDir } from "./features/ensure-dir.ts";
 import { runLs } from "./features/ls.ts";
 import { runPut } from "./features/put/command.ts";
@@ -32,12 +33,14 @@ type DeleteOutputOptions = OutputOptions & {
   strict?: boolean;
 };
 
+type DownloadOutputOptions = OutputOptions & { overwrite?: boolean };
+
 function displayValue(value: unknown): string {
   return redactSecrets(String(value));
 }
 
 function writeCommandSuccess(
-  command: "stat" | "ls" | "ensure-dir" | "upload" | "put" | "delete",
+  command: "stat" | "ls" | "ensure-dir" | "upload" | "put" | "delete" | "download",
   result: { action: string; data: unknown },
   options: OutputOptions,
 ): void {
@@ -90,6 +93,20 @@ function writeCommandSuccess(
     return;
   }
 
+  if (command === "download") {
+    const data = result.data as {
+      remotePath: string;
+      localPath: string;
+      resourceId: string;
+      size: number;
+      modifiedAt: string;
+    };
+    process.stdout.write(
+      `${displayValue(result.action)}\t${displayValue(data.remotePath)}\t${displayValue(data.localPath)}\t${displayValue(data.resourceId)}\t${displayValue(data.size)}\t${displayValue(data.modifiedAt)}\n`,
+    );
+    return;
+  }
+
   const data = result.data as { path: string; resourceId: string | null; createdPaths: string[] };
   process.stdout.write(
     `${displayValue(result.action)}\t${displayValue(data.path)}\t${displayValue(data.resourceId ?? "-")}\t${displayValue(data.createdPaths.join(",") || "-")}\n`,
@@ -105,7 +122,7 @@ export function createProgram(runtimeFactory: RuntimeFactory = createRuntime): C
     .exitOverride()
     .configureOutput({ writeErr: () => {} })
     .name("myboxctl")
-    .description("Agent-friendly CLI for NAVER MYBOX uploads")
+    .description("Agent-friendly CLI for NAVER MYBOX file operations")
     .version("0.0.0");
 
   addJsonOption(
@@ -197,6 +214,38 @@ export function createProgram(runtimeFactory: RuntimeFactory = createRuntime): C
           },
         );
         writeCommandSuccess("put", result, options);
+      }),
+  );
+
+  addJsonOption(
+    program
+      .command("download")
+      .description("Download an exact remote file to a local path")
+      .argument("<remote-file>")
+      .argument("<local-path>")
+      .option("--overwrite", "Atomically replace an existing regular local file")
+      .action(async (remotePath: string, localPath: string, options: DownloadOutputOptions) => {
+        const runtime = await runtimeFactory();
+        const interrupt = new AbortController();
+        const onInterrupt = () => interrupt.abort();
+        process.once("SIGINT", onInterrupt);
+        try {
+          const result = await runDownload(
+            remotePath,
+            localPath,
+            { ...(options.overwrite === undefined ? {} : { overwrite: options.overwrite }) },
+            {
+              client: runtime.client,
+              resolver: runtime.resolver,
+              downloader: runtime.downloader,
+              timeoutMs: runtime.config.timeoutMs,
+              signal: interrupt.signal,
+            },
+          );
+          writeCommandSuccess("download", result, options);
+        } finally {
+          process.removeListener("SIGINT", onInterrupt);
+        }
       }),
   );
 
