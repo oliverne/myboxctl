@@ -207,7 +207,7 @@ bounded streaming downloader, exact remote pre/postcondition과 `download` comma
 
 로컬 destination은 sibling exclusive temp, no-clobber hard link, regular-file overwrite의 identity 재검증과
 atomic rename을 사용한다. destination 생성/변경 race, symbolic link/non-regular entry, byte mismatch와
-SIGINT cleanup을 fake HTTP/CLI/local filesystem test로 검증했다. 일반 `bun run check`는 151 pass,
+SIGINT cleanup을 fake HTTP/CLI/local filesystem test로 검증했다. 일반 `bun run check`는 152 pass,
 27 opt-in skip, 0 fail이다. Phase 09는 3개 OS CI와 실제 MYBOX production acceptance 전까지
 `in_progress`를 유지한다. 기존 공개 릴리스 보류 결정도 유지한다.
 
