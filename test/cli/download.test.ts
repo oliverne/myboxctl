@@ -161,7 +161,9 @@ describe("download command subprocess contract", () => {
     expect(server.requests.filter((request) => request.path.includes("/download"))).toHaveLength(0);
   });
 
-  test("removes partial files when SIGINT aborts a signed transfer", async () => {
+  const testPosixSignal = process.platform === "win32" ? test.skip : test;
+
+  testPosixSignal("removes partial files when SIGINT aborts a signed transfer", async () => {
     let server: FakeHttpServer;
     server = await createFakeHttpServer({
       handler: (request: RecordedRequest) => {
