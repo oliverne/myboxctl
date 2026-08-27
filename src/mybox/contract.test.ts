@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   createUploadResponseSchema,
+  downloadUrlResponseSchema,
   resourceItemSchema,
   searchResourceListResponseSchema,
   storageResponseSchema,
@@ -80,5 +81,17 @@ describe("MYBOX response schemas", () => {
     expect(createUploadResponseSchema.safeParse({ uploadUrl: "https://upload.test" }).success).toBe(
       true,
     );
+  });
+
+  test("accepts a bounded one-time download URL response", () => {
+    expect(
+      downloadUrlResponseSchema.parse({
+        downloadUrl: "https://storage.example.test/file?token=secret",
+        expiresIn: 600,
+      }),
+    ).toMatchObject({ expiresIn: 600 });
+    expect(
+      downloadUrlResponseSchema.safeParse({ downloadUrl: "not-a-url", expiresIn: 601 }).success,
+    ).toBe(false);
   });
 });
