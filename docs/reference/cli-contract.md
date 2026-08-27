@@ -17,7 +17,8 @@
 ```ts
 type Success<T> = {
   ok: true;
-  command: "stat" | "ls" | "ensure-dir" | "upload" | "put" | "delete";
+  command:
+    "stat" | "ls" | "ensure-dir" | "upload" | "put" | "download" | "delete";
   action: string;
   data: T;
 };
@@ -186,6 +187,35 @@ remote-is-current
 
 원격 파일이 2초 tolerance를 초과해 최신이면 conflict의 `error.code`는 `REMOTE_NEWER`다. 원격 대상이
 folder이면 `REMOTE_TYPE_CONFLICT`다. 두 경우 모두 mutation을 수행하지 않는다.
+
+### `download <remote-file> <local-path>`
+
+정확한 원격 파일을 지정한 로컬 파일로 streaming한다. local parent를 자동 생성하지 않으며 기존
+destination은 기본적으로 exit 5 conflict로 보존한다. `--overwrite`는 기존 regular file만 원자적으로
+교체한다. directory, symbolic link와 기타 non-regular entry는 옵션과 관계없이 거부한다.
+
+```json
+{
+  "ok": true,
+  "command": "download",
+  "action": "downloaded",
+  "data": {
+    "remotePath": "/agents/report.md",
+    "localPath": "./report.md",
+    "resourceId": "...",
+    "size": 12345,
+    "modifiedAt": "2026-08-27T12:00:00+09:00"
+  }
+}
+```
+
+원격 부재는 exit 4, folder/type conflict는 exit 5다. destination conflict는 download URL 발급 전에
+판정한다. content는 destination과 같은 directory의 exclusive temporary file에 기록하고, remote size와
+전송 전후의 `resourceId`, `size`, `modifiedAt`을 검증한 뒤에만 공개한다. 실패와 SIGINT에서는 partial
+destination을 만들지 않고 temporary file을 제거한다.
+
+download URL 발급과 signed content GET은 각각 한 번만 시도한다. 실패한 1회용 URL을 재사용하거나 같은
+실행에서 새 URL을 자동 발급하지 않는다. PAT, Authorization header와 download URL은 출력하지 않는다.
 
 ### `delete <remote-path>`
 
