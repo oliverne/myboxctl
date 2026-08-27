@@ -55,6 +55,7 @@ jobs:
     env:
       MYBOX_PAT: ${{ secrets.MYBOX_PAT }}
       MYBOX_INTEGRATION: "1"
+      MYBOX_DOWNLOAD_PROBE: "1"
 
     steps:
       - name: Checkout
@@ -83,6 +84,9 @@ jobs:
 
       - name: Run live integration acceptance
         run: bun test test/integration
+
+      - name: Run targeted download probe
+        run: bun run test:download-probe
 
       - name: Final diff check
         run: git diff --check
