@@ -50,8 +50,8 @@ directory lock 아래에서 수행한다.
 현재 구현은 `/v1/search/` GET의 10회/분 bucket과
 `DELETE /v1/drive/resources/{resourceId}`의 60회/분 bucket을 origin별로 분리해 선제 조정한다. upload
 reservation과 signed storage transfer는 검색/delete bucket에 섞지 않고 operation-specific
-resume/reconcile 정책을 사용한다. download/other bucket은 해당 command가 추가될 때만 문서상
-한도와 실제 호출 형태를 확인해 확장한다.
+resume/reconcile 정책을 사용한다. download는 요금제별 일일 한도를 서버 응답으로 따르며 reset 기준이나
+공유 단위를 추측한 local daily bucket을 만들지 않는다.
 
 모든 bucket은 같은 state/lock 구현을 재사용한다. 새 bucket을 추가할 때는 limit/window, bucket
 classifier, 429 `blockedUntil`, 여러 limiter instance의 slot 공유를 unit test로 고정한다. 실제
@@ -65,6 +65,10 @@ classifier, 429 `blockedUntil`, 여러 limiter instance의 slot 공유를 unit t
   경우에만 동일한 `resume + modifiedTime + overwrite` identity로 예약을 한 번 더 발급한다.
 - `uploadContent`: 재예약에서 서버가 반환한 offset만 권위 있는 값으로 사용한다. non-zero면 남은
   byte만, 0이면 전체 파일을 다시 보내며 이 복구 전송이 실패해도 세 번째 예약/전송은 하지 않는다.
+- `createDownloadUrl`: 1회용 credential을 발급하므로 network/timeout/5xx에도 같은 실행에서 자동
+  반복하지 않는다. retryable failure로 반환해 호출자가 새 실행을 선택하게 한다.
+- `downloadContent`: PAT 없이 signed URL에 GET을 정확히 한 번 수행한다. 실패한 URL을 재사용하거나
+  새 URL을 자동 발급하지 않고 partial temp file을 삭제한다. Range/resume은 사용하지 않는다.
 - `deleteResource`: 429는 같은 `resourceId`를 조회해 먼저 reconcile한다. ID가 남아 있을 때만
   `Retry-After` 후 같은 ID로 한 번 재시도하며, 404는 이미 삭제된 성공 상태로 처리한다.
   timeout/5xx 뒤 ID가 남아 있으면 DELETE를 자동 반복하지 않는다.
@@ -87,6 +91,11 @@ classifier, 429 `blockedUntil`, 여러 limiter instance의 slot 공유를 unit t
 
 모든 실패와 SIGINT 경로에서 handle과 response body를 정리한다. 파일 전체를 메모리에 읽지
 않는다.
+
+download는 destination과 같은 directory에 exclusive temporary file을 만들고 chunk 단위로 기록한다.
+신규 파일은 hard-link 기반 no-clobber commit, 기존 regular file의 `--overwrite`는 identity 재검증 뒤
+atomic rename을 사용한다. destination이 동시에 생기거나 바뀌면 기존 파일을 보존하고 conflict로
+실패한다. remote byte count와 전송 전후 metadata가 일치한 경우에만 temp file을 공개한다.
 
 ## 원격 race
 
