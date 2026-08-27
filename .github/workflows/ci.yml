@@ -124,5 +124,6 @@ jobs:
         run: >-
           bun test
           src/local/download-file.test.ts
+          src/features/download.test.ts
           test/http/download.test.ts
           test/cli/download.test.ts
