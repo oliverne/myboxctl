@@ -11,6 +11,7 @@
 ```bash
 myboxctl stat /agents/output/report.md --json
 myboxctl put ./report.md /agents/output/report.md --mkdir --json
+myboxctl download /agents/output/report.md ./report.md --json
 myboxctl delete /agents/output/old-report.md --json
 ```
 
@@ -45,6 +46,7 @@ ls          폴더의 direct children 조회
 ensure-dir  원격 폴더 계층 보장
 upload      신규 업로드 및 명시적 overwrite
 put         로컬/원격 metadata를 비교한 조건부 업로드
+download    원격 파일의 안전한 streaming download
 delete      원격 파일/폴더를 MYBOX 휴지통으로 이동
 ```
 
@@ -59,7 +61,7 @@ delete      원격 파일/폴더를 MYBOX 휴지통으로 이동
 - FUSE mount, GUI, TUI
 - 다중 MYBOX 계정
 
-NAVER 공식 API에는 download, rename, move, copy, favorite, 휴지통 복원/영구 삭제 같은 기능도 있지만,
+NAVER 공식 API에는 rename, move, copy, favorite, 휴지통 복원/영구 삭제 같은 기능도 있지만,
 `myboxctl`은 API coverage 자체를 목표로 하지 않습니다. 실제 agent workflow에서 필요성이 확인되면
 선택적으로 추가합니다.
 
@@ -77,7 +79,7 @@ AI가 작성한 코드가 포함되어 있다는 점을 고려해 사용해 주�
 - `upload`, `put`, `delete`는 실제 원격 데이터를 변경합니다.
 - 중요한 데이터에는 먼저 충분히 테스트한 뒤 사용해 주세요.
 - 처음에는 `/myboxctl-integration-test/` 같은 별도 경로를 사용하는 것이 좋습니다.
-- PAT, credentials 파일, signed upload URL은 저장소나 issue에 올리지 마세요.
+- PAT, credentials 파일, signed upload/download URL은 저장소나 issue에 올리지 마세요.
 - AI 에이전트에 연결할 경우 허용할 명령과 원격 경로를 제한하는 편이 안전합니다.
 - CLI/JSON 계약은 안정화 과정에서 아직 변경될 수 있습니다.
 
@@ -139,6 +141,7 @@ bun run dev -- ls /agents/output --json
 bun run dev -- ensure-dir /agents/output --json
 bun run dev -- upload ./report.md /agents/output/report.md --mkdir --json
 bun run dev -- put ./report.md /agents/output/report.md --mkdir --json
+bun run dev -- download /agents/output/report.md ./report.md --json
 bun run dev -- delete /agents/output/report.md --json
 ```
 
@@ -196,13 +199,15 @@ bun run test:release
 MYBOX_PAT=... bun run test:integration
 MYBOX_PAT=... bun run test:contract
 MYBOX_PAT=... bun run test:upload-probe
+MYBOX_PAT=... bun run test:download-probe
 ```
 
 - `test:integration`: 실제 command acceptance
 - `test:contract`: MYBOX API 계약을 다시 확인해야 할 때 사용하는 probe
 - `test:upload-probe`: 100MiB streaming 및 interruption/resume 검증
+- `test:download-probe`: signed download URL의 실제 content 계약 검증
 
-일반적인 개발 과정에서는 `test:contract`나 `test:upload-probe`를 매번 실행할 필요는 없습니다.
+일반적인 개발 과정에서는 contract probe들을 매번 실행할 필요는 없습니다.
 
 ## 문서
 
