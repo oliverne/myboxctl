@@ -5,6 +5,8 @@ import {
   type CreateUploadResponse,
   createFolderResponseSchema,
   createUploadResponseSchema,
+  type DownloadUrlResponse,
+  downloadUrlResponseSchema,
   myboxErrorSchema,
   type ResourceDetail,
   type ResourceItem,
@@ -469,6 +471,31 @@ export class MyboxClient {
       body,
       schema: createUploadResponseSchema,
     });
+  }
+
+  async createDownloadUrl(resourceId: string): Promise<DownloadUrlResponse> {
+    let result: { response: Response; body: unknown };
+    try {
+      result = await this.requestOnce(
+        "GET",
+        `/v1/drive/files/${encodeURIComponent(resourceId)}/download`,
+        {},
+      );
+    } catch (error) {
+      if (error instanceof DomainError) {
+        throw error;
+      }
+      throw networkError(error);
+    }
+
+    if (result.response.status < 200 || result.response.status >= 300) {
+      throw this.parseError(result.response, result.body);
+    }
+    const parsed = downloadUrlResponseSchema.safeParse(result.body);
+    if (!parsed.success) {
+      throw apiResponseError();
+    }
+    return parsed.data;
   }
 
   async deleteResource(resourceId: string): Promise<void> {
