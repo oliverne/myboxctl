@@ -19,10 +19,10 @@ lock으로 여러 CLI process에 공유한다. `Retry-After`가 없는 429는 60
 ## 현재 phase와 상태
 
 - Phase: `09-download`
-- 상태: `pending`
+- 상태: `in_progress`
 - `docs/PROGRESS.md`와 일치한다.
 - 공개 릴리스는 2026-08-24 사용자 결정으로 보류됐다.
-- 현재 활성 구현 phase는 없다. Phase 09 구현을 시작할 때 상태를 `in_progress`로 변경한다.
+- Phase 09 구현을 시작했다. 현재 bounded action은 P09-A targeted download probe 실행과 결과 기록이다.
 - 수정된 probe를 실제 MYBOX에서 실행했다. 동일 resume identity로 64MiB를 읽은 뒤 in-process stream
   error, 즉시 worker `SIGKILL`, 2초 client-buffer drain 뒤 worker `SIGKILL`을 각각 시도했지만 모두
   resume reservation이 `201 / offset: 0`을 반환했다.
