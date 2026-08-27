@@ -81,6 +81,13 @@ export const createUploadResponseSchema = z
   })
   .passthrough();
 
+export const downloadUrlResponseSchema = z
+  .object({
+    downloadUrl: z.url(),
+    expiresIn: z.number().int().positive().max(600),
+  })
+  .passthrough();
+
 export const storageFileCountsSchema = z
   .object({
     archive: nonNegativeInteger,
@@ -129,6 +136,7 @@ export type ResourceListResponse = z.infer<typeof resourceListResponseSchema>;
 export type SearchResourceListResponse = z.infer<typeof searchResourceListResponseSchema>;
 export type CreateFolderResponse = z.infer<typeof createFolderResponseSchema>;
 export type CreateUploadResponse = z.infer<typeof createUploadResponseSchema>;
+export type DownloadUrlResponse = z.infer<typeof downloadUrlResponseSchema>;
 export type StorageFileCounts = z.infer<typeof storageFileCountsSchema>;
 export type StorageResponse = z.infer<typeof storageResponseSchema>;
 export type UploadContentResponse = z.infer<typeof uploadContentResponseSchema>;
