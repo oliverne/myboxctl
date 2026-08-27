@@ -26,7 +26,7 @@
 | 06 Delete                 | complete    | file/non-empty-folder 실제 삭제, ID reconcile, limiter 및 cleanup 통과          | [`phases/06-delete.md`](phases/06-delete.md)                                 |
 | 07 Hardening              | complete    | P07-A~D CI 및 통합 P07-E live acceptance 1회와 cleanup 확인                     | [`phases/07-hardening.md`](phases/07-hardening.md)                           |
 | 08 Official API alignment | complete    | 공식 API correction, 일반 CI와 실제 MYBOX acceptance 통과                       | [`phases/08-official-api-alignment.md`](phases/08-official-api-alignment.md) |
-| 09 Download               | in_progress | P09-A targeted download probe 구현 중                                           | [`phases/09-download.md`](phases/09-download.md)                             |
+| 09 Download               | in_progress | targeted probe 통과, command/stream/local commit 구현 및 일반 검증 통과         | [`phases/09-download.md`](phases/09-download.md)                             |
 
 ## 초기화 상태
 
@@ -201,10 +201,15 @@ integration suite의 unique prefix cleanup과 일반 CI의 credential redaction/
 [`phases/09-download.md`](phases/09-download.md)에 contract-first probe, local no-clobber/atomic commit,
 bounded-memory streaming, secret redaction, fake/CLI/실제 MYBOX 및 세 운영체제 검증 조건을 기록했다.
 
-Phase 09 구현을 시작했다. 현재 P09-A targeted download probe와 opt-in CI 실행 경로를 작성 중이며
-실제 MYBOX 결과가 확인되기 전에는 signed content transport의 production 계약을 고정하지 않는다.
-기존 공개 릴리스 보류 결정은 유지한다. rename, move, copy, favorite와 휴지통 관리 기능은 계속
-미선택 후보로 남긴다.
+Phase 09 P09-A targeted probe가 실제 MYBOX에서 통과했다. PAT 없는 signed GET 1회, 최종 200,
+0-byte/Unicode byte 일치와 600초 이하 expiry를 확인했다. 이 계약에 맞춰 Zod schema, 단일 URL 발급,
+bounded streaming downloader, exact remote pre/postcondition과 `download` command를 구현했다.
+
+로컬 destination은 sibling exclusive temp, no-clobber hard link, regular-file overwrite의 identity 재검증과
+atomic rename을 사용한다. destination 생성/변경 race, symbolic link/non-regular entry, byte mismatch와
+SIGINT cleanup을 fake HTTP/CLI/local filesystem test로 검증했다. 일반 `bun run check`는 151 pass,
+27 opt-in skip, 0 fail이다. Phase 09는 3개 OS CI와 실제 MYBOX production acceptance 전까지
+`in_progress`를 유지한다. 기존 공개 릴리스 보류 결정도 유지한다.
 
 ## 상태 변경 규칙
 
