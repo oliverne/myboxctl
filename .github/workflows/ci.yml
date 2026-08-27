@@ -8,6 +8,11 @@ on:
         required: false
         default: false
         type: boolean
+      download_probe:
+        description: Run only the targeted signed-download contract probe
+        required: false
+        default: false
+        type: boolean
   push:
     branches: [main]
   pull_request:
@@ -48,14 +53,13 @@ jobs:
 
   live-acceptance:
     name: Live MYBOX acceptance
-    if: github.event_name == 'workflow_dispatch' && inputs.live_acceptance
+    if: github.event_name == 'workflow_dispatch' && (inputs.live_acceptance || inputs.download_probe)
     needs: test
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
       MYBOX_PAT: ${{ secrets.MYBOX_PAT }}
       MYBOX_INTEGRATION: "1"
-      MYBOX_DOWNLOAD_PROBE: "1"
 
     steps:
       - name: Checkout
@@ -83,10 +87,42 @@ jobs:
         run: bun run build
 
       - name: Run live integration acceptance
+        if: inputs.live_acceptance
         run: bun test test/integration
 
       - name: Run targeted download probe
+        if: inputs.download_probe
+        env:
+          MYBOX_DOWNLOAD_PROBE: "1"
         run: bun run test:download-probe
 
       - name: Final diff check
         run: git diff --check
+
+  local-download-contract:
+    name: Download local commit / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify local commit and download transport
+        run: >-
+          bun test
+          src/local/download-file.test.ts
+          test/http/download.test.ts
+          test/cli/download.test.ts
