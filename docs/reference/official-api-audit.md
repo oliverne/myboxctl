@@ -11,10 +11,10 @@
 ## 1. 조사 결과 요약
 
 2026-08-24 기준 공식 사이트에서 확인한 문서화된 endpoint operation은 20개다. 현재
-`MyboxClient`가 직접 사용하는 operation은 9개이며, 나머지 11개는 구현하지 않았다.
+`MyboxClient`가 직접 사용하는 operation은 10개이며, 나머지 10개는 구현하지 않았다.
 
-- 현재 구현: 9/20
-- 미구현: 11/20
+- 현재 구현: 10/20
+- 미구현: 10/20
 - Phase 08 반영:
   - `GET /v1/drive/storage`와 `maxFileBytes` upload preflight
   - 현재 사용 operation별 독립 60회/분 bucket
@@ -87,7 +87,7 @@
 |   8 | 폴더 검색                  | `GET /v1/search/resources/folders`                 | implemented | exact path resolve의 일부로 사용                                               |
 |   9 | 폴더 생성                  | `POST /v1/drive/folders`                           | implemented | `ensure-dir`, `--mkdir`에서 사용                                               |
 |  10 | 업로드 URL 생성            | `POST /v1/drive/files`                             | implemented | `upload`, `put`에서 reservation에 사용                                         |
-|  11 | 다운로드 URL 생성          | `GET /v1/drive/files/{fileId}/download`            | planned     | Phase 09 계획 승인, 아직 미구현. URL은 1회용, 10분 유효                        |
+|  11 | 다운로드 URL 생성          | `GET /v1/drive/files/{fileId}/download`            | implemented | `download`에서 사용. URL은 1회용이며 PAT 없는 signed GET에만 전달              |
 |  12 | 이름 변경                  | `POST /v1/drive/resources/{resourceId}/rename`     | future      | 필요 사례가 확인될 때 command 후보                                             |
 |  13 | 이동                       | `POST /v1/drive/resources/{resourceId}/move`       | future      | 필요 사례가 확인될 때 command 후보                                             |
 |  14 | 복사                       | `POST /v1/drive/resources/{resourceId}/copy`       | future      | 필요 사례가 확인될 때 command 후보                                             |
@@ -196,7 +196,6 @@ PAT 만료, 계정 용량 초과, 암호 폴더/공유 받은 폴더 미지원�
 
 | 후보             | 관련 공식 API       | 검토 조건                                                |
 | ---------------- | ------------------- | -------------------------------------------------------- |
-| `download`       | 다운로드 URL 생성   | Phase 09 `pending`; 구현 시작 시 targeted probe부터 수행 |
 | `rename`         | 이름 변경           | 별도 rename이 upload/put보다 명확한 사용 사례를 가질 때  |
 | `move`           | 이동                | 원격 파일 재배치 요구가 확인될 때                        |
 | `copy`           | 복사                | 서버 측 복사가 upload보다 유리한 실제 workflow가 있을 때 |

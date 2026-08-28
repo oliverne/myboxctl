@@ -67,6 +67,10 @@ describe("cross-command CLI hardening", () => {
       { command: "ensure-dir", args: ["ensure-dir", "/한글 # +", "--json"] },
       { command: "upload", args: ["upload", localPath, "/한글 # +.txt", "--json"] },
       { command: "put", args: ["put", localPath, "/한글 # +.txt", "--json"] },
+      {
+        command: "download",
+        args: ["download", "/한글 # +.txt", join(directory, "download.txt"), "--json"],
+      },
       { command: "delete", args: ["delete", "/한글 # +.txt", "--json"] },
     ];
 

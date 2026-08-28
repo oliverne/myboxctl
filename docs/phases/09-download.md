@@ -23,8 +23,7 @@ myboxctl download <remote-file> <local-path> [--overwrite] [--json]
 - PAT를 사용하는 실제 MYBOX integration은 opt-in이며 `/myboxctl-integration-test/` 아래의 unique
   child만 준비·정리한다.
 
-현재 문서는 계획만 승인된 상태다. `pending`인 동안 production code와 integration resource를
-변경하지 않는다.
+Phase 09는 production code, integration 검증과 문서 갱신까지 완료됐다.
 
 ## 공식 계약과 미확인 경계
 
@@ -274,7 +273,7 @@ git diff --check
 
 ## Handoff
 
-다음 담당자는 Phase 09를 `in_progress`로 변경한 뒤 P09-A부터 시작한다. 공식 문서의 1회용 URL이라는
-표현만으로 storage content request, retry 또는 resume 동작을 추측하지 않는다. production code보다
-targeted probe가 먼저이며, local atomic commit이 세 운영체제에서 검증되지 않으면 완료 처리하지
-않는다.
+2026-08-28 최신 HEAD `f97daaacea49774e5a3f303dbefede1908c9d05f`의 GitHub Actions CI #50에서
+Ubuntu, macOS, Windows local commit 검증과 실제 MYBOX production acceptance가 통과했다. 실제
+suite는 8 pass, targeted download probe는 1 pass였으며 unique integration resource cleanup까지
+완료됐다. Phase 09는 `complete`다.

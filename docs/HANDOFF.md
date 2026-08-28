@@ -2,9 +2,9 @@
 
 ## 요약
 
-Phase 00~08 MVP 구현과 검증은 완료 상태다. 2026-08-27 사용자는 첫 후속 기능으로 download를 선택했고
-[`phases/09-download.md`](phases/09-download.md)에 실행 계획을 저장했다. Phase 09는 `pending`이며
-production 구현과 검증은 시작하지 않았다. 공개 릴리스 보류 결정도 유지한다.
+Phase 00~09 구현과 검증은 완료 상태다. Phase 09 download는 targeted live probe, production 구현,
+일반 fake/CLI/local filesystem 검증, 3개 OS CI와 실제 MYBOX production acceptance까지 통과했다.
+공개 릴리스 보류 결정은 유지한다.
 
 Phase 03 Ensure directory, Phase 04 Upload, Phase 05 Put, Phase 06 Delete를 완료했다. `upload`는 같은 file handle의
 `fstat` 결과를 기준으로 multipart body를 streaming하며, retryable content failure 뒤 서버 offset을
@@ -19,10 +19,10 @@ lock으로 여러 CLI process에 공유한다. `Retry-After`가 없는 429는 60
 ## 현재 phase와 상태
 
 - Phase: `09-download`
-- 상태: `pending`
+- 상태: `complete`
 - `docs/PROGRESS.md`와 일치한다.
 - 공개 릴리스는 2026-08-24 사용자 결정으로 보류됐다.
-- 현재 활성 구현 phase는 없다. Phase 09 구현을 시작할 때 상태를 `in_progress`로 변경한다.
+- 활성 구현 phase는 없다. 다음 작업은 실제 요구에 따른 후속 phase 정의 또는 별도의 릴리스 결정이다.
 - 수정된 probe를 실제 MYBOX에서 실행했다. 동일 resume identity로 64MiB를 읽은 뒤 in-process stream
   error, 즉시 worker `SIGKILL`, 2초 client-buffer drain 뒤 worker `SIGKILL`을 각각 시도했지만 모두
   resume reservation이 `201 / offset: 0`을 반환했다.
@@ -246,8 +246,8 @@ Phase 07의 P07-E와 Phase 08 contract correction 검증을 완료했다. 사용
 ## Phase 09 계획 상태
 
 - 선택 기능: `download <remote-file> <local-path> [--overwrite] [--json]`
-- 상태: `pending`; 구현·probe·검증 미착수
-- 첫 작업: signed URL content 전송 계약만 다루는 opt-in targeted probe
+- 상태: `complete`
+- probe 관찰: PAT 없는 signed GET 1회, 최종 200, 0-byte/Unicode byte 일치, expiry 600초 이하
 - 핵심 안전 조건: URL/PAT redaction, 기존 로컬 파일 기본 보존, sibling temp file, 성공 후 원자적
   commit, 실패/SIGINT cleanup, byte count와 원격 metadata postcondition
 - retry 경계: URL 발급과 signed content transfer를 operation별로 다루고, one-time URL이나 일일 한도를
@@ -255,6 +255,10 @@ Phase 07의 P07-E와 Phase 08 contract correction 검증을 완료했다. 사용
 - 검증 경계: broad Phase 00 contract suite를 반복하지 않고 download probe, fake HTTP/CLI test,
   실제 MYBOX acceptance와 Ubuntu/macOS/Windows local commit test만 실행한다.
 
-다음 bounded action은 `docs/PROGRESS.md`의 Phase 09를 `in_progress`로 변경하고
-[`phases/09-download.md`](phases/09-download.md)의 P09-A부터 순서대로 실행하는 것이다. rename,
-move, copy, favorite와 휴지통 관리 기능은 여전히 선택되지 않은 후보다.
+2026-08-28 최신 HEAD `f97daaacea49774e5a3f303dbefede1908c9d05f`의 GitHub Actions CI #50에서
+Ubuntu/macOS/Windows local commit/download transport, 일반 check/build/diff와 `Live MYBOX
+acceptance`가 모두 통과했다. 실제 suite는 8 pass, targeted download probe는 1 pass였고 production
+download의 conflict 보존, atomic overwrite, folder 거부와 unique resource cleanup을 확인했다.
+
+Phase 09의 모든 완료 조건이 충족됐다. 다음 bounded action은 없으며 rename, move, copy, favorite와
+휴지통 관리 기능은 여전히 선택되지 않은 후보다.

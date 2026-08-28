@@ -209,9 +209,8 @@ Phase 00~08 MVP 완료 후 선택한 첫 후속 vertical slice다.
 - download URL 발급 한도와 retry 정책의 공식 계약 정합성
 - fake HTTP, CLI subprocess, 실제 MYBOX acceptance 및 세 운영체제의 로컬 파일 commit 검증
 
-Phase 09는 계획만 승인된 `pending` 상태다. 구현을 시작할 때
-`docs/PROGRESS.md`를 `in_progress`로 변경하며, Phase 00~08의 기존 MVP 완료 판정을 소급해 변경하지
-않는다.
+Phase 09는 구현과 실제 MYBOX acceptance를 완료했다. Phase 00~08의 기존 MVP 완료 판정은 소급해
+변경하지 않으며, 다음 기능은 실제 요구가 확인될 때 별도 phase로 정의한다.
 
 ## 6. 전체 MVP 완료 조건
 

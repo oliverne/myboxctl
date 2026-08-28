@@ -125,6 +125,18 @@ type UploadRequest =
 
 문서: <https://developers.mybox.naver.com/docs/files_upload>
 
+### 다운로드 URL 생성
+
+```http
+GET /v1/drive/files/{fileId}/download
+```
+
+응답은 1회용 `downloadUrl`과 최대 600초의 `expiresIn`을 제공한다. URL 발급 요청에는 PAT를 사용하지만
+signed content GET에는 PAT 또는 Authorization header를 보내지 않는다. URL 원문은 credential로
+취급해 출력, fixture와 문서에 기록하지 않는다.
+
+문서: <https://developers.mybox.naver.com/docs/files_download>
+
 ### 삭제
 
 ```http
@@ -177,6 +189,17 @@ sliding window 또는 endpoint별 상세 동작은 확인하지 못했다.
 | API-09 | duplicate name/type 허용 여부                     | 같은 parent에서 생성 matrix                   |
 | API-10 | 429 Retry-After 형식                              | 실제 또는 문서화된 응답 fixture               |
 | API-11 | 423의 해제 및 retry 특성                          | 실제 응답과 후속 성공 관찰                    |
+
+## 2026-08-27 Phase 09 targeted download probe
+
+- 상태: confirmed
+- 실행: `bun run test:download-probe`
+- URL 발급은 `200`과 `{ downloadUrl, expiresIn }` schema를 반환했고 `expiresIn`은 600초 이하 범위였다.
+- signed content는 PAT/Authorization header 없이 `GET` 1회로 최종 `200`을 반환했다.
+- 0-byte 파일과 Unicode 이름/내용의 소형 파일 모두 실제 byte가 원격 content와 일치했다.
+- signed URL, PAT와 Authorization header는 test name, stdout/stderr, fixture와 문서에 기록하지 않았다.
+- unique child의 file/folder와 local probe file을 exact cleanup했다.
+- production 정책: URL 발급과 signed GET을 자동 반복하지 않으며 Range/resume을 추측하지 않는다.
 
 ## Phase 00 실측 결과
 
