@@ -80,6 +80,36 @@ async function parentChildren(parentId: string): Promise<Record<string, unknown>
   return result.resources.filter(isRecord);
 }
 
+async function waitForResource(path: string, type: "file" | "folder") {
+  for (const waitMs of [0, 250, 1_000, 2_000]) {
+    if (waitMs > 0) {
+      await Bun.sleep(waitMs);
+    }
+    const resource = await exactResource(path, type);
+    if (resource !== undefined) {
+      return resource;
+    }
+  }
+  return undefined;
+}
+
+async function waitForChildren(
+  parentId: string,
+  expectedIds: readonly string[] = [],
+): Promise<Record<string, unknown>[]> {
+  let children: Record<string, unknown>[] = [];
+  for (const waitMs of [0, 250, 1_000, 2_000]) {
+    if (waitMs > 0) {
+      await Bun.sleep(waitMs);
+    }
+    children = await parentChildren(parentId);
+    if (expectedIds.every((id) => children.some((child) => child.resourceId === id))) {
+      return children;
+    }
+  }
+  return children;
+}
+
 async function createRawFile(parentId: string, name: string, bytes: Uint8Array): Promise<string> {
   const reservation = await apiRequest("/v1/drive/files", {
     method: "POST",
@@ -195,7 +225,7 @@ describeProbe("MYBOX Phase 12 cross-platform Unicode filename probe", () => {
     const createdId = asString(createdOutput.data?.resourceId, "new NFC resource ID");
     createdIds.push(createdId);
 
-    const canonicalResource = await exactResource(joinRemotePath(rootPath, nfcName), "file");
+    const canonicalResource = await waitForResource(joinRemotePath(rootPath, nfcName), "file");
     expect(canonicalResource).toBeDefined();
     expect(canonicalResource?.name).toBe(nfcName);
     expect(resourceId(canonicalResource, "new NFC resource")).toBe(createdId);
@@ -213,6 +243,7 @@ describeProbe("MYBOX Phase 12 cross-platform Unicode filename probe", () => {
     const legacyBytes = new TextEncoder().encode("legacy NFD content");
     const legacyId = await createRawFile(rootId, legacyNfdName, legacyBytes);
     const legacyPath = joinRemotePath(rootPath, legacyNfcName);
+    expect(await waitForResource(joinRemotePath(rootPath, legacyNfdName), "file")).toBeDefined();
 
     const legacyStat = await runCli(["stat", legacyPath, "--json"]);
     expect(legacyStat.exitCode).toBe(0);
@@ -252,7 +283,7 @@ describeProbe("MYBOX Phase 12 cross-platform Unicode filename probe", () => {
       error: { kind: "conflict", code: "UNICODE_NAME_COLLISION" },
     });
 
-    const children = await parentChildren(rootId);
+    const children = await waitForChildren(rootId, [collisionNfcId, collisionNfdId]);
     const collisionChildren = children.filter(
       (child) => child.resourceId === collisionNfcId || child.resourceId === collisionNfdId,
     );
