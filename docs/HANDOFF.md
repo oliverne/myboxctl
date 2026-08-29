@@ -41,9 +41,11 @@ native smoke, package/tap 소유권과 credential 확인 전까지 수행하지 
 `0.1.0-test` 5개 archive와 배포 metadata 생성을 완료했고 Linux x64 standalone/npm launcher,
 Windows zip integrity와 installer shell syntax가 통과했다.
 
-남은 완료 조건은 원격 Release workflow에서 macOS arm64/x64, Linux arm64/x64, Windows x64 native
-smoke와 draft Release 생성을 확인하는 것이다. 실제 npm/Homebrew publish와 Release 공개는 저장소
-public 전환, package/tap 소유권 및 전용 token 준비 전에는 실행하지 않는다.
+PR #8 Release workflow run 33235460712에서 macOS arm64/x64, Linux arm64/x64, Windows x64 native
+smoke와 Homebrew formula syntax가 모두 통과했고 일반 CI run 33235460718도 성공했다. 남은 Phase 11
+완료 조건은 실제 tag에서 draft Release 생성·asset 업로드를 확인하는 것이다. 실제 npm/Homebrew
+publish와 Release 공개는 저장소 public 전환, package/tap 소유권 및 전용 token 준비 전에는 실행하지
+않는다.
 
 ## 다음 결정
 

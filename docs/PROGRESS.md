@@ -284,6 +284,11 @@ x64 archive checksum·압축·`--version`·`--help`, npm launcher `--version`, W
 installer shell syntax가 통과했다. macOS arm64/x64, Linux arm64, Windows x64 native 실행과 실제
 draft Release workflow는 원격 CI에서 확인해야 하므로 Phase 11은 `in_progress`다.
 
+PR #8 Release workflow run 33235460712에서 5개 archive build와 macOS arm64/x64, Linux arm64/x64,
+Windows x64 native checksum·`--version`·`--help` smoke가 모두 통과했다. macOS arm64 runner의
+Homebrew formula Ruby syntax도 통과했고 일반 CI run 33235460718도 성공했다. 실제 tag 기반 draft
+Release 생성은 아직 실행하지 않았으므로 Phase 11은 `in_progress`를 유지한다.
+
 ## 상태 변경 규칙
 
 - phase를 시작할 때만 `pending → in_progress`로 변경한다.

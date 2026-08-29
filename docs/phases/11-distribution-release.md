@@ -72,7 +72,7 @@ bun run verify:release -- --version 0.1.0-test --target bun-linux-x64
 
 - [x] 일반 check/build/release contract가 통과한다.
 - [x] 5개 target asset과 `SHA256SUMS`가 생성된다.
-- [ ] 각 운영체제의 native runner에서 archive를 풀어 `--version`과 `--help` smoke가 통과한다.
+- [x] 각 운영체제의 native runner에서 archive를 풀어 `--version`과 `--help` smoke가 통과한다.
 - [x] npm launcher가 지원 target을 정확한 optional package로 연결하고 exit code를 보존한다.
 - [x] Linux installer, Homebrew formula, Scoop manifest가 checksum을 사용한다.
 - [ ] tag workflow가 draft Release를 만들고 asset을 재실행 가능하게 업로드한다.
