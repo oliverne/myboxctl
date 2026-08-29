@@ -133,7 +133,9 @@ async function observeNamePair(
 
   const secondOutcome = secondCreate.exitCode === 0 ? "created" : "conflict";
   if (secondOutcome === "created") {
-    expect(second).toBeDefined();
+    if (second === undefined) {
+      throw new Error("Phase 10 second name resource was not resolved after creation");
+    }
     expect(resourceId(second, "second name resource")).not.toBe(
       resourceId(first, "first name resource"),
     );
