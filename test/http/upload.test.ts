@@ -107,6 +107,29 @@ describe("MYBOX upload content", () => {
     }
   });
 
+  test("rejects control characters before constructing multipart content", async () => {
+    const local = await localFile();
+    const server = await createFakeHttpServer();
+    servers.push(server);
+    const handle = await open(local.path, "r");
+    try {
+      await expect(
+        new MyboxUploader().uploadContent({
+          uploadUrl: `${server.baseUrl}/storage/upload`,
+          fileHandle: handle,
+          fileName: `report${String.fromCodePoint(0x0a)}injected.txt`,
+          fileSize: 6,
+          offset: 0,
+          resume: false,
+          signal: AbortSignal.timeout(5_000),
+        }),
+      ).rejects.toMatchObject({ kind: "invalid-arguments", retryable: false });
+      expect(server.requests).toHaveLength(0);
+    } finally {
+      await handle.close();
+    }
+  });
+
   test("maps a signed storage failure without exposing its URL", async () => {
     const local = await localFile();
     const server = await createFakeHttpServer([
