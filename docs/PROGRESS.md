@@ -11,6 +11,7 @@
 - 활성 구현 phase: `11-distribution-release`
 - 다음 담당자: tag 기반 draft Release 생성 및 검증
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
+- README 하단의 설치·제약·개발 안내를 간결하게 정리했으며, 상단 58줄과 production code는 변경하지 않았다.
 - 마지막 갱신: 2026-08-29
 
 ## Phase 상태
@@ -29,7 +30,8 @@
 | 09 Download                       | complete    | targeted probe, 3개 OS CI, 실제 MYBOX download acceptance와 cleanup 통과        | [`phases/09-download.md`](phases/09-download.md)                                             |
 | 10 Cross-implementation hardening | complete    | C0/DEL 방어, live delete/name probe, active-membership reconcile 및 CI 통과     | [`phases/10-cross-implementation-hardening.md`](phases/10-cross-implementation-hardening.md) |
 | 11 Distribution & Release         | in_progress | standalone build/native smoke 완료, Phase 12 complete, draft Release 생성 대기        | [`phases/11-distribution-release.md`](phases/11-distribution-release.md)                     |
-| 12 Cross-platform Unicode names   | complete    | CI 90·Release 21, Phase 12 live probe run 33244082095 성공                              | [`phases/12-cross-platform-unicode-filenames.md`](phases/12-cross-platform-unicode-filenames.md) |
+| 12 Cross-platform Unicode names   | complete    | CI 90·Release 21, Phase 12 live probe run 33244082095 성공                              | [`phases/12-cross-platform-unicode-filenames.md`](phases/12-cross-platform-unicode-filenames.md)     |
+| 13 Observability & test latency   | pending     | —                                                                                     | [`phases/13-observability-and-test-latency.md`](phases/13-observability-and-test-latency.md)         |·Release 21, Phase 12 live probe run 33244082095 성공                              | [`phases/12-cross-platform-unicode-filenames.md`](phases/12-cross-platform-unicode-filenames.md) |
 
 ## 초기화 상태
 

@@ -258,6 +258,19 @@ macOS, Windows와 WSL2 사이에서 같은 사용자 표시 파일명이 NFC/NFD
 
 Phase 12는 case folding, 로컬 파일 rename, 기존 resource 자동 migration, 양방향 sync를 추가하지 않는다.
 
+### Phase 13 — Observability & Integration Test Latency
+
+문서: [`docs/phases/13-observability-and-test-latency.md`](docs/phases/13-observability-and-test-latency.md)
+
+상세 분석: [`docs/reference/test-latency-investigation.md`](docs/reference/test-latency-investigation.md)
+
+실제 MYBOX PAT로 통합 테스트를 돌리던 중, 개별 API 호출은 0.2~0.4초로 빠른데 `ensure-dir`/
+`delete` acceptance가 수 분씩 걸리는 지연이 발견됐다. 유력 가설은 서버 429에 대한 client의
+60초 fallback 대기이며, 현재 코드에 로그가 없어 미확증이다. Phase 13은 429 가설을 확증하고,
+429/재시도/지연을 사용자와 AI agent가 관측할 수 있도록 로깅을 추가하며, 실제 관측 데이터에
+기반해 rate-limiter 전략을 재검토한다. 실행 계획은 사용자가 구체화한다. Phase 13은 CLI 기능/
+API 범위를 늘리지 않으며, stdout JSON 판정 계약을 오염하지 않는다.
+
 ## 6. 전체 MVP 완료 조건
 
 다음 조건을 모두 충족해야 MVP를 완료할 수 있다.
