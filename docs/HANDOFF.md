@@ -6,7 +6,7 @@
 - Phase 10: `in_progress`
 - 공개 릴리스: 보류
 - 구현 브랜치: `phase-10-cross-implementation-hardening`
-- 현재 단계: P10-A remote path C0/DEL 거부 구현 전
+- 현재 단계: 일반 CI 통과, Phase 10 live probe 실행 대기
 - phase 문서: [`phases/10-cross-implementation-hardening.md`](phases/10-cross-implementation-hardening.md)
 
 ## 승인된 범위
@@ -19,13 +19,19 @@ resumable upload의 KST literal/overwrite offset/423과 directory snapshot 최�
 남긴다. generic mutation retry, quota exhaustion, purge/root clear, move/copy, full API wrapper는
 비범위다.
 
+## 완료된 검증
+
+- PR #6 CI run 33229198802: Ubuntu 24.04/Bun 1.4 check/build/diff 성공
+- 전체 test: 188 pass, 31 opt-in skip, 0 fail
+- download local commit regression: Ubuntu/macOS/Windows 성공
+
 ## 다음 작업
 
-1. `src/remote/path.ts`에 component 단위 C0/DEL validation 추가
-2. unit 및 CLI subprocess regression test 추가
-3. Phase 10 전용 opt-in integration probe 구현
-4. 일반 CI 통과 후 live probe 실행
-5. 관찰을 API ledger에 기록하고 phase 상태 판정
+1. PR #6 브랜치에서 Actions `CI` workflow를 수동 실행하고 `phase10_probe=true` 선택
+2. live job의 sanitized `phase10DeleteObservation`과 `phase10NameObservation` 확인
+3. 관찰을 `docs/reference/mybox-api.md`에 기록
+4. 관찰이 요구할 때만 delete reconcile production 정책과 fake HTTP test 수정
+5. Phase 10 상태와 PR body를 최종 갱신
 
 ## 안전 규칙
 
