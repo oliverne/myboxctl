@@ -9,7 +9,8 @@
 - 상태: `complete`
 - 릴리스 상태: `보류`
 - 활성 구현 phase: 없음
-- 다음 담당자: 실제 agent workflow 요구가 확인될 때 후속 phase 결정
+- 다음 계획 phase: `11-unicode-path-canonicalization` (`pending`)
+- 다음 담당자: 사용자 승인 후 Phase 11 구현 시작
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
 - 마지막 갱신: 2026-08-29
 
@@ -28,6 +29,7 @@
 | 08 Official API alignment | complete | 공식 API correction, 일반 CI와 실제 MYBOX acceptance 통과                       | [`phases/08-official-api-alignment.md`](phases/08-official-api-alignment.md) |
 | 09 Download               | complete | targeted probe, 3개 OS CI, 실제 MYBOX download acceptance와 cleanup 통과        | [`phases/09-download.md`](phases/09-download.md)                             |
 | 10 Cross-implementation hardening | complete | C0/DEL 방어, live delete/name probe, active-membership reconcile 및 CI 통과 | [`phases/10-cross-implementation-hardening.md`](phases/10-cross-implementation-hardening.md) |
+| 11 Unicode path canonicalization | pending | 계획 작성 완료, 구현·검증 미시작 | [`phases/11-unicode-path-canonicalization.md`](phases/11-unicode-path-canonicalization.md) |
 
 ## 초기화 상태
 
@@ -265,6 +267,26 @@ conflict였으며 최초 spelling만 남았다. production은 NFC normalization�
 최종 PR CI run 33231710723은 Ubuntu 24.04/Bun 1.4 check/build/diff와 191 pass/31 opt-in skip/0
 fail을 통과했고 Ubuntu/macOS/Windows download regression도 성공했다. Phase 10 완료 조건을 모두
 충족해 `complete`로 변경했다.
+
+
+## Phase 11 계획
+
+2026-08-29 사용자는 macOS, Windows, Linux 사이의 파일명 normalization 차이가 같은 로컬 파일을
+MYBOX의 NFC/NFD 별도 resource로 만들 수 있음을 확인하고 후속 계획 작성을 요청했다.
+[`phases/11-unicode-path-canonicalization.md`](phases/11-unicode-path-canonicalization.md)에 다음
+정책과 검증 조건을 기록했다.
+
+- remote path와 신규 resource 이름은 NFC를 canonical form으로 사용한다.
+- 기존 NFD-only resource는 같은 논리적 경로로 resolve하며 새 NFC duplicate를 만들지 않는다.
+- fully paginated parent listing에서 canonical-equivalent candidate가 둘 이상이면 read/mutation 모두
+  `conflict`로 fail-closed한다.
+- 기존 duplicate의 자동 rename/delete/merge, NFKC/NFKD와 case folding은 도입하지 않는다.
+- case-only create conflict, original spelling 보존, Phase 10 delete resource-ID safety를 유지한다.
+- fake HTTP, CLI subprocess, 세 운영체제 일반 CI와 실제 MYBOX targeted acceptance를 완료 조건으로
+  둔다.
+
+계획 문서만 작성했으며 production code와 현재 검증 증거는 변경하지 않았다. Phase 11은
+`pending`이고 활성 구현 phase는 없다.
 
 ## 상태 변경 규칙
 
