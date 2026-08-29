@@ -2,7 +2,7 @@
 
 ## 상태
 
-- 상태: `in_progress`
+- 상태: `complete`
 - 시작일: 2026-08-29
 - 선행 조건: Phase 00~09 `complete`
 - 구현 브랜치: `phase-10-cross-implementation-hardening`
@@ -78,14 +78,24 @@ MYBOX_PHASE10_PROBE=1 bun test test/integration/cross-implementation-hardening.t
 
 완료 조건:
 
-- [ ] C0/DEL 경로가 parser와 CLI에서 mutation 전에 결정적으로 거부된다.
-- [ ] 기존 remote path unit/CLI regression이 통과한다.
-- [ ] delete detail/path/parent-listing 관찰이 재현 가능하게 기록된다.
-- [ ] NFC/NFD 및 대소문자 관찰이 재현 가능하게 기록된다.
-- [ ] unique live resource cleanup이 확인된다.
-- [ ] 일반 GitHub Actions CI가 통과한다.
-- [ ] live probe 결과에 맞춰 `docs/reference/mybox-api.md`를 갱신한다.
-- [ ] `docs/PROGRESS.md`와 `docs/HANDOFF.md`를 사실 기준으로 갱신한다.
+- [x] C0/DEL 경로가 parser와 CLI에서 mutation 전에 결정적으로 거부된다.
+- [x] 기존 remote path unit/CLI regression이 통과한다.
+- [x] delete detail/path/parent-listing 관찰이 재현 가능하게 기록된다.
+- [x] NFC/NFD 및 대소문자 관찰이 재현 가능하게 기록된다.
+- [x] unique live resource cleanup이 확인된다.
+- [x] 일반 GitHub Actions CI가 통과한다.
+- [x] live probe 결과에 맞춰 `docs/reference/mybox-api.md`를 갱신한다.
+- [x] `docs/PROGRESS.md`와 `docs/HANDOFF.md`를 사실 기준으로 갱신한다.
+
+## 완료 증거
+
+- PR #6 일반 CI run 33231710723: 191 pass, 31 opt-in skip, 0 fail
+- Ubuntu/macOS/Windows download regression 성공
+- live MYBOX run 33230351165: 전체 integration 8 pass, download probe 1 pass, Phase 10 probe 2 pass
+- delete 관찰: trash detail 200, active path/listing absent, second DELETE 404
+- name 관찰: NFC/NFD distinct, ASCII case create conflict
+- unique integration child와 local temporary file cleanup 성공
+- retryable delete reconcile은 active path와 parent listing을 교차 확인하고 대체 ID를 삭제하지 않음
 
 ## 중단 조건
 
