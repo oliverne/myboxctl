@@ -29,6 +29,7 @@
 | 09 Download                       | complete    | targeted probe, 3개 OS CI, 실제 MYBOX download acceptance와 cleanup 통과        | [`phases/09-download.md`](phases/09-download.md)                                             |
 | 10 Cross-implementation hardening | complete    | C0/DEL 방어, live delete/name probe, active-membership reconcile 및 CI 통과     | [`phases/10-cross-implementation-hardening.md`](phases/10-cross-implementation-hardening.md) |
 | 11 Distribution & Release         | in_progress | 계획 확정, 구현/CI 검증 진행 중                                                 | [`phases/11-distribution-release.md`](phases/11-distribution-release.md)                     |
+| 12 Cross-platform Unicode names   | pending     | 계획 작성, 구현 미시작                                                         | [`phases/12-cross-platform-unicode-filenames.md`](phases/12-cross-platform-unicode-filenames.md) |
 
 ## 초기화 상태
 
@@ -288,6 +289,17 @@ PR #8 Release workflow run 33235460712에서 5개 archive build와 macOS arm64/x
 Windows x64 native checksum·`--version`·`--help` smoke가 모두 통과했다. macOS arm64 runner의
 Homebrew formula Ruby syntax도 통과했고 일반 CI run 33235460718도 성공했다. 실제 tag 기반 draft
 Release 생성은 아직 실행하지 않았으므로 Phase 11은 `in_progress`를 유지한다.
+
+## Phase 12 계획
+
+2026-08-29 사용자는 macOS, Windows와 WSL2를 함께 사용할 때 파일시스템의 NFC/NFD 차이가 원격
+중복, 조회 실패 또는 Windows 애플리케이션의 한글 자소 분리 표시로 이어질 수 있음을 실제 사용
+요구로 확정했다. [`phases/12-cross-platform-unicode-filenames.md`](phases/12-cross-platform-unicode-filenames.md)에
+새 원격 이름의 NFC 생성, 기존 NFD resource의 단일 canonical fallback, 다중 후보 fail-closed,
+로컬 경로 비정규화와 세 운영체제/실제 MYBOX 검증 계획을 기록했다.
+
+Phase 12는 아직 구현을 시작하지 않아 `pending`이다. Phase 11의 draft Release 검증은 유지하되
+Phase 12가 완료되기 전에는 첫 public Release를 게시하지 않는다.
 
 ## 상태 변경 규칙
 
