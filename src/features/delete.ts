@@ -1,6 +1,6 @@
-import { apiResponseError, DomainError, normalizeError } from "../errors.ts";
+import { DomainError, normalizeError } from "../errors.ts";
 import type { MyboxClient } from "../mybox/client.ts";
-import { parseRemotePath } from "../remote/path.ts";
+import { type ChildRemotePath, parseRemotePath } from "../remote/path.ts";
 import type { RemoteResolver } from "../remote/resolver.ts";
 
 export type DeleteOptions = {
@@ -34,20 +34,18 @@ function deleted(path: string, resourceId: string, type: string): DeleteResult {
   return { action: "deleted", data: { path, resourceId, type } };
 }
 
-async function originalIdIsAbsent(client: MyboxClient, resourceId: string): Promise<boolean> {
-  try {
-    const detail = await client.getResource(resourceId);
-    if (detail.resourceId !== resourceId) {
-      throw apiResponseError("MYBOX delete reconciliation returned a different resource ID.");
-    }
+async function originalIdIsInactive(
+  resolver: RemoteResolver,
+  target: ChildRemotePath,
+  resourceId: string,
+): Promise<boolean> {
+  const active = await resolver.resolveExact(target);
+  if (active.kind === "found" && active.resource.resourceId === resourceId) {
     return false;
-  } catch (error) {
-    const failure = normalizeError(error);
-    if (failure.kind === "not-found") {
-      return true;
-    }
-    throw failure;
   }
+
+  const siblings = await resolver.listChildren(target.parentPath);
+  return !siblings.some((resource) => resource.resourceId === resourceId);
 }
 
 export async function runDelete(
@@ -82,7 +80,7 @@ export async function runDelete(
       throw failure;
     }
 
-    if (await originalIdIsAbsent(dependencies.client, resourceId)) {
+    if (await originalIdIsInactive(dependencies.resolver, target, resourceId)) {
       return deleted(target.normalized, resourceId, type);
     }
     if (failure.status !== 429) {
