@@ -241,8 +241,17 @@ literal/overwrite offset/423과 directory snapshot 최적화는 실제 우선순
 남긴다. generic mutation retry, quota exhaustion, purge/root clear, move/copy, full API wrapper는
 비범위다.
 
-현재는 계획 문서만 작성했으며 production code, test, API ledger와 live MYBOX 상태는 아직 변경하지
-않았다.
+P10-A를 구현했다. remote path component에서 C0 control과 DEL을 모두 거부하며 multipart filename
+boundary에서도 같은 문자를 방어적으로 거부한다. production resolver는 NFC/NFD normalization이나
+case folding을 수행하지 않는다.
+
+PR #6의 GitHub Actions CI run 33229198802에서 Ubuntu 24.04/Bun 1.4 frozen install, typecheck,
+Biome, build, 188 pass/31 opt-in skip/0 fail과 Git diff check가 통과했다. macOS/Ubuntu/Windows의
+download local commit regression도 모두 통과했다.
+
+Phase 10 targeted live probe code와 `phase10_probe` workflow input을 추가했다. 아직 실제 MYBOX
+probe는 실행하지 않았으므로 delete visibility와 NFC/NFD·대소문자 관찰, API ledger 갱신 및
+Phase 10 완료 판정은 남아 있다.
 
 ## 상태 변경 규칙
 
