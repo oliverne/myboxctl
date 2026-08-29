@@ -10,17 +10,20 @@
 
 - 저장소: `oliverne/myboxctl` (private)
 - 기본 브랜치: `main`
-- 현재 `main` HEAD: `a9f0f66552c04bc1f019d0d00f399f2b8ab4d60b`
-- HEAD 내용: `feat: implement cross-platform Unicode filename compatibility (#9)`
+- 마지막 기능 구현 기준점: `a9f0f66552c04bc1f019d0d00f399f2b8ab4d60b`
+- 기준점 내용: `feat: implement cross-platform Unicode filename compatibility (#9)`
+- 이후 변경: Codex CLI 인수를 위한 `docs/HANDOFF.md` 문서 커밋만 존재
 - 원격 브랜치: `main`만 존재
 - 열린 PR: 없음
 - 열린 issue: 없음
 - GitHub Release: 없음
-- 최신 main CI: run 33244880883 (CI 97), 성공
+- 기능 구현 기준 main CI: run 33244880883 (CI 97), 성공
+- handoff 문서 커밋의 최신 CI는 작업 시작 시 성공 여부를 다시 확인
 - 공개 릴리스: 보류
 
-작업 시작 시 원격 상태가 바뀌었는지 먼저 확인한다. 위 HEAD와 다르면 새 커밋, PR, tag, Release와
-문서를 대조한 뒤 이 문서를 현재 사실에 맞게 갱신한다.
+작업 시작 시 `origin/main`의 최신 HEAD와 CI를 다시 확인한다. 위 기능 구현 기준점 이후에 이 handoff
+문서 변경만 존재하는 것은 정상이다. 다른 코드 변경, PR, tag 또는 Release가 있으면 내용을 대조한 뒤
+진행한다.
 
 ## Phase 상태
 
@@ -63,7 +66,8 @@ git tag --list 'v*'
 필수 조건:
 
 - working tree가 깨끗하다.
-- `main` HEAD가 원격 `main`과 일치한다.
+- 로컬 `main` HEAD가 최신 `origin/main`과 일치한다.
+- 최신 `origin/main`이 위 기능 구현 기준점을 포함하고 최신 main CI가 성공했다.
 - `v0.1.0` tag와 같은 이름의 Release가 아직 없다.
 - 새 PR이나 계획되지 않은 변경이 없다.
 
@@ -77,7 +81,8 @@ git tag -a v0.1.0 -m "myboxctl v0.1.0"
 git push origin v0.1.0
 ```
 
-tag는 검증 뒤에도 이동하거나 덮어쓰지 않는다. tag 대상은 검증한 `main` HEAD여야 한다.
+tag는 검증 뒤에도 이동하거나 덮어쓰지 않는다. tag 대상은 pull과 CI 확인을 마친 최신
+`origin/main` HEAD여야 한다.
 
 ### 3. Release workflow 확인
 
