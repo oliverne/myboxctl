@@ -204,6 +204,35 @@ describe("delete HTTP operation", () => {
     );
   });
 
+  test("fails conservatively when the parent listing still contains the original ID", async () => {
+    let fileSearchCount = 0;
+    const server = await createFakeHttpServer({
+      handler: (request: RecordedRequest) => {
+        if (request.path === "/v1/search/resources/folders") {
+          return { body: searchPage() };
+        }
+        if (request.path === "/v1/search/resources/files") {
+          fileSearchCount += 1;
+          return { body: searchPage(fileSearchCount === 1 ? [searchResource()] : []) };
+        }
+        if (request.path === "/v1/drive/resources") {
+          return { body: searchPage([{ ...resourceDetail(), path: "/report.txt" }]) };
+        }
+        if (request.path === "/v1/drive/resources/resource-1" && request.method === "DELETE") {
+          return { status: 503, body: { code: "BUSY", message: "unknown outcome" } };
+        }
+        return { status: 500, body: { code: "UNEXPECTED", message: "unexpected request" } };
+      },
+    });
+    servers.push(server);
+
+    await expect(runDelete("/report.txt", {}, dependencies(server))).rejects.toMatchObject({
+      kind: "api-unavailable",
+      status: 503,
+    });
+    expect(server.requests.filter((request) => request.method === "DELETE")).toHaveLength(1);
+  });
+
   test("never deletes a same-path replacement while reconciling the original ID", async () => {
     let deleted = false;
     const replacement = { ...searchResource(), resourceId: "resource-2" };
