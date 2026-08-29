@@ -60,7 +60,11 @@ function storageError(response: Response, body: unknown): DomainError {
 }
 
 function validateFileName(fileName: string): void {
-  if (/[\u0000-\u001f\u007f]/u.test(fileName)) {
+  const hasControlCharacter = [...fileName].some((character) => {
+    const codePoint = character.codePointAt(0);
+    return codePoint !== undefined && (codePoint <= 0x1f || codePoint === 0x7f);
+  });
+  if (hasControlCharacter) {
     throw new DomainError(
       "invalid-arguments",
       "The upload file name must not contain control characters.",
