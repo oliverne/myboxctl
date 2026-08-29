@@ -58,15 +58,20 @@ CLI가 로컬 파일명을 자동으로 선택하거나 기존 파일을 rename�
 
 ### 기존 resource 조회
 
-각 parent에서 다음 순서를 사용한다.
+읽기 명령은 각 parent에서 다음 순서를 사용한다.
 
 1. code point가 정확히 일치하는 기존 resource가 있으면 이를 선택한다.
 2. exact match가 없으면 fully paginated direct-child 목록에서 NFC canonical key가 같은 후보를 찾는다.
 3. 후보가 하나면 그 resource의 기존 ID와 실제 spelling을 사용한다.
-4. 후보가 여러 개면 `UNICODE_NAME_COLLISION` conflict로 중단한다.
+4. fallback 후보가 여러 개면 `UNICODE_NAME_COLLISION` conflict로 중단한다.
 
-fallback은 exact lookup이 실패했을 때만 수행한다. listing/search API의 기존 shared rate limiter와
-pagination 계약을 재사용하며, canonical lookup을 위해 undocumented query를 추가하지 않는다.
+생성 또는 mutation 명령은 exact match 여부와 관계없이 대상 parent의 canonical-equivalent 후보를
+확인한다. 후보가 없으면 NFC 이름으로 생성하고, 하나면 해당 기존 resource의 ID와 spelling을
+사용하며, 여러 개면 mutation 없이 conflict로 중단한다. 따라서 화면상 같은 기존 resource가 여러
+개인 상황에서 `--force`나 `--overwrite`도 임의 대상을 변경하지 않는다.
+
+listing/search API의 기존 shared rate limiter와 pagination 계약을 재사용하며, canonical lookup을
+위해 undocumented query를 추가하지 않는다.
 
 ## 작업 범위
 
@@ -80,9 +85,10 @@ pagination 계약을 재사용하며, canonical lookup을 위해 undocumented qu
 
 ### P12-B — Canonical-aware resolver
 
-- file/folder exact resolver에 단일 canonical fallback을 추가한다.
+- file/folder read resolver에 exact-first 단일 canonical fallback을 추가한다.
+- 생성/mutation resolver는 exact match가 있어도 canonical-equivalent sibling의 유일성을 확인한다.
 - root부터 nested component까지 parent 단위로 동일한 규칙을 적용한다.
-- file/folder type이 다르거나 canonical-equivalent 후보가 여러 개면 fail-closed한다.
+- file/folder type이 다르거나 mutation 대상의 canonical-equivalent 후보가 여러 개면 fail-closed한다.
 - fallback으로 선택한 resource의 실제 `resourceId`, `name`, `path`를 이후 postcondition과
   mutation에 전달한다.
 - canonical fallback으로 추가되는 listing 호출이 기존 API rate limit을 우회하지 않도록 검증한다.
@@ -94,7 +100,8 @@ pagination 계약을 재사용하며, canonical lookup을 위해 undocumented qu
   않고 기존 ID와 spelling을 사용한다.
 - `stat`, `ls`, `download`, `delete`는 resolver가 확정한 기존 resource ID를 사용한다.
 - exact lookup과 mutation 사이 race가 발생하면 기존 operation-specific reconcile 정책을 유지한다.
-- canonical collision에서는 `--force`나 `--overwrite`도 임의 대상을 선택하지 못하게 한다.
+- canonical collision에서는 exact spelling이 일치하더라도 `--force`나 `--overwrite`가 임의
+  대상을 선택하지 못하게 한다.
 
 ### P12-D — CLI contract and diagnostics
 
@@ -111,7 +118,8 @@ pagination 계약을 재사용하며, canonical lookup을 위해 undocumented qu
 단위 및 fake HTTP 테스트:
 
 - NFC/NFD Latin 조합문자와 한글 완성형/조합형 pair
-- exact match 우선, 단일 canonical fallback, 다중 후보 collision
+- 읽기의 exact match 우선과 단일 canonical fallback
+- mutation의 canonical sibling 유일성 확인과 다중 후보 collision
 - nested folder의 component별 fallback
 - NFD 입력으로 신규 upload/ensure-dir 시 NFC 이름 전송
 - 기존 NFD resource overwrite 시 기존 ID/spelling 보존
@@ -123,7 +131,8 @@ pagination 계약을 재사용하며, canonical lookup을 위해 undocumented qu
 
 1. unique parent 아래 NFD resource를 만들고 NFC 경로로 `stat`과 `download`한다.
 2. NFD 원격 입력으로 새 resource를 요청하고 서버에 NFC spelling이 남는지 확인한다.
-3. NFC/NFD resource를 함께 준비한 뒤 ambiguous fallback이 conflict로 종료되는지 확인한다.
+3. NFC/NFD resource를 함께 준비한 뒤 exact read 결과를 확인하고 mutation은 conflict로 종료되는지
+   확인한다.
 4. cleanup은 화면상 이름이 아니라 probe가 기록한 exact resource ID만 사용한다.
 
 운영체제 검증:
@@ -158,7 +167,8 @@ bun run test:integration
 - [ ] 새 원격 file/folder 이름이 NFC로 생성된다.
 - [ ] 기존 NFD resource를 NFC 입력으로 조회·다운로드할 수 있다.
 - [ ] 기존 NFD resource를 overwrite해도 NFC duplicate를 만들지 않는다.
-- [ ] canonical-equivalent 후보가 여러 개면 mutation 없이 안정적인 conflict를 반환한다.
+- [ ] canonical-equivalent 후보가 여러 개면 exact match가 있어도 mutation 없이 안정적인 conflict를
+  반환한다.
 - [ ] local path는 upload/download 모두 입력 spelling 그대로 사용한다.
 - [ ] macOS, Windows, Ubuntu CI에서 Unicode CLI regression이 통과한다.
 - [ ] 실제 MYBOX targeted probe와 resource-ID 기반 cleanup이 통과한다.
