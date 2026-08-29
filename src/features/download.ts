@@ -41,7 +41,7 @@ export async function runDownload(
     throw new DomainError("invalid-arguments", "The remote root cannot be downloaded as a file.");
   }
 
-  const resolution = await dependencies.resolver.resolveExact(target);
+  const resolution = await dependencies.resolver.resolveCanonical(target);
   if (resolution.kind === "absent") {
     throw new DomainError("not-found", `The remote file was not found: ${target.normalized}.`);
   }
