@@ -189,6 +189,68 @@ describe("MYBOX upload content", () => {
 });
 
 describe("upload HTTP operation", () => {
+  test("normalizes an NFD remote basename to NFC without changing the local path", async () => {
+    const local = await localFile();
+    const nfd = "\u1100\u1161-report.txt";
+    const nfc = "\uac00-report.txt";
+    const requests: { fileName?: string } = {};
+    const server = await createFakeHttpServer({
+      handler: (request: RecordedRequest) => {
+        if (request.path === "/v1/drive/storage") {
+          return { body: storageResponse() };
+        }
+        if (request.path === "/v1/drive/files") {
+          requests.fileName = JSON.parse(request.bodyText).fileName;
+          return {
+            status: 201,
+            body: { uploadUrl: `${server.baseUrl}/storage/upload`, offset: 0 },
+          };
+        }
+        if (request.path === "/storage/upload") {
+          return { body: { resourceId: "file-1", name: nfc, fileSize: 6 } };
+        }
+        if (request.path === "/v1/drive/resources/file-1") {
+          return { body: resourceDetail(nfc, 6) };
+        }
+        return { status: 500, body: { code: "UNEXPECTED", message: "unexpected request" } };
+      },
+    });
+    servers.push(server);
+
+    const client = new MyboxClient({ pat: "test-pat", baseUrl: server.baseUrl, timeoutMs: 5_000 });
+    const resolver = {
+      resolveForMutation: async () => ({
+        kind: "absent" as const,
+        path: {
+          kind: "child" as const,
+          normalized: `/${nfd}`,
+          components: [nfd],
+          parentPath: "/",
+          basename: nfd,
+        },
+        resource: null,
+      }),
+    } as unknown as RemoteResolver;
+
+    const result = await runUpload(
+      local.path,
+      `/${nfd}`,
+      {},
+      {
+        client,
+        resolver,
+        uploader: new MyboxUploader(),
+        timeoutMs: 5_000,
+      },
+    );
+
+    expect(result.action).toBe("uploaded");
+    expect(requests.fileName).toBe(nfc);
+    expect(
+      server.requests.find((request) => request.path === "/storage/upload")?.bodyText,
+    ).toContain(`filename="${nfc}"`);
+  });
+
   test("rejects a file above maxFileBytes before remote mutation", async () => {
     const local = await localFile();
     const server = await createFakeHttpServer({
