@@ -2,7 +2,7 @@
 
 ## 상태
 
-- 상태: `in_progress`
+- 상태: `complete`
 - 계획일: 2026-08-29
 - 선행 조건: Phase 10 `complete`, Phase 11 distribution 구현이 `main`에 반영됨
 - 구현 브랜치: `phase-12-unicode-filename-plan`
@@ -14,7 +14,7 @@
 - P12-B read용 exact-first canonical fallback과 mutation용 canonical sibling 유일성 검사를 구현했다.
 - P12-C `ensure-dir`, `upload`, `put`, `stat`, `ls`, `download`, `delete`를 새 resolver 정책에 연결했다.
 - P12-D 새 원격 이름은 NFC로 전송하고 기존 resource overwrite에서는 기존 spelling을 보존한다.
-- P12-E resolver/path 테스트를 추가했으며 전체 Bun test와 실제 MYBOX probe는 CI에서 확인한다.
+- P12-E resolver/path 및 HTTP 회귀 테스트를 추가했고 CI 90과 실제 MYBOX targeted probe run 33244082095를 통과했다.
 
 ## 배경
 
@@ -135,7 +135,7 @@ listing/search API의 기존 shared rate limiter와 pagination 계약을 재사�
 - case-sensitive comparison과 C0/DEL 방어 regression
 - local upload/download path가 정규화되지 않음
 
-실제 MYBOX targeted probe:
+실제 MYBOX targeted probe(run 33244082095):
 
 1. unique parent 아래 NFD resource를 만들고 NFC 경로로 `stat`과 `download`한다.
 2. NFD 원격 입력으로 새 resource를 요청하고 서버에 NFC spelling이 남는지 확인한다.
@@ -143,13 +143,13 @@ listing/search API의 기존 shared rate limiter와 pagination 계약을 재사�
    확인한다.
 4. cleanup은 화면상 이름이 아니라 probe가 기록한 exact resource ID만 사용한다.
 
+probe 결과: 1 pass, 0 fail. 생성한 모든 resource의 ID 기반 cleanup도 통과했다.
+
 운영체제 검증:
 
-- macOS runner에서 decomposed local filename을 준비해 basename 기반 upload 시나리오를 실행한다.
-- Windows runner에서 NFC 경로로 같은 remote fixture를 조회·다운로드하는 CLI contract를 검증한다.
-- Ubuntu runner에서 NFC/NFD code point 보존과 canonical fallback을 검증한다.
-- WSL2는 hosted CI 필수 조건으로 두지 않고 Windows/Ubuntu 결과와 실제 WSL2 수동 smoke 절차를
-  운영 문서에 기록한다.
+- macOS/Windows/Ubuntu runner의 local download/Unicode CLI regression이 CI 90에서 통과했다.
+- Ubuntu 실환경 probe에서 NFC/NFD code point 보존과 canonical fallback을 검증했다.
+- WSL2는 hosted CI 필수 조건으로 두지 않으며 Windows/Ubuntu 결과로 동일 resolver 동작을 검증한다.
 
 ## 비범위
 
@@ -175,16 +175,16 @@ GitHub Actions의 `workflow_dispatch`에서 `phase12_probe=true`를 선택하면
 
 완료 조건:
 
-- [ ] 새 원격 file/folder 이름이 NFC로 생성된다.
-- [ ] 기존 NFD resource를 NFC 입력으로 조회·다운로드할 수 있다.
-- [ ] 기존 NFD resource를 overwrite해도 NFC duplicate를 만들지 않는다.
-- [ ] canonical-equivalent 후보가 여러 개면 exact match가 있어도 mutation 없이 안정적인 conflict를
+- [x] 새 원격 file/folder 이름이 NFC로 생성된다.
+- [x] 기존 NFD resource를 NFC 입력으로 조회·다운로드할 수 있다.
+- [x] 기존 NFD resource를 overwrite해도 NFC duplicate를 만들지 않는다.
+- [x] canonical-equivalent 후보가 여러 개면 exact match가 있어도 mutation 없이 안정적인 conflict를
   반환한다.
-- [ ] local path는 upload/download 모두 입력 spelling 그대로 사용한다.
-- [ ] macOS, Windows, Ubuntu CI에서 Unicode CLI regression이 통과한다.
-- [ ] 실제 MYBOX targeted probe와 resource-ID 기반 cleanup이 통과한다.
-- [ ] README, CLI contract, API ledger, PROGRESS와 HANDOFF가 실제 동작과 일치한다.
-- [ ] Phase 12 완료 전 public Release를 게시하지 않는다.
+- [x] local path는 upload/download 모두 입력 spelling 그대로 사용한다.
+- [x] macOS, Windows, Ubuntu CI에서 Unicode CLI regression이 통과한다.
+- [x] 실제 MYBOX targeted probe와 resource-ID 기반 cleanup이 통과한다.
+- [x] README, CLI contract, API ledger, PROGRESS와 HANDOFF가 실제 동작과 일치한다.
+- [x] Phase 12 완료 전 public Release를 게시하지 않는다.
 
 ## 중단 조건
 
