@@ -231,5 +231,7 @@ download URL 발급과 signed content GET은 각각 한 번만 시도한다. 실
 `/` 삭제는 항상 argument 오류로 거부한다.
 
 `deleted`의 `data`에는 normalized `path`, 삭제 전에 resolve한 `resourceId`, `type`이 들어간다.
-`already-absent`에는 `path`만 포함한다. DELETE timeout/5xx/429 뒤에는 path를 다시 해석하지 않고 같은
-resource ID만 조회한다. 429에서 ID가 남아 있을 때만 같은 ID로 DELETE를 한 번 재시도한다.
+`already-absent`에는 `path`만 포함한다. DELETE timeout/5xx/429 뒤에는 active exact path와 parent
+listing에서 기존 resource ID의 membership을 확인한다. 양쪽에서 사라졌으면 성공으로 reconcile한다.
+429에서 기존 ID가 남아 있을 때만 같은 ID로 DELETE를 한 번 재시도한다. 같은 path의 다른 ID는
+절대 삭제하지 않는다.
