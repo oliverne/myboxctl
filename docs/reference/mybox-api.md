@@ -213,9 +213,21 @@ sliding window 또는 endpoint별 상세 동작은 확인하지 못했다.
   listing은 두 spelling과 서로 다른 ID를 보존했고 exact resolve도 각각 성공했다.
 - `Case-report.txt` 생성 후 `case-report.txt` 생성은 conflict였다. listing은 최초 spelling 하나만
   보존했고 현재 exact resolver는 다른 case를 같은 path로 해석하지 않는다.
-- production 영향: NFC normalization을 적용하지 않고 입력 spelling을 그대로 보존한다. ASCII case
-  folding도 이번 phase에 추가하지 않는다. case-insensitive lookup이 실제 agent workflow에 필요하면
-  raw search 결과와 folder semantics를 별도 probe한 뒤 canonical collision 정책을 설계한다.
+- API는 NFC/NFD를 서로 다른 spelling과 resource로 보존한다. 클라이언트는 이 서버 동작을 바꾸지
+  않으며, 새 resource를 만들 때만 NFC 이름을 전송한다. 기존 조회는 exact match를 우선하고 exact
+  match가 없을 때 단일 NFC-equivalent 후보를 사용한다. ASCII case folding은 적용하지 않는다.
+  mutation 대상에 canonical-equivalent 후보가 여러 개면 `UNICODE_NAME_COLLISION`으로 중단한다.
+
+### API-14 — myboxctl Phase 12 Unicode client policy
+
+- 상태: implementation pending verification
+- API-13의 서버 관찰은 유지한다. Phase 12는 로컬 path를 정규화하지 않고 신규 원격 component만
+  NFC로 생성한다.
+- exact lookup이 실패하면 parent direct-child를 fully paginate해 NFC canonical key가 같은 후보를
+  찾는다. 하나면 기존 ID/spelling을 사용하고, 여러 개면 mutation을 수행하지 않고
+  `UNICODE_NAME_COLLISION` conflict를 반환한다.
+- 전체 Bun test, macOS/Windows/Ubuntu CI와 실제 MYBOX probe가 통과하기 전까지 이 client policy를
+  verified로 표시하지 않는다.
 
 ## 2026-08-27 Phase 09 targeted download probe
 
