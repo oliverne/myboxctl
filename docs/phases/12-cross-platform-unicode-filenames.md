@@ -168,7 +168,10 @@ listing/search API의 기존 shared rate limiter와 pagination 계약을 재사�
 bun run check
 bun run build
 bun run test:integration
+MYBOX_PHASE12_PROBE=1 bun test test/integration/cross-platform-unicode-filenames.test.ts
 ```
+
+GitHub Actions의 `workflow_dispatch`에서 `phase12_probe=true`를 선택하면 저장소의 `MYBOX_PAT` secret을 사용하는 동일한 targeted probe를 실행할 수 있다.
 
 완료 조건:
 
