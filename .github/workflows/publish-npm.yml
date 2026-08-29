@@ -1,0 +1,72 @@
+name: Publish npm packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published release tag, for example v0.1.0
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish @oliverne/myboxctl
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Require a published release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          test "$(gh release view "$TAG" --json isDraft --jq .isDraft)" = "false"
+          bun -e 'import { validateReleaseVersion } from "./scripts/release-config.ts"; validateReleaseVersion(process.env.TAG.slice(1));'
+
+      - name: Download released archives
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          mkdir release
+          gh release download "$TAG" --dir release --pattern "myboxctl-v*"
+          gh release download "$TAG" --dir release --pattern "SHA256SUMS"
+
+      - name: Prepare platform packages
+        shell: bash
+        env:
+          TAG: ${{ inputs.tag }}
+        run: bun run prepare:npm -- --version "${TAG#v}"
+
+      - name: Configure npm authentication
+        shell: bash
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          test -n "$NPM_TOKEN"
+          printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN" > "$RUNNER_TEMP/myboxctl.npmrc"
+          chmod 600 "$RUNNER_TEMP/myboxctl.npmrc"
+
+      - name: Publish platform packages and launcher
+        env:
+          NPM_CONFIG_USERCONFIG: ${{ runner.temp }}/myboxctl.npmrc
+        run: bun run publish:npm release/npm

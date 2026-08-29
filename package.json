@@ -12,7 +12,11 @@
   },
   "scripts": {
     "dev": "bun run src/cli.ts",
-    "build": "bun build ./src/cli.ts --target=bun --outdir=dist",
+    "build": "bun run scripts/build.ts",
+    "build:release": "bun run scripts/build-release.ts",
+    "prepare:npm": "bun run scripts/prepare-npm.ts",
+    "publish:npm": "bun run scripts/publish-npm.ts",
+    "verify:release": "bun run scripts/verify-release.ts",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "format": "bun run format:code && bun run format:md",

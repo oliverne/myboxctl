@@ -225,6 +225,22 @@ PHP/Flysystem 구현체 교차 감사에서 확인한 후보 중 현재 CLI의 �
 - 관찰 전 Unicode normalization/case folding을 production resolver에 추가하지 않음
 - generic mutation retry, purge/root clear, move/copy, full API wrapper는 제외
 
+### Phase 11 — Distribution & Release
+
+문서: [`docs/phases/11-distribution-release.md`](docs/phases/11-distribution-release.md)
+
+Phase 00~10에서 완성한 CLI를 clone/Bun 설치 없이 사용할 수 있도록 동일한 standalone binary를 여러
+배포 경로로 전달한다.
+
+- Bun standalone 5개 target: macOS arm64/x64, Linux glibc arm64/x64, Windows x64
+- version 주입, archive와 SHA-256, native `--version`/`--help` smoke
+- tag 기반 draft GitHub Release 자동화
+- npm optional platform packages, `oliverne/homebrew-tap`, Linux installer, Scoop manifest
+- 실제 publish는 공개 Release, package/tap 소유권, credential과 native smoke 확인 뒤 명시적으로 실행
+
+Phase 11은 CLI 기능/API 범위를 늘리지 않는다. Windows arm64, Linux musl, 자동 업데이트 기능은 실제
+수요가 확인될 때 별도 범위로 다룬다.
+
 ## 6. 전체 MVP 완료 조건
 
 다음 조건을 모두 충족해야 MVP를 완료할 수 있다.
