@@ -62,7 +62,11 @@ if (currentKey !== targetKey) {
 
 const temporaryDirectory = await mkdtemp(join(tmpdir(), "myboxctl-release-"));
 try {
-  await run(["tar", "-xf", assetPath, "-C", temporaryDirectory]);
+  const extractCommand =
+    process.platform === "win32"
+      ? ["tar", "--force-local", "-xf", assetPath, "-C", temporaryDirectory]
+      : ["tar", "-xf", assetPath, "-C", temporaryDirectory];
+  await run(extractCommand);
   const executable = join(temporaryDirectory, target.executable);
   const versionOutput = await run([executable, "--version"]);
   if (versionOutput !== `${version}\n`) {
