@@ -220,14 +220,15 @@ sliding window 또는 endpoint별 상세 동작은 확인하지 못했다.
 
 ### API-14 — myboxctl Phase 12 Unicode client policy
 
-- 상태: implementation pending verification
+- 상태: confirmed
 - API-13의 서버 관찰은 유지한다. Phase 12는 로컬 path를 정규화하지 않고 신규 원격 component만
   NFC로 생성한다.
 - exact lookup이 실패하면 parent direct-child를 fully paginate해 NFC canonical key가 같은 후보를
   찾는다. 하나면 기존 ID/spelling을 사용하고, 여러 개면 mutation을 수행하지 않고
   `UNICODE_NAME_COLLISION` conflict를 반환한다.
-- 전체 Bun test, macOS/Windows/Ubuntu CI와 실제 MYBOX probe가 통과하기 전까지 이 client policy를
-  verified로 표시하지 않는다.
+- CI 90의 Bun check/build/full tests와 Ubuntu/macOS/Windows local regression, Release 21의 native
+  smoke, 실제 MYBOX probe run 33244082095(1 pass/0 fail)를 통과해 이 client policy를 confirmed로
+  기록한다.
 
 ## 2026-08-27 Phase 09 targeted download probe
 
