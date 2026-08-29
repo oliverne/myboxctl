@@ -3,10 +3,11 @@
 ## 현재 상태
 
 - Phase 00~10: `complete`
-- Phase 11: `in_progress`
-- 활성 구현 phase: `11-distribution-release`
+- Phase 11: `blocked`
+- Phase 12: `in_progress`
+- 활성 구현 phase: `12-cross-platform-unicode-filenames`
 - 공개 릴리스: 보류
-- PR: #6 `feat: harden remote paths and probe MYBOX name semantics`
+- PR: #9 `feat: implement cross-platform Unicode filename compatibility`
 - Phase 10 기준 CI: run 33231710723
 - Phase 10 live evidence: run 33230351165
 
@@ -33,29 +34,23 @@
 
 ## 현재 작업
 
-Phase 11에서 Bun standalone 5개 target, GitHub draft Release, SHA256, npm optional platform
-packages, Homebrew tap formula, Linux installer와 Scoop manifest를 구현한다. 실제 publish는 저장소 공개,
-native smoke, package/tap 소유권과 credential 확인 전까지 수행하지 않는다.
+Phase 12를 구현 중이다. `src/remote/path.ts`에 NFC canonical name/path helper를 추가하고,
+`RemoteResolver`에 read exact-first fallback과 mutation canonical sibling 유일성 검사를 추가했다.
+`ensure-dir`, `upload`, `put`, `stat`, `ls`, `download`, `delete`가 새 resolver 정책을 사용한다.
 
-로컬 Bun 1.4.0 검증은 194 pass, 31 opt-in skip, 0 fail이며 release contract 3 pass다.
-`0.1.0-test` 5개 archive와 배포 metadata 생성을 완료했고 Linux x64 standalone/npm launcher,
-Windows zip integrity와 installer shell syntax가 통과했다.
+신규 원격 이름은 NFC로 생성하고, 기존 NFD resource를 fallback으로 찾으면 기존 ID와 spelling을
+사용한다. canonical-equivalent 후보가 여러 개면 `UNICODE_NAME_COLLISION` conflict로 중단한다.
+로컬 `localPath`는 정규화하지 않는다.
 
-PR #8 Release workflow run 33235460712에서 macOS arm64/x64, Linux arm64/x64, Windows x64 native
-smoke와 Homebrew formula syntax가 모두 통과했고 일반 CI run 33235460718도 성공했다. 남은 Phase 11
-완료 조건은 실제 tag에서 draft Release 생성·asset 업로드를 확인하는 것이다. 실제 npm/Homebrew
-publish와 Release 공개는 저장소 public 전환, package/tap 소유권 및 전용 token 준비 전에는 실행하지
-않는다.
+현재까지 로컬 typecheck와 Biome 검사가 통과했다. Bun test와 실제 MYBOX targeted probe는 CI에서
+검증해야 하며, Phase 12는 아직 완료 처리하지 않는다. Phase 11의 첫 public Release는 Phase 12
+완료 후 재개한다.
 
 ## 다음 계획
 
-Phase 12는 `pending`이다. macOS/Windows/WSL2의 NFC/NFD 차이를 흡수하기 위해 새 원격 이름은
-NFC로 만들고, 기존 NFD resource는 exact lookup 실패 시 단일 canonical fallback으로 찾는다.
-여러 canonical-equivalent 후보가 있으면 mutation 없이 conflict로 중단하며 local path는 절대
-정규화하지 않는다. Phase 11의 draft Release 검증은 계속할 수 있지만 Phase 12 완료 전에는 첫
-public Release를 게시하지 않는다.
+Phase 12의 전체 테스트와 실제 MYBOX probe가 통과하면 문서 상태를 `complete`로 바꾸고 Phase 11의
+tag 기반 draft Release 검증을 재개한다. public Release, npm publish와 Homebrew 반영은 기존 공개
+조건을 모두 확인한 뒤 별도로 실행한다.
 
-상세 범위와 검증 조건은
-[`phases/12-cross-platform-unicode-filenames.md`](phases/12-cross-platform-unicode-filenames.md)을
-따른다. ASCII case-insensitive lookup, 기존 resource 자동 migration, resumable upload
-KST literal/overwrite offset/423과 directory snapshot은 이번 범위에 포함하지 않는다.
+이번 phase에는 case folding, 기존 resource 자동 migration, local rename, rename API 모사는 포함하지
+않는다.
