@@ -1,6 +1,7 @@
 name: Release
 
 on:
+  pull_request:
   push:
     tags:
       - "v*"
@@ -17,6 +18,8 @@ jobs:
     name: Build release assets
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    outputs:
+      version: ${{ steps.version.outputs.version }}
 
     steps:
       - name: Checkout
@@ -30,16 +33,23 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Validate tag
+      - name: Resolve release version
+        id: version
         shell: bash
-        run: bun -e 'import { validateReleaseVersion } from "./scripts/release-config.ts"; validateReleaseVersion(process.env.GITHUB_REF_NAME.slice(1));'
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="0.0.0-pr.${GITHUB_RUN_NUMBER}"
+          fi
+          VERSION="$version" bun -e 'import { validateReleaseVersion } from "./scripts/release-config.ts"; validateReleaseVersion(process.env.VERSION);'
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Check
         run: bun run check
 
       - name: Build assets
-        shell: bash
-        run: bun run build:release -- --version "${GITHUB_REF_NAME#v}"
+        run: bun run build:release -- --version "${{ steps.version.outputs.version }}"
 
       - name: Upload assets for native smoke
         uses: actions/upload-artifact@v4
@@ -86,7 +96,7 @@ jobs:
 
       - name: Verify checksum and native executable
         shell: bash
-        run: bun run verify:release -- --version "${GITHUB_REF_NAME#v}" --target "${{ matrix.target }}"
+        run: bun run verify:release -- --version "${{ needs.build-assets.outputs.version }}" --target "${{ matrix.target }}"
 
       - name: Check generated Homebrew formula syntax
         if: matrix.target == 'bun-darwin-arm64'
@@ -95,6 +105,7 @@ jobs:
 
   draft-release:
     name: Create draft GitHub Release
+    if: github.ref_type == 'tag'
     needs: [build-assets, native-smoke]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
