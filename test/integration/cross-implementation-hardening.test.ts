@@ -145,7 +145,9 @@ async function observeNamePair(
     secondCreate: secondOutcome,
     listingCount: pairChildren.length,
     firstSpellingPreserved: pairChildren.some((item) => isRecord(item) && item.name === firstName),
-    secondSpellingPreserved: pairChildren.some((item) => isRecord(item) && item.name === secondName),
+    secondSpellingPreserved: pairChildren.some(
+      (item) => isRecord(item) && item.name === secondName,
+    ),
     firstResolved: true,
     secondResolved: second !== undefined,
     sameResolvedId:
@@ -207,9 +209,7 @@ describeProbe("MYBOX Phase 10 cross-implementation hardening probe", () => {
       throw new Error("Phase 10 delete parent was not found");
     }
     const parentId = resourceId(parent, "Phase 10 delete parent");
-    const detailBefore = await readRequest(
-      `/v1/drive/resources/${encodeURIComponent(originalId)}`,
-    );
+    const detailBefore = await readRequest(`/v1/drive/resources/${encodeURIComponent(originalId)}`);
     assertStatus(detailBefore, 200, "Phase 10 pre-delete detail");
 
     const deleted = await runCli(["delete", deletePath, "--json"]);
@@ -243,10 +243,9 @@ describeProbe("MYBOX Phase 10 cross-implementation hardening probe", () => {
       }
     }
 
-    const secondDelete = await apiRequest(
-      `/v1/drive/resources/${encodeURIComponent(originalId)}`,
-      { method: "DELETE" },
-    );
+    const secondDelete = await apiRequest(`/v1/drive/resources/${encodeURIComponent(originalId)}`, {
+      method: "DELETE",
+    });
     console.log(
       JSON.stringify({
         phase10DeleteObservation: {
