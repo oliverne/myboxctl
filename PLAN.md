@@ -241,6 +241,22 @@ Phase 00~10에서 완성한 CLI를 clone/Bun 설치 없이 사용할 수 있도�
 Phase 11은 CLI 기능/API 범위를 늘리지 않는다. Windows arm64, Linux musl, 자동 업데이트 기능은 실제
 수요가 확인될 때 별도 범위로 다룬다.
 
+### Phase 12 — Cross-platform Unicode filename compatibility
+
+문서: [`docs/phases/12-cross-platform-unicode-filenames.md`](docs/phases/12-cross-platform-unicode-filenames.md)
+
+macOS, Windows와 WSL2 사이에서 같은 사용자 표시 파일명이 NFC/NFD 차이로 서로 다른 원격 resource가
+되는 문제를 첫 공개 릴리스 전에 방지한다.
+
+- 로컬 파일시스템 경로는 입력 spelling 그대로 사용
+- 새 원격 file/folder component는 NFC로 생성
+- exact lookup 실패 시 fully paginated direct-child 목록에서 단일 canonical-equivalent resource 조회
+- 여러 canonical-equivalent 후보는 mutation 없이 conflict
+- 기존 NFD resource overwrite 시 ID와 실제 spelling을 보존해 NFC duplicate 방지
+- macOS, Windows, Ubuntu CI와 실제 MYBOX targeted probe로 왕복 계약 검증
+
+Phase 12는 case folding, 로컬 파일 rename, 기존 resource 자동 migration, 양방향 sync를 추가하지 않는다.
+
 ## 6. 전체 MVP 완료 조건
 
 다음 조건을 모두 충족해야 MVP를 완료할 수 있다.
