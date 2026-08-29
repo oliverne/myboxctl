@@ -69,9 +69,11 @@ classifier, 429 `blockedUntil`, 여러 limiter instance의 slot 공유를 unit t
   반복하지 않는다. retryable failure로 반환해 호출자가 새 실행을 선택하게 한다.
 - `downloadContent`: PAT 없이 signed URL에 GET을 정확히 한 번 수행한다. 실패한 URL을 재사용하거나
   새 URL을 자동 발급하지 않고 partial temp file을 삭제한다. Range/resume은 사용하지 않는다.
-- `deleteResource`: 429는 같은 `resourceId`를 조회해 먼저 reconcile한다. ID가 남아 있을 때만
-  `Retry-After` 후 같은 ID로 한 번 재시도하며, 404는 이미 삭제된 성공 상태로 처리한다.
-  timeout/5xx 뒤 ID가 남아 있으면 DELETE를 자동 반복하지 않는다.
+- `deleteResource`: retryable failure 뒤에는 active exact path와 fully paginated parent listing을
+  비교한다. 양쪽에 기존 `resourceId`가 없으면 휴지통 detail GET이 200이어도 삭제 성공으로
+  reconcile한다. 어느 쪽이든 기존 ID가 남아 있으면 active로 취급한다. 429에서 active인 경우에만
+  `Retry-After` 후 같은 ID로 한 번 재시도하며, timeout/5xx에서는 DELETE를 반복하지 않는다.
+  같은 path에 나타난 다른 ID는 절대 삭제하지 않는다.
 
 400, 401, 403, 409, 422, 507은 자동 재시도하지 않는다. 423은 live 해제 특성이 미확정이므로
 자동 재시도하지 않는다. 실제 command에서 자연 발생해 정책이 필요해질 때 별도 targeted probe로
