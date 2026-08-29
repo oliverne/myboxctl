@@ -59,6 +59,15 @@ function storageError(response: Response, body: unknown): DomainError {
   return domainErrorForHttp(response.status, options);
 }
 
+function validateFileName(fileName: string): void {
+  if (/[\u0000-\u001f\u007f]/u.test(fileName)) {
+    throw new DomainError(
+      "invalid-arguments",
+      "The upload file name must not contain control characters.",
+    );
+  }
+}
+
 function validateRange(fileSize: number, offset: number): void {
   if (
     !Number.isSafeInteger(fileSize) ||
@@ -139,6 +148,7 @@ export class MyboxUploader {
   }
 
   async uploadContent(input: UploadContentInput): Promise<UploadContentResponse> {
+    validateFileName(input.fileName);
     validateRange(input.fileSize, input.offset);
     const multipart = multipartBody(input);
     const headers = new Headers({
