@@ -9,7 +9,7 @@
 - 상태: `in_progress`
 - 릴리스 상태: `보류`
 - 활성 구현 phase: `12-cross-platform-unicode-filenames`
-- 다음 담당자: canonical-aware resolver와 cross-platform Unicode test 구현
+- 다음 담당자: `phase12_probe=true` live workflow 실행 후 완료 판정
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
 - 마지막 갱신: 2026-08-29
 
@@ -29,8 +29,7 @@
 | 09 Download                       | complete    | targeted probe, 3개 OS CI, 실제 MYBOX download acceptance와 cleanup 통과        | [`phases/09-download.md`](phases/09-download.md)                                             |
 | 10 Cross-implementation hardening | complete    | C0/DEL 방어, live delete/name probe, active-membership reconcile 및 CI 통과     | [`phases/10-cross-implementation-hardening.md`](phases/10-cross-implementation-hardening.md) |
 | 11 Distribution & Release         | blocked     | standalone build/native smoke 완료, Phase 12 공개 릴리스 gate 대기                 | [`phases/11-distribution-release.md`](phases/11-distribution-release.md)                     |
-| 12 Cross-platform Unicode names   | in_progress | NFC helper/resolver/mutation 연결 구현, 전체 테스트와 live probe 검증 대기          | [`phases/12-cross-platform-unicode-filenames.md`](phases/12-cross-platform-unicode-filenames.md) |
-| 12 Cross-platform Unicode names   | pending     | 계획 작성, 구현 미시작                                                         | [`phases/12-cross-platform-unicode-filenames.md`](phases/12-cross-platform-unicode-filenames.md) |
+| 12 Cross-platform Unicode names   | in_progress | NFC helper/resolver/mutation 연결 구현, CI 85·Release 17 성공, live probe 실행 대기 | [`phases/12-cross-platform-unicode-filenames.md`](phases/12-cross-platform-unicode-filenames.md) |
 
 ## 초기화 상태
 
@@ -301,17 +300,20 @@ Release 생성은 아직 실행하지 않았으므로 Phase 11은 `in_progress`�
 
 Phase 12 구현을 시작했다. NFC helper와 canonical-aware resolver를 추가하고 `ensure-dir`, `upload`,
 `put`, `stat`, `ls`, `download`, `delete`에 연결했다. 새 원격 이름은 NFC로 생성하며, mutation에서
-canonical-equivalent sibling이 여러 개면 `UNICODE_NAME_COLLISION` conflict로 중단한다. 전체 Bun test,
-운영체제 CI와 실제 MYBOX targeted probe는 아직 확인 전이다.
+canonical-equivalent sibling이 여러 개면 `UNICODE_NAME_COLLISION` conflict로 중단한다. CI 85의 Bun
+check/build/full tests와 Ubuntu/macOS/Windows local download regression, Release 17의 5개 native
+smoke가 성공했다. 실제 MYBOX targeted probe만 workflow dispatch 후 확인한다.
 
 Phase 11의 draft Release 검증과 실제 publish는 Phase 12 완료 전까지 보류한다.
 
 ## Phase 12 구현 진행
 
-로컬 TypeScript typecheck와 Biome 검사를 통과했다. Phase 12 구현은 아직 Bun test와 실제 MYBOX
-targeted probe를 실행하지 못했으므로 완료 처리하지 않는다. 검증에서 확인할 핵심은 NFC 입력으로
-기존 NFD resource를 찾는 단일 fallback, canonical-equivalent 중복 mutation 차단, 신규 원격 이름의
-NFC 전송, 그리고 local path 비정규화다.
+로컬 TypeScript typecheck와 Biome 검사를 통과했다. CI 85에서 Bun check/build/full tests와
+Ubuntu/macOS/Windows local download regression이 성공했고, Release 17에서 5개 native smoke가
+성공했다. Phase 12는 실제 MYBOX targeted probe가 남아 있어 완료 처리하지 않는다. 프로브는 NFC
+입력으로 기존 NFD resource를 찾는 단일 fallback, canonical-equivalent 중복 mutation 차단, 신규
+원격 이름의 NFC 전송, 그리고 local path 비정규화를 확인하며 `workflow_dispatch`의
+`phase12_probe=true`로 실행한다.
 
 ## 상태 변경 규칙
 
