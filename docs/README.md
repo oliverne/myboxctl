@@ -31,6 +31,8 @@
 - [`reference/mybox-api.md`](reference/mybox-api.md): 구현 endpoint의 공식 계약과 실제 integration 관찰
 - [`reference/official-api-audit.md`](reference/official-api-audit.md): 공식 Open API 전체 inventory,
   현재 구현 coverage, 의도적 비범위와 후속 과제
+- [`reference/php-implementation-audit.md`](reference/php-implementation-audit.md): PHP SDK/Flysystem
+  구현과의 소스 교차 감사, 도입 후보·비도입 항목·후속 검증 순서
 
 ### 운영
 

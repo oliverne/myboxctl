@@ -9,9 +9,9 @@
 - 상태: `complete`
 - 릴리스 상태: `보류`
 - 활성 구현 phase: 없음
-- 다음 담당자: 실제 요구에 따른 후속 phase 결정
+- 다음 담당자: Phase 10 교차 구현 hardening 착수 여부 결정
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
-- 마지막 갱신: 2026-08-28
+- 마지막 갱신: 2026-08-29
 
 ## Phase 상태
 
@@ -216,6 +216,20 @@ SIGINT cleanup을 fake HTTP/CLI/local filesystem test로 검증했다. 일반 `b
 완료됐으며 production download의 conflict 보존, atomic overwrite, folder 거부와 unique resource
 cleanup을 확인했다. Phase 09 완료 조건을 모두 충족해 `complete`로 변경했다. 기존 공개 릴리스 보류
 결정은 유지한다.
+
+## 2026-08-29 PHP 구현체 교차 감사
+
+`overworks/php-mybox@3050c92`와 `overworks/flysystem-mybox@42e3234`의 실제 소스를
+`myboxctl@1ab0918`과 비교했다. 결과는
+[`reference/php-implementation-audit.md`](reference/php-implementation-audit.md)에 기록했다.
+
+- P0 후보는 remote path component의 C0/DEL 거부와 delete reconcile의 targeted 재검증이다.
+- NFC/NFD·대소문자, Asia/Seoul resume literal, overwrite offset, 423은 외부 관찰이므로 우리
+  integration probe 전에는 API 사실로 취급하지 않는다.
+- generic mutation retry, direct `wb` download, destination 선삭제 move, purge/root clear,
+  불완전 directory snapshot은 도입하지 않는다.
+- production code와 API ledger는 변경하지 않았고 live MYBOX 호출도 실행하지 않았다.
+- 새 phase를 시작하지 않았으며 Phase 09 complete와 릴리스 보류 상태를 유지한다.
 
 ## 상태 변경 규칙
 
