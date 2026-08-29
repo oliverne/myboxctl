@@ -21,12 +21,25 @@ function searchPage(resources: SearchResource[], nextCursor?: string) {
 }
 
 function listPage(resources: SearchResource[]) {
+  const listed = resources.map((resource) => ({
+    parentId: "parent-1",
+    size: 0,
+    createdAt: "2026-08-23T10:00:00Z",
+    modifiedAt: "2026-08-23T10:00:00Z",
+    accessedAt: "2026-08-23T10:00:00Z",
+    isFavorite: false,
+    isHidden: false,
+    lastModifiedBy: "tester",
+    path: resource.path ?? `/${resource.name}`,
+    parentPath: resource.parentPath ?? "/",
+    ...resource,
+  }));
   return {
     body: {
-      resources,
+      resources: listed,
       responseMetaData: {},
-      fileCount: resources.filter((resource) => resource.type === "file").length,
-      subFolderCount: resources.filter((resource) => resource.type === "folder").length,
+      fileCount: listed.filter((resource) => resource.type === "file").length,
+      subFolderCount: listed.filter((resource) => resource.type === "folder").length,
     },
   };
 }
