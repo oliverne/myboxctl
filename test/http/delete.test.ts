@@ -17,6 +17,15 @@ function searchPage(resources: unknown[] = []) {
   return { resources, responseMetaData: {} };
 }
 
+function listPage(resources: unknown[] = []) {
+  return {
+    resources,
+    responseMetaData: {},
+    fileCount: resources.length,
+    subFolderCount: 0,
+  };
+}
+
 function searchResource(type: "file" | "folder" = "file") {
   return {
     resourceId: "resource-1",
@@ -67,7 +76,7 @@ function foundHandler(
     }
     if (request.path === "/v1/drive/resources") {
       return {
-        body: searchPage(originalIsInactive ? [] : [{ ...resourceDetail(), path: "/report.txt" }]),
+        body: listPage(originalIsInactive ? [] : [{ ...resourceDetail(), path: "/report.txt" }]),
       };
     }
     if (request.path === "/v1/drive/resources/resource-1" && request.method === "DELETE") {
@@ -181,7 +190,7 @@ describe("delete HTTP operation", () => {
           return { body: searchPage(fileSearchCount === 1 ? [searchResource()] : []) };
         }
         if (request.path === "/v1/drive/resources") {
-          return { body: searchPage() };
+          return { body: listPage() };
         }
         if (request.path === "/v1/drive/resources/resource-1" && request.method === "DELETE") {
           return { status: 503, body: { code: "BUSY", message: "unknown outcome" } };
@@ -216,7 +225,7 @@ describe("delete HTTP operation", () => {
           return { body: searchPage(fileSearchCount === 1 ? [searchResource()] : []) };
         }
         if (request.path === "/v1/drive/resources") {
-          return { body: searchPage([{ ...resourceDetail(), path: "/report.txt" }]) };
+          return { body: listPage([{ ...resourceDetail(), path: "/report.txt" }]) };
         }
         if (request.path === "/v1/drive/resources/resource-1" && request.method === "DELETE") {
           return { status: 503, body: { code: "BUSY", message: "unknown outcome" } };
@@ -245,7 +254,7 @@ describe("delete HTTP operation", () => {
           return { body: searchPage([deleted ? replacement : searchResource()]) };
         }
         if (request.path === "/v1/drive/resources") {
-          return { body: searchPage([{ ...resourceDetail(), ...replacement }]) };
+          return { body: listPage([{ ...resourceDetail(), ...replacement }]) };
         }
         if (request.path === "/v1/drive/resources/resource-1" && request.method === "DELETE") {
           deleted = true;
