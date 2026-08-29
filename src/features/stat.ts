@@ -39,7 +39,7 @@ function publicResource(
 }
 
 export async function runStat(remotePath: string, resolver: RemoteResolver): Promise<StatResult> {
-  const resolution = await resolver.resolve(remotePath);
+  const resolution = await resolver.resolveCanonical(remotePath);
   if (resolution.kind === "absent") {
     return { action: "absent", data: { resource: null } };
   }
