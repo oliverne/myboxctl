@@ -1,0 +1,139 @@
+name: Release
+
+on:
+  pull_request:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-assets:
+    name: Build release assets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Resolve release version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="0.0.0-pr.${GITHUB_RUN_NUMBER}"
+          fi
+          VERSION="$version" bun -e 'import { validateReleaseVersion } from "./scripts/release-config.ts"; validateReleaseVersion(process.env.VERSION);'
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check
+        run: bun run check
+
+      - name: Build assets
+        run: bun run build:release -- --version "${{ steps.version.outputs.version }}"
+
+      - name: Upload assets for native smoke
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets
+          path: release/
+          if-no-files-found: error
+          retention-days: 7
+
+  native-smoke:
+    name: Smoke / ${{ matrix.target }}
+    needs: build-assets
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            target: bun-darwin-arm64
+          - os: macos-15-intel
+            target: bun-darwin-x64
+          - os: ubuntu-24.04-arm
+            target: bun-linux-arm64
+          - os: ubuntu-24.04
+            target: bun-linux-x64
+          - os: windows-2025
+            target: bun-windows-x64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+
+      - name: Download release assets
+        uses: actions/download-artifact@v5
+        with:
+          name: release-assets
+          path: release
+
+      - name: Verify checksum and native executable
+        shell: bash
+        run: bun run verify:release -- --version "${{ needs.build-assets.outputs.version }}" --target "${{ matrix.target }}"
+
+      - name: Check generated Homebrew formula syntax
+        if: matrix.target == 'bun-darwin-arm64'
+        shell: bash
+        run: ruby -c release/myboxctl.rb
+
+  draft-release:
+    name: Create draft GitHub Release
+    if: github.ref_type == 'tag'
+    needs: [build-assets, native-smoke]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@v5
+        with:
+          name: release-assets
+          path: release
+
+      - name: Create or update draft
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            test "$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = "true"
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --repo "$GITHUB_REPOSITORY" \
+              --verify-tag \
+              --draft \
+              --generate-notes \
+              --title "myboxctl ${GITHUB_REF_NAME#v}"
+          fi
+          gh release upload "$GITHUB_REF_NAME" release/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber

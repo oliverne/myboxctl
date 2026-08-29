@@ -12,6 +12,7 @@ import { runStat } from "./features/stat.ts";
 import { runUpload } from "./features/upload.ts";
 import { exitCodeForError, redactSecrets, writeFailure, writeSuccess } from "./output.ts";
 import { createRuntime, type Runtime } from "./runtime.ts";
+import { VERSION } from "./version.ts";
 
 export type RuntimeFactory = () => Promise<Runtime>;
 
@@ -123,7 +124,7 @@ export function createProgram(runtimeFactory: RuntimeFactory = createRuntime): C
     .configureOutput({ writeErr: () => {} })
     .name("myboxctl")
     .description("Agent-friendly CLI for NAVER MYBOX file operations")
-    .version("0.0.0");
+    .version(VERSION);
 
   addJsonOption(
     program

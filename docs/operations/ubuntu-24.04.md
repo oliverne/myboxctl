@@ -3,7 +3,25 @@
 이 문서는 Ubuntu Server 24.04에서 `myboxctl`을 단발성 CLI subprocess로 운영하는 절차다. MVP의
 범위에는 daemon, watch mode, systemd service가 포함되지 않는다.
 
-## 전제
+## standalone 설치
+
+공개 Release 이후에는 Bun과 source checkout 없이 설치할 수 있다.
+
+```bash
+curl -fsSL https://github.com/oliverne/myboxctl/releases/latest/download/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+myboxctl --version
+```
+
+installer는 Release archive와 `SHA256SUMS`를 모두 내려받고 SHA-256이 일치할 때만 설치한다. 특정
+버전으로 고정하거나 사용자 설치 경로를 지정할 수 있다.
+
+```bash
+curl -fsSL https://github.com/oliverne/myboxctl/releases/download/v0.1.0/install.sh |
+  MYBOXCTL_VERSION=0.1.0 MYBOXCTL_INSTALL_DIR="$HOME/.local/bin" sh
+```
+
+## 소스 빌드 전제
 
 - Ubuntu Server 24.04와 `bash` 또는 호환 셸
 - Bun 1.4 이상 (`package.json`의 `packageManager`는 `bun@1.4.0`)
@@ -22,7 +40,7 @@ bun --version
 `bun --version`이 `1.4.0` 이상이 아니면 배포를 중단하고 Bun 1.4 계열을 설치한다. 프로젝트의
 lockfile을 변경하지 않고 재현 가능한 의존성을 사용하려면 반드시 frozen install을 실행한다.
 
-## 설치와 빌드
+## 소스 설치와 빌드
 
 버전별 디렉터리를 유지하면 이전 릴리스로 쉽게 되돌릴 수 있다. 아래 예시는 사용자 소유 경로를
 사용하므로 root 권한이 필요하지 않다.
@@ -113,10 +131,10 @@ status=$?
 Bun 기반 에이전트의 최소 호출 예시는 다음과 같다.
 
 ```ts
-const child = Bun.spawn(
-  ["myboxctl", "stat", "/agents/output/report.md", "--json"],
-  { stdout: "pipe", stderr: "pipe" },
-);
+const child = Bun.spawn(["myboxctl", "stat", "/agents/output/report.md", "--json"], {
+  stdout: "pipe",
+  stderr: "pipe",
+});
 const [stdout, stderr, exitCode] = await Promise.all([
   new Response(child.stdout).text(),
   new Response(child.stderr).text(),
@@ -142,17 +160,17 @@ identity로 한 번만 recovery하며, `put`과 `delete`도 문서화된 reconci
 
 주요 exit code는 다음과 같다.
 
-| code | 의미 | 에이전트 동작 |
-| ---: | --- | --- |
-| 0 | 성공, `skipped`·`existing`·`already-absent` 포함 | 결과 JSON 처리 |
-| 2 | argument/config/path 오류 | 요청 수정 |
-| 3 | 인증·권한 오류 | PAT와 권한 확인 |
-| 4 | strict not-found | 원격 경로 확인 |
-| 5 | conflict | overwrite/force 정책을 명시할지 결정 |
-| 6 | API/network 오류 | operation 특성 확인 후 재실행 |
-| 7 | 로컬 파일 오류 또는 업로드 중 변경 | 로컬 파일 상태 확인 |
-| 8 | rate limit/retry exhausted | JSON의 `retryAfterMs`만큼 기다린 뒤 정책에 따라 재시도 |
-| 70 | 분류하지 못한 내부 오류 | 로그와 버전을 보존하고 수동 조사 |
+| code | 의미                                             | 에이전트 동작                                          |
+| ---: | ------------------------------------------------ | ------------------------------------------------------ |
+|    0 | 성공, `skipped`·`existing`·`already-absent` 포함 | 결과 JSON 처리                                         |
+|    2 | argument/config/path 오류                        | 요청 수정                                              |
+|    3 | 인증·권한 오류                                   | PAT와 권한 확인                                        |
+|    4 | strict not-found                                 | 원격 경로 확인                                         |
+|    5 | conflict                                         | overwrite/force 정책을 명시할지 결정                   |
+|    6 | API/network 오류                                 | operation 특성 확인 후 재실행                          |
+|    7 | 로컬 파일 오류 또는 업로드 중 변경               | 로컬 파일 상태 확인                                    |
+|    8 | rate limit/retry exhausted                       | JSON의 `retryAfterMs`만큼 기다린 뒤 정책에 따라 재시도 |
+|   70 | 분류하지 못한 내부 오류                          | 로그와 버전을 보존하고 수동 조사                       |
 
 `retryAfterMs`가 없는 경우에도 호출자가 임의의 빠른 mutation retry를 하지 않는다. 상세 JSON shape와
 명령별 정책은 [`docs/reference/cli-contract.md`](../reference/cli-contract.md)를 기준으로 한다.

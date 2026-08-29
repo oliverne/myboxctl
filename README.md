@@ -111,14 +111,53 @@ AI가 작성한 코드가 포함되어 있다는 점을 고려해 사용해 주�
 
 공식 문서: <https://developers.mybox.naver.com/getting-started>
 
-## 요구사항
+## 설치
 
-- Bun 1.4 이상
-- NAVER MYBOX PAT
+현재 첫 공개 Release 전이므로 아래 package manager 경로는 아직 활성화되지 않았습니다. Release가
+공개되면 standalone executable을 사용하므로 Bun이나 Node.js를 별도로 설치할 필요가 없습니다.
 
-## 시작하기
+### Homebrew — macOS와 Linux
 
-저장소를 clone한 뒤 의존성을 설치하고 먼저 일반 테스트를 실행합니다.
+```bash
+brew install oliverne/tap/myboxctl
+myboxctl --version
+```
+
+### Linux install script
+
+```bash
+curl -fsSL https://github.com/oliverne/myboxctl/releases/latest/download/install.sh | sh
+myboxctl --version
+```
+
+script는 운영체제와 CPU를 판별하고 Release archive와 `SHA256SUMS`를 함께 받아 검증합니다. 설치
+위치는 쓰기 가능한 `/usr/local/bin`, 아니면 `$HOME/.local/bin`입니다.
+
+### npm
+
+```bash
+npm install --global @oliverne/myboxctl
+myboxctl --version
+```
+
+npm package는 현재 운영체제에 맞는 optional package 하나만 설치하며, 실제 명령은 Release와 같은
+standalone executable을 실행합니다. npm 설치 과정에는 Node.js가 필요하지만 `myboxctl` 실행에는 Bun이
+필요하지 않습니다.
+
+### Scoop — Windows
+
+```powershell
+scoop install https://github.com/oliverne/myboxctl/releases/latest/download/myboxctl.json
+myboxctl --version
+```
+
+직접 설치하려면 [GitHub Releases](https://github.com/oliverne/myboxctl/releases)에서 운영체제와 CPU에
+맞는 archive와 `SHA256SUMS`를 내려받아 checksum을 확인합니다.
+
+## 소스에서 실행
+
+소스 개발에는 Bun 1.4 이상과 NAVER MYBOX PAT가 필요합니다. 저장소를 clone한 뒤 의존성을 설치하고
+먼저 일반 테스트를 실행합니다.
 
 ```bash
 bun install --frozen-lockfile

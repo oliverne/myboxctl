@@ -38,6 +38,8 @@
 
 - [`operations/ubuntu-24.04.md`](operations/ubuntu-24.04.md): Ubuntu Server 24.04 설치, credentials,
   AI 에이전트 subprocess 호출, 업그레이드·rollback
+- [`operations/release.md`](operations/release.md): standalone build, draft Release, npm과 Homebrew
+  publish 순서 및 rollback
 
 ## 유지 규칙
 
