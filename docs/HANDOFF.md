@@ -3,15 +3,16 @@
 ## 현재 상태
 
 - Phase 00~10: `complete`
-- Phase 11: `blocked`
-- Phase 12: `in_progress`
-- 활성 구현 phase: `12-cross-platform-unicode-filenames`
+- Phase 11: `in_progress`
+- Phase 12: `complete`
+- 활성 구현 phase: `11-distribution-release`
 - 공개 릴리스: 보류
 - PR: #9 `feat: implement cross-platform Unicode filename compatibility`
 - Phase 10 기준 CI: run 33231710723
 - Phase 10 live evidence: run 33230351165
-- Phase 12 CI: run 33241717066 (CI 85)
-- Phase 12 release smoke: run 33241717059 (Release 17)
+- Phase 12 CI: run 33243933045 (CI 90)
+- Phase 12 release smoke: run 33243933046 (Release 21)
+- Phase 12 live evidence: run 33244082095
 
 ## Phase 10 완료 결과
 
@@ -36,23 +37,22 @@
 
 ## 현재 작업
 
-Phase 12를 구현 중이다. `src/remote/path.ts`에 NFC canonical name/path helper를 추가하고,
+Phase 12 구현을 완료했다. `src/remote/path.ts`에 NFC canonical name/path helper를 추가하고,
 `RemoteResolver`에 read exact-first fallback과 mutation canonical sibling 유일성 검사를 추가했다.
 `ensure-dir`, `upload`, `put`, `stat`, `ls`, `download`, `delete`가 새 resolver 정책을 사용한다.
 
-신규 원격 이름은 NFC로 생성하고, 기존 NFD resource를 fallback으로 찾으면 기존 ID와 spelling을
-사용한다. canonical-equivalent 후보가 여러 개면 `UNICODE_NAME_COLLISION` conflict로 중단한다.
-로컬 `localPath`는 정규화하지 않는다.
+CI 90과 Release 21이 성공했고, 실제 MYBOX targeted probe run 33244082095에서 신규 NFC 생성,
+기존 NFD fallback 조회·다운로드, canonical collision 차단과 ID 기반 cleanup을 1 pass/0 fail로
+확인했다. 로컬 `localPath`는 정규화하지 않는다.
 
-로컬 typecheck와 Biome 검사가 통과했고 CI 85 및 Release 17도 성공했다. 실제 MYBOX targeted
-probe만 남아 있어 Phase 12는 아직 완료 처리하지 않는다. probe는 GitHub Actions
-`workflow_dispatch`에서 `phase12_probe=true`를 선택해 실행하며, 이 연결에서는 workflow dispatch
-작업 자체를 호출할 수 없다. Phase 11의 첫 public Release는 Phase 12 완료 후 재개한다.
+Phase 12 완료에 따라 Phase 11의 tag 기반 draft Release 검증을 재개한다. public Release는 별도 승인과
+권한 확인 후 진행한다.
 
 ## 다음 계획
 
-사용자가 GitHub Actions에서 `phase12_probe=true`를 실행해 실제 MYBOX probe가 통과한 것을 확인하면
-문서 상태를 `complete`로 바꾸고 Phase 11의 tag 기반 draft Release 검증을 재개한다. public Release, npm publish와 Homebrew 반영은 기존 공개
+Phase 12가 완료되었으므로 Phase 11의 tag 기반 draft Release 검증을 재개한다. `v*` tag를 생성하면
+Release workflow가 5개 native asset smoke 후 draft Release를 만들며, public publish는 별도 승인 후
+실행한다. public Release, npm publish와 Homebrew 반영은 기존 공개
 조건을 모두 확인한 뒤 별도로 실행한다.
 
 이번 phase에는 case folding, 기존 resource 자동 migration, local rename, rename API 모사는 포함하지
