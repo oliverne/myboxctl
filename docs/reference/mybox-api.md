@@ -190,6 +190,33 @@ sliding window 또는 endpoint별 상세 동작은 확인하지 못했다.
 | API-10 | 429 Retry-After 형식                              | 실제 또는 문서화된 응답 fixture               |
 | API-11 | 423의 해제 및 retry 특성                          | 실제 응답과 후속 성공 관찰                    |
 
+### API-12 — Trash detail과 active membership
+
+- 상태: confirmed
+- 확인일: 2026-08-29
+- 환경: GitHub Actions Ubuntu 24.04, Bun 1.4.0
+- 실행: CI run 33230351165, `bun run test:phase10-probe`
+- prefix: `/myboxctl-integration-test/` 아래 실행별 unique child
+- 삭제 직후 기존 resource ID의 detail GET은 `200`으로 휴지통 resource를 계속 반환했다.
+- 같은 active path의 exact search와 parent direct-child listing에서는 기존 ID가 모두 사라졌다.
+- 같은 ID를 다시 DELETE하면 `404`였다.
+- production 영향: retryable DELETE 결과를 reconcile할 때 detail GET의 `200`만으로 active 상태를
+  판단하지 않는다. active exact path와 fully paginated parent listing 양쪽에 기존 ID가 없을 때
+  원래 DELETE가 성공한 것으로 판정한다. 같은 path의 다른 ID는 절대 삭제하지 않는다.
+
+### API-13 — NFC/NFD와 ASCII 대소문자 name semantics
+
+- 상태: confirmed for the probed file names
+- 확인일: 2026-08-29
+- 환경과 실행: API-12와 같은 Phase 10 targeted probe
+- NFC `é-report.txt`와 NFD `e + combining acute-report.txt`는 같은 parent에서 각각 생성됐다.
+  listing은 두 spelling과 서로 다른 ID를 보존했고 exact resolve도 각각 성공했다.
+- `Case-report.txt` 생성 후 `case-report.txt` 생성은 conflict였다. listing은 최초 spelling 하나만
+  보존했고 현재 exact resolver는 다른 case를 같은 path로 해석하지 않는다.
+- production 영향: NFC normalization을 적용하지 않고 입력 spelling을 그대로 보존한다. ASCII case
+  folding도 이번 phase에 추가하지 않는다. case-insensitive lookup이 실제 agent workflow에 필요하면
+  raw search 결과와 folder semantics를 별도 probe한 뒤 canonical collision 정책을 설계한다.
+
 ## 2026-08-27 Phase 09 targeted download probe
 
 - 상태: confirmed
