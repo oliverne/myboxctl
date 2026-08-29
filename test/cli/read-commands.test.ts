@@ -283,23 +283,26 @@ describe("read command subprocess contract", () => {
     "/foo/../bar",
     `/foo/before${String.fromCodePoint(0x1f)}after`,
     `/foo/before${String.fromCodePoint(0x7f)}after`,
-  ])("invalid remote path %j uses the JSON failure envelope and exit code 2", async (remotePath) => {
-    const server = await createFakeHttpServer({
-      handler: () => ({
-        status: 500,
-        body: { code: "UNEXPECTED", message: "no request expected" },
-      }),
-    });
-    servers.push(server);
+  ])(
+    "invalid remote path %j uses the JSON failure envelope and exit code 2",
+    async (remotePath) => {
+      const server = await createFakeHttpServer({
+        handler: () => ({
+          status: 500,
+          body: { code: "UNEXPECTED", message: "no request expected" },
+        }),
+      });
+      servers.push(server);
 
-    const result = await runCli(["stat", remotePath, "--json"], server.baseUrl);
+      const result = await runCli(["stat", remotePath, "--json"], server.baseUrl);
 
-    expect(result.exitCode).toBe(2);
-    expect(JSON.parse(result.stdout)).toMatchObject({
-      ok: false,
-      command: "stat",
-      error: { kind: "invalid-remote-path", retryable: false },
-    });
-    expect(server.requests).toHaveLength(0);
-  });
+      expect(result.exitCode).toBe(2);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        ok: false,
+        command: "stat",
+        error: { kind: "invalid-remote-path", retryable: false },
+      });
+      expect(server.requests).toHaveLength(0);
+    },
+  );
 });
