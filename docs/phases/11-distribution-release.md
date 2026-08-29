@@ -7,6 +7,10 @@
 - 선행 조건: Phase 00~10 `complete`
 - 구현 브랜치: `phase-11-distribution-release`
 
+Phase 11의 배포 구현과 native smoke는 완료했지만, 첫 public Release는 Phase 12의 크로스 플랫폼
+Unicode filename 호환성 검증이 끝날 때까지 보류한다. tag 기반 draft Release 확인은 Phase 12 이후
+재개한다.
+
 ## 목표
 
 사용자가 저장소를 clone하거나 Bun을 먼저 설치하지 않아도 `myboxctl`을 설치할 수 있는 재현 가능한

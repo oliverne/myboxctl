@@ -1,5 +1,10 @@
 import { DomainError, normalizeError } from "../errors.ts";
-import { type ChildRemotePath, parseRemotePath } from "../remote/path.ts";
+import {
+  type ChildRemotePath,
+  canonicalRemotePath,
+  hasCanonicalVariants,
+  parseRemotePath,
+} from "../remote/path.ts";
 import type { RemoteResolver } from "../remote/resolver.ts";
 
 export type EnsureDirData = {
@@ -46,7 +51,7 @@ async function createOrReconcile(
       throw error;
     }
 
-    const resolved = await resolver.resolveExact(path, { poll: true });
+    const resolved = await resolver.resolveForMutation(path, { poll: true });
     if (resolved.kind === "found") {
       if (resolved.resource.type.toLowerCase() !== "folder") {
         throw new DomainError("conflict", `A file already exists at ${path.normalized}.`);
@@ -73,15 +78,67 @@ export async function runEnsureDir(
     };
   }
 
-  const targetFolder = await resolver.resolveFolderExact(parsed);
-  if (targetFolder.kind === "found") {
+  const hasUnicodeVariants = parsed.components.some(hasCanonicalVariants);
+  if (!hasUnicodeVariants) {
+    const targetFolder = await resolver.resolveFolderExact(parsed);
+    if (targetFolder.kind === "found") {
+      return {
+        action: "existing",
+        data: {
+          path: parsed.normalized,
+          resourceId: targetFolder.resource.resourceId,
+          createdPaths: [],
+        },
+      };
+    }
+
+    let parentId: string | undefined;
+    const createdPaths: string[] = [];
+    for (let index = 0; index < parsed.components.length; index += 1) {
+      const currentPath = childPath(parsed.components, index + 1);
+      const resolved =
+        index === parsed.components.length - 1
+          ? targetFolder
+          : await resolver.resolveFolderExact(currentPath);
+      if (resolved.kind === "found") {
+        if (resolved.resource.type.toLowerCase() !== "folder") {
+          throw new DomainError(
+            "conflict",
+            `A file cannot be used as a directory: ${currentPath.normalized}.`,
+          );
+        }
+        parentId = resolved.resource.resourceId;
+        continue;
+      }
+      if (resolved.kind === "root") {
+        throw new DomainError("unexpected", "The remote directory resolution was invalid.");
+      }
+
+      const file = await resolver.resolveFileExact(currentPath);
+      if (file.kind === "found") {
+        throw new DomainError(
+          "conflict",
+          `A file cannot be used as a directory: ${currentPath.normalized}.`,
+        );
+      }
+      if (file.kind === "root") {
+        throw new DomainError("unexpected", "The remote file resolution was invalid.");
+      }
+
+      const canonicalPath = canonicalRemotePath(currentPath);
+      if (canonicalPath.kind === "root") {
+        throw new DomainError("unexpected", "The canonical remote directory path was invalid.");
+      }
+      const result = await createOrReconcile(resolver, canonicalPath, parentId);
+      parentId = result.resourceId;
+      if (result.created) {
+        createdPaths.push(canonicalPath.normalized);
+      }
+    }
+
     return {
-      action: "existing",
-      data: {
-        path: parsed.normalized,
-        resourceId: targetFolder.resource.resourceId,
-        createdPaths: [],
-      },
+      action: createdPaths.length > 0 ? "created" : "existing",
+      data: { path: parsed.normalized, resourceId: parentId ?? null, createdPaths },
     };
   }
 
@@ -90,10 +147,7 @@ export async function runEnsureDir(
 
   for (let index = 0; index < parsed.components.length; index += 1) {
     const currentPath = childPath(parsed.components, index + 1);
-    const resolved =
-      index === parsed.components.length - 1
-        ? targetFolder
-        : await resolver.resolveFolderExact(currentPath);
+    const resolved = await resolver.resolveForMutation(currentPath);
 
     if (resolved.kind === "found") {
       if (resolved.resource.type.toLowerCase() !== "folder") {
@@ -109,28 +163,23 @@ export async function runEnsureDir(
       throw new DomainError("unexpected", "The remote directory resolution was invalid.");
     }
 
-    const file = await resolver.resolveFileExact(currentPath);
-    if (file.kind === "found") {
-      throw new DomainError(
-        "conflict",
-        `A file cannot be used as a directory: ${currentPath.normalized}.`,
-      );
+    const canonicalPath = canonicalRemotePath(currentPath);
+    if (canonicalPath.kind === "root") {
+      throw new DomainError("unexpected", "The canonical remote directory path was invalid.");
     }
-    if (file.kind === "root") {
-      throw new DomainError("unexpected", "The remote file resolution was invalid.");
-    }
-
-    const result = await createOrReconcile(resolver, currentPath, parentId);
+    const result = await createOrReconcile(resolver, canonicalPath, parentId);
     parentId = result.resourceId;
     if (result.created) {
-      createdPaths.push(currentPath.normalized);
+      createdPaths.push(canonicalPath.normalized);
     }
   }
+
+  const canonicalTarget = canonicalRemotePath(parsed);
 
   return {
     action: createdPaths.length > 0 ? "created" : "existing",
     data: {
-      path: parsed.normalized,
+      path: canonicalTarget.normalized,
       resourceId: parentId ?? null,
       createdPaths,
     },

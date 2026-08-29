@@ -5,7 +5,7 @@ import { apiResponseError, DomainError, normalizeError } from "../errors.ts";
 import type { CreateUploadInput, MyboxClient } from "../mybox/client.ts";
 import type { UploadContentResponse } from "../mybox/contract.ts";
 import type { MyboxUploader } from "../mybox/upload.ts";
-import { type ChildRemotePath, parseRemotePath } from "../remote/path.ts";
+import { type ChildRemotePath, canonicalRemotePath, parseRemotePath } from "../remote/path.ts";
 import type { FoundResolution, RemoteResolver } from "../remote/resolver.ts";
 import { runEnsureDir } from "./ensure-dir.ts";
 
@@ -96,7 +96,7 @@ async function resolveParentId(
     return ensured.data.resourceId;
   }
 
-  const resolution = await resolver.resolveExact(parent);
+  const resolution = await resolver.resolveCanonical(parent);
   if (resolution.kind === "absent") {
     throw new DomainError(
       "not-found",
@@ -172,6 +172,15 @@ function stableFile(before: Stats, after: Stats): boolean {
   return before.size === after.size && before.mtimeMs === after.mtimeMs;
 }
 
+function targetWithName(target: ChildRemotePath, name: string): ChildRemotePath {
+  const path = target.parentPath === "/" ? `/${name}` : `${target.parentPath}/${name}`;
+  const parsed = parseRemotePath(path);
+  if (parsed.kind === "root") {
+    throw new DomainError("unexpected", "The effective upload target was invalid.");
+  }
+  return parsed;
+}
+
 export async function runUpload(
   localPath: string,
   remotePath: string,
@@ -190,7 +199,7 @@ export async function runUpload(
   try {
     await assertWithinStorageLimit(local.stats.size, dependencies.client);
     const parentId = await resolveParentId(target, options, dependencies.resolver);
-    const existing = await dependencies.resolver.resolveExact(target);
+    const existing = await dependencies.resolver.resolveForMutation(target);
     if (existing.kind === "root") {
       throw new DomainError("unexpected", "The upload target resolution was invalid.");
     }
@@ -205,9 +214,17 @@ export async function runUpload(
     }
 
     const action = existing.kind === "found" ? "overwritten" : "uploaded";
+    const canonicalTarget = canonicalRemotePath(target);
+    if (canonicalTarget.kind === "root") {
+      throw new DomainError("unexpected", "The canonical upload target was invalid.");
+    }
+    const effectiveTarget =
+      existing.kind === "found"
+        ? targetWithName(canonicalTarget, existing.resource.name)
+        : canonicalTarget;
     const modifiedTime = new Date(local.stats.mtimeMs).toISOString();
     const reservationInput: CreateUploadInput = {
-      fileName: target.basename,
+      fileName: effectiveTarget.basename,
       fileSize: local.stats.size,
       isOverwrite: action === "overwritten",
       resume: true,
@@ -223,7 +240,7 @@ export async function runUpload(
         completion = await dependencies.uploader.uploadContent({
           uploadUrl: reservation.uploadUrl,
           fileHandle: local.handle,
-          fileName: target.basename,
+          fileName: effectiveTarget.basename,
           fileSize: local.stats.size,
           offset,
           resume: offset > 0,
@@ -241,7 +258,7 @@ export async function runUpload(
           completion = await dependencies.uploader.uploadContent({
             uploadUrl: reservation.uploadUrl,
             fileHandle: local.handle,
-            fileName: target.basename,
+            fileName: effectiveTarget.basename,
             fileSize: local.stats.size,
             offset,
             resume: true,
@@ -253,12 +270,12 @@ export async function runUpload(
 
     let data: UploadData;
     if (completion === undefined) {
-      data = await postconditionWithoutResponse(target, local.stats.size, dependencies);
+      data = await postconditionWithoutResponse(effectiveTarget, local.stats.size, dependencies);
     } else {
-      assertContentResponse(completion, target, local.stats.size);
+      assertContentResponse(completion, effectiveTarget, local.stats.size);
       data = await postconditionFromId(
         completion.resourceId,
-        target,
+        effectiveTarget,
         local.stats.size,
         dependencies.client,
       );

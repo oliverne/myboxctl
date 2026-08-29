@@ -6,7 +6,13 @@ import type {
   ResourceItem,
   SearchResourceItem,
 } from "../mybox/contract.ts";
-import { type ChildRemotePath, parseRemotePath, type RemotePath } from "./path.ts";
+import {
+  type ChildRemotePath,
+  canonicalRemoteName,
+  hasCanonicalVariants,
+  parseRemotePath,
+  type RemotePath,
+} from "./path.ts";
 
 const DEFAULT_POLL_TIMES_MS = [0, 250, 1_000, 2_000] as const;
 
@@ -49,6 +55,12 @@ const defaultDependencies: ResolverDependencies = {
 
 function conflict(message: string): DomainError {
   return new DomainError("conflict", message);
+}
+
+function unicodeCollision(path: string): DomainError {
+  return new DomainError("conflict", `More than one Unicode-equivalent resource matches ${path}.`, {
+    code: "UNICODE_NAME_COLLISION",
+  });
 }
 
 function normalizedCandidatePath(value: string | undefined): string | undefined {
@@ -139,6 +151,36 @@ function assertAtMostOne(
   return candidates[0];
 }
 
+function canonicalChildCandidates(
+  resources: ResourceItem[],
+  name: string,
+): ResolvedSearchResource[] {
+  const canonicalName = canonicalRemoteName(name);
+  const matches: ResolvedSearchResource[] = [];
+  const seen = new Set<string>();
+  for (const resource of resources) {
+    if (canonicalRemoteName(resource.name) !== canonicalName || seen.has(resource.resourceId)) {
+      continue;
+    }
+    seen.add(resource.resourceId);
+    matches.push({ ...resource, type: resource.type });
+  }
+  return matches;
+}
+
+function mergeCandidate(
+  candidates: ResolvedSearchResource[],
+  exact: ResolvedSearchResource | undefined,
+): ResolvedSearchResource[] {
+  if (
+    exact === undefined ||
+    candidates.some((candidate) => candidate.resourceId === exact.resourceId)
+  ) {
+    return candidates;
+  }
+  return [...candidates, exact];
+}
+
 function joinComponents(components: readonly string[], end: number): string {
   return `/${components.slice(0, end).join("/")}`;
 }
@@ -182,6 +224,28 @@ export class RemoteResolver {
       return { kind: "root", path: parsed, resource: null };
     }
     return this.poll(() => this.resolveOnce(parsed), options);
+  }
+
+  async resolveCanonical(
+    input: string | RemotePath,
+    options: ResolveOptions = {},
+  ): Promise<PathResolution> {
+    const parsed = typeof input === "string" ? parseRemotePath(input) : input;
+    if (parsed.kind === "root") {
+      return { kind: "root", path: parsed, resource: null };
+    }
+    return this.poll(() => this.resolveCanonicalOnce(parsed, false), options);
+  }
+
+  async resolveForMutation(
+    input: string | RemotePath,
+    options: ResolveOptions = {},
+  ): Promise<PathResolution> {
+    const parsed = typeof input === "string" ? parseRemotePath(input) : input;
+    if (parsed.kind === "root") {
+      return { kind: "root", path: parsed, resource: null };
+    }
+    return this.poll(() => this.resolveCanonicalOnce(parsed, true), options);
   }
 
   async resolveExact(
@@ -277,6 +341,65 @@ export class RemoteResolver {
     return { kind: "absent", path, resource: null };
   }
 
+  private async listDirectChildren(parentId: string | undefined): Promise<ResourceItem[]> {
+    return parentId === undefined
+      ? this.client.listRoot()
+      : this.client.listFolder(parentId, { sort: "name,asc" });
+  }
+
+  private async resolveCanonicalOnce(
+    path: ChildRemotePath,
+    mutation: boolean,
+  ): Promise<PathResolution> {
+    const actualComponents: string[] = [];
+    let parentId: string | undefined;
+
+    for (let index = 0; index < path.components.length; index += 1) {
+      const requestedName = path.components[index];
+      if (requestedName === undefined) {
+        throw apiResponseError("MYBOX canonical resolver lost a path component.");
+      }
+
+      const current = parseRemotePath(`/${[...actualComponents, requestedName].join("/")}`);
+      if (current.kind === "root") {
+        throw apiResponseError("MYBOX canonical resolver built an invalid child path.");
+      }
+
+      const exact = await this.resolveExactOnce(current);
+      if (exact.kind === "root") {
+        throw apiResponseError("MYBOX canonical resolver returned an invalid exact result.");
+      }
+
+      let resource = exact.kind === "found" ? exact.resource : undefined;
+      if (hasCanonicalVariants(requestedName) && (mutation || resource === undefined)) {
+        const listed = await this.listDirectChildren(parentId);
+        const candidates = mergeCandidate(
+          canonicalChildCandidates(listed, requestedName),
+          resource,
+        );
+        if (candidates.length > 1) {
+          throw unicodeCollision(path.normalized);
+        }
+        resource = candidates[0];
+      }
+
+      if (resource === undefined) {
+        return { kind: "absent", path, resource: null };
+      }
+      if (resource.type.toLowerCase() !== "folder" && index < path.components.length - 1) {
+        throw conflict(`A file cannot be used as a directory: ${current.normalized}.`);
+      }
+      if (index === path.components.length - 1) {
+        return { kind: "found", path, resource };
+      }
+
+      actualComponents.push(resource.name);
+      parentId = resource.resourceId;
+    }
+
+    return { kind: "absent", path, resource: null };
+  }
+
   async detail(resolution: FoundResolution): Promise<ResourceDetail> {
     return this.client.getResource(resolution.resource.resourceId);
   }
@@ -301,7 +424,7 @@ export class RemoteResolver {
             type: "folder",
           },
         } as FoundResolution)
-      : await this.resolve(parsed);
+      : await this.resolveCanonical(parsed);
     if (resolved.kind !== "found" || !isFolder(resolved.resource)) {
       throw conflict(`The remote path is not a folder: ${parsed.normalized}.`);
     }

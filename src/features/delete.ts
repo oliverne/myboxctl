@@ -39,7 +39,7 @@ async function originalIdIsInactive(
   target: ChildRemotePath,
   resourceId: string,
 ): Promise<boolean> {
-  const active = await resolver.resolveExact(target);
+  const active = await resolver.resolveCanonical(target);
   if (active.kind === "found" && active.resource.resourceId === resourceId) {
     return false;
   }
@@ -58,7 +58,7 @@ export async function runDelete(
     throw new DomainError("invalid-arguments", "The remote root cannot be deleted.");
   }
 
-  const resolution = await dependencies.resolver.resolveExact(target);
+  const resolution = await dependencies.resolver.resolveForMutation(target);
   if (resolution.kind === "absent") {
     return absent(target.normalized, options);
   }

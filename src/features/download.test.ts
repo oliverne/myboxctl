@@ -52,7 +52,7 @@ describe("download command cleanup", () => {
       {},
       {
         resolver: {
-          resolveExact: async () => ({ kind: "found", path, resource }),
+          resolveCanonical: async () => ({ kind: "found", path, resource }),
           detail: async () => detail,
         } as unknown as RemoteResolver,
         client: {

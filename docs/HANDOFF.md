@@ -4,11 +4,15 @@
 
 - Phase 00~10: `complete`
 - Phase 11: `in_progress`
+- Phase 12: `complete`
 - 활성 구현 phase: `11-distribution-release`
 - 공개 릴리스: 보류
-- PR: #6 `feat: harden remote paths and probe MYBOX name semantics`
+- PR: #9 `feat: implement cross-platform Unicode filename compatibility`
 - Phase 10 기준 CI: run 33231710723
 - Phase 10 live evidence: run 33230351165
+- Phase 12 CI: run 33243933045 (CI 90)
+- Phase 12 release smoke: run 33243933046 (Release 21)
+- Phase 12 live evidence: run 33244082095
 
 ## Phase 10 완료 결과
 
@@ -23,9 +27,9 @@
 
 ## 검증
 
-- 일반 CI: 191 pass, 31 opt-in skip, 0 fail
+- 일반 CI: run 33241717066 성공 (Bun check/build/full tests, Ubuntu/macOS/Windows local download regression)
 - build/typecheck/Biome/diff: 성공
-- download regression: Ubuntu 24.04, macOS Latest, Windows Latest 성공
+- release smoke: run 33241717059 성공 (5개 native executable target)
 - live integration: 8 pass
 - targeted download probe: 1 pass
 - Phase 10 targeted probe: 2 pass
@@ -33,23 +37,23 @@
 
 ## 현재 작업
 
-Phase 11에서 Bun standalone 5개 target, GitHub draft Release, SHA256, npm optional platform
-packages, Homebrew tap formula, Linux installer와 Scoop manifest를 구현한다. 실제 publish는 저장소 공개,
-native smoke, package/tap 소유권과 credential 확인 전까지 수행하지 않는다.
+Phase 12 구현을 완료했다. `src/remote/path.ts`에 NFC canonical name/path helper를 추가하고,
+`RemoteResolver`에 read exact-first fallback과 mutation canonical sibling 유일성 검사를 추가했다.
+`ensure-dir`, `upload`, `put`, `stat`, `ls`, `download`, `delete`가 새 resolver 정책을 사용한다.
 
-로컬 Bun 1.4.0 검증은 194 pass, 31 opt-in skip, 0 fail이며 release contract 3 pass다.
-`0.1.0-test` 5개 archive와 배포 metadata 생성을 완료했고 Linux x64 standalone/npm launcher,
-Windows zip integrity와 installer shell syntax가 통과했다.
+CI 90과 Release 21이 성공했고, 실제 MYBOX targeted probe run 33244082095에서 신규 NFC 생성,
+기존 NFD fallback 조회·다운로드, canonical collision 차단과 ID 기반 cleanup을 1 pass/0 fail로
+확인했다. 로컬 `localPath`는 정규화하지 않는다.
 
-PR #8 Release workflow run 33235460712에서 macOS arm64/x64, Linux arm64/x64, Windows x64 native
-smoke와 Homebrew formula syntax가 모두 통과했고 일반 CI run 33235460718도 성공했다. 남은 Phase 11
-완료 조건은 실제 tag에서 draft Release 생성·asset 업로드를 확인하는 것이다. 실제 npm/Homebrew
-publish와 Release 공개는 저장소 public 전환, package/tap 소유권 및 전용 token 준비 전에는 실행하지
+Phase 12 완료에 따라 Phase 11의 tag 기반 draft Release 검증을 재개한다. public Release는 별도 승인과
+권한 확인 후 진행한다.
+
+## 다음 계획
+
+Phase 12가 완료되었으므로 Phase 11의 tag 기반 draft Release 검증을 재개한다. `v*` tag를 생성하면
+Release workflow가 5개 native asset smoke 후 draft Release를 만들며, public publish는 별도 승인 후
+실행한다. public Release, npm publish와 Homebrew 반영은 기존 공개
+조건을 모두 확인한 뒤 별도로 실행한다.
+
+이번 phase에는 case folding, 기존 resource 자동 migration, local rename, rename API 모사는 포함하지
 않는다.
-
-## 다음 결정
-
-새 phase는 실제 agent workflow 요구가 확인될 때만 시작한다. 현재 조건부 후보는 ASCII
-case-insensitive lookup의 필요성, resumable upload KST literal/overwrite offset/423, 검색 비용이
-확인된 경우의 directory snapshot이다. generic mutation retry, quota exhaustion, purge/root clear,
-move/copy와 full API wrapper는 계속 비범위다.

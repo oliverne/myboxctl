@@ -18,6 +18,14 @@ export type ChildRemotePath = {
 
 export type RemotePath = RootRemotePath | ChildRemotePath;
 
+export function canonicalRemoteName(value: string): string {
+  return value.normalize("NFC");
+}
+
+export function hasCanonicalVariants(value: string): boolean {
+  return value.normalize("NFC") !== value.normalize("NFD");
+}
+
 function invalidPath(message: string): DomainError {
   return new DomainError("invalid-remote-path", message);
 }
@@ -76,6 +84,14 @@ export function parseRemotePath(input: string): RemotePath {
 
 export function normalizeRemotePath(input: string): string {
   return parseRemotePath(input).normalized;
+}
+
+export function canonicalRemotePath(input: RemotePath | string): RemotePath {
+  const parsed = typeof input === "string" ? parseRemotePath(input) : input;
+  if (parsed.kind === "root") {
+    return parsed;
+  }
+  return parseRemotePath(`/${parsed.components.map(canonicalRemoteName).join("/")}`);
 }
 
 function toRemotePath(input: RemotePath | string): RemotePath {

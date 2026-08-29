@@ -1,6 +1,15 @@
 import { describe, expect, test } from "bun:test";
 
-import { basename, components, normalizeRemotePath, parentPath, parseRemotePath } from "./path.ts";
+import {
+  basename,
+  canonicalRemoteName,
+  canonicalRemotePath,
+  components,
+  hasCanonicalVariants,
+  normalizeRemotePath,
+  parentPath,
+  parseRemotePath,
+} from "./path.ts";
 
 describe("remote paths", () => {
   test.each([
@@ -35,6 +44,20 @@ describe("remote paths", () => {
     expect(basename("/foo/bar")).toBe("bar");
     expect(basename("/")).toBeUndefined();
     expect(components("/foo//bar/")).toEqual(["foo", "bar"]);
+  });
+
+  test("canonicalizes only remote names and paths to NFC", () => {
+    const nfd = "\u1100\u1161";
+    const nfc = "\uac00";
+
+    expect(canonicalRemoteName(nfd)).toBe(nfc);
+    expect(canonicalRemotePath(`/folder/${nfd}.txt`)).toMatchObject({
+      normalized: `/folder/${nfc}.txt`,
+      basename: `${nfc}.txt`,
+    });
+    expect(hasCanonicalVariants(nfd)).toBe(true);
+    expect(hasCanonicalVariants(nfc)).toBe(true);
+    expect(hasCanonicalVariants("report.txt")).toBe(false);
   });
 
   test.each(["", "foo", "../foo", "/foo/../bar", "\\foo", "/foo\\bar"])(

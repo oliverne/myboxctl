@@ -154,6 +154,19 @@ myboxctl --version
 직접 설치하려면 [GitHub Releases](https://github.com/oliverne/myboxctl/releases)에서 운영체제와 CPU에
 맞는 archive와 `SHA256SUMS`를 내려받아 checksum을 확인합니다.
 
+## 여러 운영체제에서의 파일명
+
+원격 파일·폴더 이름은 새로 생성할 때 NFC로 통일합니다. macOS에서 읽은 NFD 계열 파일명을
+원격 경로로 전달해도 새 원격 이름은 NFC로 저장됩니다.
+
+기존 NFD resource는 NFC 입력으로 조회할 수 있지만, 같은 parent에 NFC/NFD 등 동등한 이름이 여러
+개 있으면 `stat` 같은 읽기 작업은 충돌을 보고하고, `upload`, `put`, `delete`는 변경 없이
+`UNICODE_NAME_COLLISION` 오류로 중단합니다. `--force`와 `--overwrite`도 이 보호를 우회하지
+않습니다.
+
+로컬 파일 경로는 정규화하지 않습니다. 따라서 `download` 목적지와 upload의 첫 번째 인자는
+사용자가 전달한 경로 그대로 macOS, Windows, WSL2 파일시스템에 사용됩니다.
+
 ## 소스에서 실행
 
 소스 개발에는 Bun 1.4 이상과 NAVER MYBOX PAT가 필요합니다. 저장소를 clone한 뒤 의존성을 설치하고

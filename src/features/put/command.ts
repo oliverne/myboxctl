@@ -2,7 +2,7 @@ import { type FileHandle, open } from "node:fs/promises";
 
 import { apiResponseError, DomainError } from "../../errors.ts";
 import type { ResourceDetail } from "../../mybox/contract.ts";
-import { parseRemotePath } from "../../remote/path.ts";
+import { canonicalRemotePath, parseRemotePath } from "../../remote/path.ts";
 import { runUpload, type UploadData, type UploadDependencies } from "../upload.ts";
 import { decidePut, type PutReason } from "./decision.ts";
 
@@ -71,7 +71,11 @@ export async function runPut(
   }
 
   const local = await readLocalMetadata(localPath);
-  const resolution = await dependencies.resolver.resolveExact(target);
+  const canonicalTarget = canonicalRemotePath(target);
+  if (canonicalTarget.kind === "root") {
+    throw new DomainError("unexpected", "The canonical put target was invalid.");
+  }
+  const resolution = await dependencies.resolver.resolveForMutation(target);
   let detail: ResourceDetail | undefined;
   const remote = await (async () => {
     if (resolution.kind === "absent") {
@@ -88,7 +92,7 @@ export async function runPut(
     if (
       detail.resourceId !== resolution.resource.resourceId ||
       detail.type.toLowerCase() !== "file" ||
-      detail.name !== target.basename
+      detail.name !== resolution.resource.name
     ) {
       throw apiResponseError("MYBOX put metadata did not match the exact target.");
     }
@@ -122,7 +126,7 @@ export async function runPut(
     return {
       action: "skipped",
       data: {
-        path: target.normalized,
+        path: canonicalTarget.normalized,
         resourceId: detail.resourceId,
         size: detail.size,
         modifiedAt: detail.modifiedAt,

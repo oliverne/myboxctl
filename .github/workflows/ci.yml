@@ -18,6 +18,11 @@ on:
         required: false
         default: false
         type: boolean
+      phase12_probe:
+        description: Run the targeted cross-platform Unicode filename compatibility probe
+        required: false
+        default: false
+        type: boolean
   push:
     branches: [main]
   pull_request:
@@ -58,7 +63,7 @@ jobs:
 
   live-acceptance:
     name: Live MYBOX acceptance
-    if: github.event_name == 'workflow_dispatch' && (inputs.live_acceptance || inputs.download_probe || inputs.phase10_probe)
+    if: github.event_name == 'workflow_dispatch' && (inputs.live_acceptance || inputs.download_probe || inputs.phase10_probe || inputs.phase12_probe)
     needs: test
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -106,6 +111,12 @@ jobs:
         env:
           MYBOX_PHASE10_PROBE: "1"
         run: bun run test:phase10-probe
+
+      - name: Run Phase 12 Unicode filename probe
+        if: inputs.phase12_probe
+        env:
+          MYBOX_PHASE12_PROBE: "1"
+        run: bun run test:phase12-probe
 
       - name: Final diff check
         run: git diff --check

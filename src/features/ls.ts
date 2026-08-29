@@ -59,7 +59,7 @@ function toPublicResource(resource: ResourceItem, path: string): PublicResource 
 
 export async function runLs(remotePath: string, resolver: RemoteResolver): Promise<LsResult> {
   const parsed = parseRemotePath(remotePath);
-  const resolution = await resolver.resolve(parsed);
+  const resolution = await resolver.resolveCanonical(parsed);
   if (resolution.kind === "absent") {
     throw new DomainError("not-found", `The remote directory was not found: ${parsed.normalized}.`);
   }
