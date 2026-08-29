@@ -5,11 +5,11 @@
 
 ## 현재 상태
 
-- 현재 phase: `12-cross-platform-unicode-filenames`
+- 현재 phase: `11-distribution-release`
 - 상태: `in_progress`
 - 릴리스 상태: `보류`
-- 활성 구현 phase: `12-cross-platform-unicode-filenames`
-- 다음 담당자: `phase12_probe=true` live workflow 실행 후 완료 판정
+- 활성 구현 phase: `11-distribution-release`
+- 다음 담당자: tag 기반 draft Release 생성 및 검증
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
 - 마지막 갱신: 2026-08-29
 
@@ -28,8 +28,8 @@
 | 08 Official API alignment         | complete    | 공식 API correction, 일반 CI와 실제 MYBOX acceptance 통과                       | [`phases/08-official-api-alignment.md`](phases/08-official-api-alignment.md)                 |
 | 09 Download                       | complete    | targeted probe, 3개 OS CI, 실제 MYBOX download acceptance와 cleanup 통과        | [`phases/09-download.md`](phases/09-download.md)                                             |
 | 10 Cross-implementation hardening | complete    | C0/DEL 방어, live delete/name probe, active-membership reconcile 및 CI 통과     | [`phases/10-cross-implementation-hardening.md`](phases/10-cross-implementation-hardening.md) |
-| 11 Distribution & Release         | blocked     | standalone build/native smoke 완료, Phase 12 공개 릴리스 gate 대기                 | [`phases/11-distribution-release.md`](phases/11-distribution-release.md)                     |
-| 12 Cross-platform Unicode names   | in_progress | NFC helper/resolver/mutation 연결 구현, CI 85·Release 17 성공, live probe 실행 대기 | [`phases/12-cross-platform-unicode-filenames.md`](phases/12-cross-platform-unicode-filenames.md) |
+| 11 Distribution & Release         | in_progress | standalone build/native smoke 완료, Phase 12 complete, draft Release 생성 대기        | [`phases/11-distribution-release.md`](phases/11-distribution-release.md)                     |
+| 12 Cross-platform Unicode names   | complete    | CI 90·Release 21, Phase 12 live probe run 33244082095 성공                              | [`phases/12-cross-platform-unicode-filenames.md`](phases/12-cross-platform-unicode-filenames.md) |
 
 ## 초기화 상태
 
@@ -304,7 +304,8 @@ canonical-equivalent sibling이 여러 개면 `UNICODE_NAME_COLLISION` conflict�
 check/build/full tests와 Ubuntu/macOS/Windows local download regression, Release 17의 5개 native
 smoke가 성공했다. 실제 MYBOX targeted probe만 workflow dispatch 후 확인한다.
 
-Phase 11의 draft Release 검증과 실제 publish는 Phase 12 완료 전까지 보류한다.
+Phase 12가 완료되어 Phase 11의 tag 기반 draft Release 검증을 재개할 수 있다. 실제 public publish는
+기존 권한과 승인 조건을 확인하기 전까지 보류한다.
 
 ## Phase 12 구현 진행
 
