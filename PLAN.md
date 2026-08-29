@@ -225,6 +225,23 @@ PHP/Flysystem 구현체 교차 감사에서 확인한 후보 중 현재 CLI의 �
 - 관찰 전 Unicode normalization/case folding을 production resolver에 추가하지 않음
 - generic mutation retry, purge/root clear, move/copy, full API wrapper는 제외
 
+
+### Phase 11 — Unicode path canonicalization
+
+문서: [`docs/phases/11-unicode-path-canonicalization.md`](docs/phases/11-unicode-path-canonicalization.md)
+
+Phase 10에서 확인한 MYBOX의 NFC/NFD distinct 저장 동작으로 인한 교차 플랫폼 중복을 방지한다.
+
+- remote path component와 신규 resource 이름을 NFC로 canonicalize
+- 기존 NFD-only resource를 같은 논리적 경로로 resolve하고 duplicate create 방지
+- fully paginated parent listing에서 canonical-equivalent candidate를 판정
+- 기존 NFC/NFD duplicate는 자동 정리하지 않고 read/mutation 모두 fail-closed `conflict`
+- NFKC/NFKD, case folding, 자동 rename/delete/merge는 제외
+- case-only create conflict와 Phase 10 delete resource-ID safety는 그대로 유지
+- fake HTTP, CLI, 세 운영체제 일반 CI와 실제 MYBOX targeted acceptance로 검증
+
+Phase 11 계획은 `pending`이며 구현 시작 전에는 활성 phase로 취급하지 않는다.
+
 ## 6. 전체 MVP 완료 조건
 
 다음 조건을 모두 충족해야 MVP를 완료할 수 있다.
