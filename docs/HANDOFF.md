@@ -17,6 +17,7 @@
 - 열린 PR: 없음
 - 열린 issue: 없음
 - GitHub Release: 없음
+- README 하단 문서 정리만 추가로 진행했으며 production code와 릴리스 상태는 변경하지 않았다.
 - 기능 구현 기준 main CI: run 33244880883 (CI 97), 성공
 - handoff 문서 커밋의 최신 CI는 작업 시작 시 성공 여부를 다시 확인
 - 공개 릴리스: 보류
