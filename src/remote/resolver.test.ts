@@ -20,6 +20,17 @@ function searchPage(resources: SearchResource[], nextCursor?: string) {
   };
 }
 
+function listPage(resources: SearchResource[]) {
+  return {
+    body: {
+      resources,
+      responseMetaData: {},
+      fileCount: resources.filter((resource) => resource.type === "file").length,
+      subFolderCount: resources.filter((resource) => resource.type === "folder").length,
+    },
+  };
+}
+
 const servers: FakeHttpServer[] = [];
 
 afterEach(() => {
@@ -177,5 +188,107 @@ describe("RemoteResolver", () => {
 
     expect(result.kind).toBe("found");
     expect(sleeps).toEqual([100, 200]);
+  });
+
+  test("falls back from an NFC read path to one existing NFD child", async () => {
+    const nfc = "\uac00-report.txt";
+    const nfd = "\u1100\u1161-report.txt";
+    const server = await createFakeHttpServer([
+      searchPage([]),
+      searchPage([]),
+      listPage([{ resourceId: "file-nfd", name: nfd, type: "file" }]),
+    ]);
+    servers.push(server);
+    const resolver = resolverFor(server);
+
+    await expect(resolver.resolveCanonical(`/${nfc}`)).resolves.toMatchObject({
+      kind: "found",
+      resource: { resourceId: "file-nfd", name: nfd },
+    });
+    expect(server.requests.map((request) => request.path)).toEqual([
+      "/v1/search/resources/folders",
+      "/v1/search/resources/files",
+      "/v1/drive/resources",
+    ]);
+  });
+
+  test("keeps an exact Unicode read on the search fast path", async () => {
+    const nfc = "\uac00-report.txt";
+    const server = await createFakeHttpServer([
+      searchPage([]),
+      searchPage([
+        {
+          resourceId: "file-nfc",
+          name: nfc,
+          type: "file",
+          path: `/${nfc}`,
+          parentPath: "/",
+        },
+      ]),
+    ]);
+    servers.push(server);
+    const resolver = resolverFor(server);
+
+    await expect(resolver.resolveCanonical(`/${nfc}`)).resolves.toMatchObject({
+      kind: "found",
+      resource: { resourceId: "file-nfc" },
+    });
+    expect(server.requests).toHaveLength(2);
+  });
+
+  test("rejects a Unicode-equivalent mutation collision even with an exact match", async () => {
+    const nfc = "\uac00-report.txt";
+    const nfd = "\u1100\u1161-report.txt";
+    const server = await createFakeHttpServer([
+      searchPage([]),
+      searchPage([
+        {
+          resourceId: "file-nfc",
+          name: nfc,
+          type: "file",
+          path: `/${nfc}`,
+          parentPath: "/",
+        },
+      ]),
+      listPage([
+        { resourceId: "file-nfc", name: nfc, type: "file" },
+        { resourceId: "file-nfd", name: nfd, type: "file" },
+      ]),
+    ]);
+    servers.push(server);
+    const resolver = resolverFor(server);
+
+    await expect(resolver.resolveForMutation(`/${nfc}`)).rejects.toMatchObject({
+      kind: "conflict",
+      code: "UNICODE_NAME_COLLISION",
+    });
+  });
+
+  test("uses an NFD parent spelling for the next exact child lookup", async () => {
+    const nfc = "\uac00";
+    const nfd = "\u1100\u1161";
+    const server = await createFakeHttpServer([
+      searchPage([]),
+      searchPage([]),
+      listPage([{ resourceId: "folder-nfd", name: nfd, type: "folder" }]),
+      searchPage([]),
+      searchPage([
+        {
+          resourceId: "file-1",
+          name: "report.txt",
+          type: "file",
+          path: `/${nfd}/report.txt`,
+          parentPath: `/${nfd}`,
+        },
+      ]),
+    ]);
+    servers.push(server);
+    const resolver = resolverFor(server);
+
+    await expect(resolver.resolveCanonical(`/${nfc}/report.txt`)).resolves.toMatchObject({
+      kind: "found",
+      resource: { resourceId: "file-1" },
+    });
+    expect(server.requests.at(-1)?.query.get("parentPath")).toBe(`/${nfd}`);
   });
 });
