@@ -80,6 +80,19 @@ async function exactResource(path: string, type: "file" | "folder") {
   return exactPathResource(result.resources, path);
 }
 
+async function eventuallyExactResource(path: string, type: "file" | "folder") {
+  for (const waitMs of [0, 1_000, 3_000, 6_000]) {
+    if (waitMs > 0) {
+      await Bun.sleep(waitMs);
+    }
+    const resource = await exactResource(path, type);
+    if (resource !== undefined) {
+      return resource;
+    }
+  }
+  return undefined;
+}
+
 async function parentChildren(parentId: string) {
   return (
     await listPages(`/v1/drive/folders/${encodeURIComponent(parentId)}/resources`, {
@@ -125,8 +138,8 @@ async function observeNamePair(
   const pairChildren = children.filter(
     (item) => isRecord(item) && (item.name === firstName || item.name === secondName),
   );
-  const first = await exactResource(firstPath, "file");
-  const second = await exactResource(secondPath, "file");
+  const first = await eventuallyExactResource(firstPath, "file");
+  const second = await eventuallyExactResource(secondPath, "file");
   if (first === undefined) {
     throw new Error("Phase 10 name probe first resource disappeared");
   }
