@@ -8,7 +8,11 @@
 - 모든 remote path는 `/`로 시작해야 한다.
 - 각 remote path component의 C0 control(`U+0000..U+001F`)과 DEL(`U+007F`)은
   `invalid-remote-path`/exit 2로 거부한다. 입력을 제거하거나 다른 경로로 정규화하지 않는다.
-- NFC/NFD normalization과 case folding은 적용하지 않으며, 입력 spelling을 그대로 보존한다.
+- 새 remote file/folder component는 NFC로 생성한다. 기존 resource 조회는 exact match를 우선하고,
+  exact match가 없을 때 단일 NFC-equivalent 후보를 사용할 수 있다. case folding은 적용하지 않는다.
+- local path는 정규화하지 않으며 사용자가 전달한 spelling 그대로 파일시스템에 사용한다.
+- mutation 대상에 NFC-equivalent resource가 여러 개면 `conflict`/code `UNICODE_NAME_COLLISION`으로
+  중단하며 임의 대상을 선택하지 않는다.
 - 모든 명령은 자동화된 호출자를 위해 `--json`을 지원한다.
 - JSON mode에서 stdout에는 정확히 하나의 JSON document와 마지막 newline만 출력한다.
 - JSON mode의 예상 가능한 실패도 stdout에 JSON으로 출력하고 non-zero exit code를 사용한다.
