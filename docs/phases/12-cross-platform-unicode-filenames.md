@@ -2,11 +2,19 @@
 
 ## 상태
 
-- 상태: `pending`
+- 상태: `in_progress`
 - 계획일: 2026-08-29
 - 선행 조건: Phase 10 `complete`, Phase 11 distribution 구현이 `main`에 반영됨
-- 구현 브랜치: 구현 시작 시 별도 생성
+- 구현 브랜치: `phase-12-unicode-filename-plan`
 - 공개 릴리스 조건: 첫 public Release 전에 완료
+
+## 구현 진행 상태
+
+- P12-A Unicode NFC helper와 remote path canonical key를 구현했다.
+- P12-B read용 exact-first canonical fallback과 mutation용 canonical sibling 유일성 검사를 구현했다.
+- P12-C `ensure-dir`, `upload`, `put`, `stat`, `ls`, `download`, `delete`를 새 resolver 정책에 연결했다.
+- P12-D 새 원격 이름은 NFC로 전송하고 기존 resource overwrite에서는 기존 spelling을 보존한다.
+- P12-E resolver/path 테스트를 추가했으며 전체 Bun test와 실제 MYBOX probe는 CI에서 확인한다.
 
 ## 배경
 
