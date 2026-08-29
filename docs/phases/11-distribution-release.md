@@ -2,7 +2,7 @@
 
 ## 상태
 
-- 상태: `blocked`
+- 상태: `in_progress`
 - 시작일: 2026-08-29
 - 선행 조건: Phase 00~10 `complete`
 - 구현 브랜치: `phase-11-distribution-release`
