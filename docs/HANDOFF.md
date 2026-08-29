@@ -2,40 +2,37 @@
 
 ## 현재 상태
 
-- Phase 00~09: `complete`
-- Phase 10: `in_progress`
+- Phase 00~10: `complete`
+- 활성 구현 phase: 없음
 - 공개 릴리스: 보류
-- 구현 브랜치: `phase-10-cross-implementation-hardening`
-- 현재 단계: 일반 CI 통과, Phase 10 live probe 실행 대기
-- phase 문서: [`phases/10-cross-implementation-hardening.md`](phases/10-cross-implementation-hardening.md)
+- PR: #6 `feat: harden remote paths and probe MYBOX name semantics`
+- Phase 10 기준 CI: run 33231710723
+- Phase 10 live evidence: run 33230351165
 
-## 승인된 범위
+## Phase 10 완료 결과
 
-1. remote path component의 C0 control(`U+0000..U+001F`)과 DEL(`U+007F`) 거부
-2. delete 이후 기존 ID detail, active path, parent listing targeted probe
-3. NFC/NFD와 대소문자 name semantics targeted probe
+- remote path component의 C0 control과 DEL을 mutation 전에 거부한다.
+- multipart filename boundary도 같은 문자를 방어적으로 거부한다.
+- 삭제된 ID의 detail은 휴지통에서 200을 유지할 수 있으므로 active membership 증거로 사용하지 않는다.
+- retryable DELETE 뒤 active exact path와 fully paginated parent listing 양쪽에서 기존 ID가
+  사라진 경우만 삭제 성공으로 reconcile한다.
+- 같은 path의 다른 ID는 절대 삭제하지 않으며 membership 증거가 불일치하면 fail-closed한다.
+- NFC/NFD spelling은 별도 resource로 보존한다.
+- ASCII case만 다른 create는 conflict였지만 production resolver는 exact spelling 정책을 유지한다.
 
-resumable upload의 KST literal/overwrite offset/423과 directory snapshot 최적화는 조건부 후보로
-남긴다. generic mutation retry, quota exhaustion, purge/root clear, move/copy, full API wrapper는
-비범위다.
+## 검증
 
-## 완료된 검증
+- 일반 CI: 191 pass, 31 opt-in skip, 0 fail
+- build/typecheck/Biome/diff: 성공
+- download regression: Ubuntu 24.04, macOS Latest, Windows Latest 성공
+- live integration: 8 pass
+- targeted download probe: 1 pass
+- Phase 10 targeted probe: 2 pass
+- unique remote/local cleanup: 성공
 
-- PR #6 CI run 33229198802: Ubuntu 24.04/Bun 1.4 check/build/diff 성공
-- 전체 test: 188 pass, 31 opt-in skip, 0 fail
-- download local commit regression: Ubuntu/macOS/Windows 성공
+## 다음 결정
 
-## 다음 작업
-
-1. PR #6 브랜치에서 Actions `CI` workflow를 수동 실행하고 `phase10_probe=true` 선택
-2. live job의 sanitized `phase10DeleteObservation`과 `phase10NameObservation` 확인
-3. 관찰을 `docs/reference/mybox-api.md`에 기록
-4. 관찰이 요구할 때만 delete reconcile production 정책과 fake HTTP test 수정
-5. Phase 10 상태와 PR body를 최종 갱신
-
-## 안전 규칙
-
-- live mutation은 `/myboxctl-integration-test/` 아래 unique child에서만 수행한다.
-- PAT, Authorization header와 signed URL을 출력하거나 저장하지 않는다.
-- API 사실은 targeted probe 결과가 확인된 뒤에만 ledger와 production 정책에 반영한다.
-- cleanup 대상을 exact resolve할 수 없으면 production 변경 없이 probe를 중단한다.
+새 phase는 실제 agent workflow 요구가 확인될 때만 시작한다. 현재 조건부 후보는 ASCII
+case-insensitive lookup의 필요성, resumable upload KST literal/overwrite offset/423, 검색 비용이
+확인된 경우의 directory snapshot이다. generic mutation retry, quota exhaustion, purge/root clear,
+move/copy와 full API wrapper는 계속 비범위다.
