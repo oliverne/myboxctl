@@ -6,6 +6,9 @@
 ## 공통 규칙
 
 - 모든 remote path는 `/`로 시작해야 한다.
+- 각 remote path component의 C0 control(`U+0000..U+001F`)과 DEL(`U+007F`)은
+  `invalid-remote-path`/exit 2로 거부한다. 입력을 제거하거나 다른 경로로 정규화하지 않는다.
+- NFC/NFD normalization과 case folding은 적용하지 않으며, 입력 spelling을 그대로 보존한다.
 - 모든 명령은 자동화된 호출자를 위해 `--json`을 지원한다.
 - JSON mode에서 stdout에는 정확히 하나의 JSON document와 마지막 newline만 출력한다.
 - JSON mode의 예상 가능한 실패도 stdout에 JSON으로 출력하고 non-zero exit code를 사용한다.
