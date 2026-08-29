@@ -250,7 +250,8 @@ macOS, Windows와 WSL2 사이에서 같은 사용자 표시 파일명이 NFC/NFD
 
 - 로컬 파일시스템 경로는 입력 spelling 그대로 사용
 - 새 원격 file/folder component는 NFC로 생성
-- exact lookup 실패 시 fully paginated direct-child 목록에서 단일 canonical-equivalent resource 조회
+- read exact lookup 실패 시 fully paginated direct-child 목록에서 단일 canonical-equivalent resource 조회
+- mutation은 exact match 여부와 관계없이 canonical sibling의 유일성을 확인
 - 여러 canonical-equivalent 후보는 mutation 없이 conflict
 - 기존 NFD resource overwrite 시 ID와 실제 spelling을 보존해 NFC duplicate 방지
 - macOS, Windows, Ubuntu CI와 실제 MYBOX targeted probe로 왕복 계약 검증
