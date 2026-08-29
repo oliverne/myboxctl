@@ -102,6 +102,20 @@ async function parentChildren(parentId: string) {
   ).resources;
 }
 
+async function eventuallyParentChildren(parentId: string, names: readonly string[]) {
+  let children: unknown[] = [];
+  for (const waitMs of [0, 1_000, 3_000, 6_000]) {
+    if (waitMs > 0) {
+      await Bun.sleep(waitMs);
+    }
+    children = await parentChildren(parentId);
+    if (names.every((name) => children.some((item) => isRecord(item) && item.name === name))) {
+      return children;
+    }
+  }
+  return children;
+}
+
 async function deleteForCleanup(path: string, id: string): Promise<void> {
   if (!path.startsWith(PREFIX_PATH)) {
     throw new Error(`refusing to clean a path outside the integration prefix: ${path}`);
@@ -130,21 +144,28 @@ async function observeNamePair(
   expect([0, 5]).toContain(secondCreate.exitCode);
   expect(secondCreate.stderr).toBe("");
 
-  const parent = await exactResource(parentPath, "folder");
+  const parent = await eventuallyExactResource(parentPath, "folder");
   if (parent === undefined) {
     throw new Error("Phase 10 name probe parent was not found");
   }
-  const children = await parentChildren(resourceId(parent, "Phase 10 name probe parent"));
+  const secondOutcome = secondCreate.exitCode === 0 ? "created" : "conflict";
+  const children = await eventuallyParentChildren(
+    resourceId(parent, "Phase 10 name probe parent"),
+    secondOutcome === "created" ? [firstName, secondName] : [firstName],
+  );
   const pairChildren = children.filter(
     (item) => isRecord(item) && (item.name === firstName || item.name === secondName),
   );
-  const first = await eventuallyExactResource(firstPath, "file");
-  const second = await eventuallyExactResource(secondPath, "file");
+  const first =
+    (await eventuallyExactResource(firstPath, "file")) ??
+    pairChildren.find((item) => isRecord(item) && item.name === firstName);
+  const second =
+    (await eventuallyExactResource(secondPath, "file")) ??
+    pairChildren.find((item) => isRecord(item) && item.name === secondName);
   if (first === undefined) {
     throw new Error("Phase 10 name probe first resource disappeared");
   }
 
-  const secondOutcome = secondCreate.exitCode === 0 ? "created" : "conflict";
   if (secondOutcome === "created") {
     if (second === undefined) {
       throw new Error("Phase 10 second name resource was not resolved after creation");
