@@ -32,11 +32,10 @@ export function parseRemotePath(input: string): RemotePath {
   if (input.includes("\\")) {
     throw invalidPath("Remote path must use '/' separators only.");
   }
-  if (input.includes("\u0000")) {
-    throw invalidPath("Remote path must not contain NUL.");
-  }
-
   const pathComponents = input.split("/").filter((component) => component.length > 0);
+  if (pathComponents.some((component) => /[\u0000-\u001f\u007f]/u.test(component))) {
+    throw invalidPath("Remote path components must not contain control characters.");
+  }
   if (pathComponents.some((component) => component === "." || component === "..")) {
     throw invalidPath("Remote path must not contain '.' or '..' components.");
   }
