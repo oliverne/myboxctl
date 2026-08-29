@@ -59,6 +59,19 @@ function storageError(response: Response, body: unknown): DomainError {
   return domainErrorForHttp(response.status, options);
 }
 
+function validateFileName(fileName: string): void {
+  const hasControlCharacter = [...fileName].some((character) => {
+    const codePoint = character.codePointAt(0);
+    return codePoint !== undefined && (codePoint <= 0x1f || codePoint === 0x7f);
+  });
+  if (hasControlCharacter) {
+    throw new DomainError(
+      "invalid-arguments",
+      "The upload file name must not contain control characters.",
+    );
+  }
+}
+
 function validateRange(fileSize: number, offset: number): void {
   if (
     !Number.isSafeInteger(fileSize) ||
@@ -139,6 +152,7 @@ export class MyboxUploader {
   }
 
   async uploadContent(input: UploadContentInput): Promise<UploadContentResponse> {
+    validateFileName(input.fileName);
     validateRange(input.fileSize, input.offset);
     const multipart = multipartBody(input);
     const headers = new Headers({

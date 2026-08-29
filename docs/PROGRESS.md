@@ -5,11 +5,11 @@
 
 ## 현재 상태
 
-- 현재 phase: `09-download`
+- 현재 phase: `10-cross-implementation-hardening`
 - 상태: `complete`
 - 릴리스 상태: `보류`
 - 활성 구현 phase: 없음
-- 다음 담당자: Phase 10 교차 구현 hardening 착수 여부 결정
+- 다음 담당자: 실제 agent workflow 요구가 확인될 때 후속 phase 결정
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
 - 마지막 갱신: 2026-08-29
 
@@ -27,6 +27,7 @@
 | 07 Hardening              | complete | P07-A~D CI 및 통합 P07-E live acceptance 1회와 cleanup 확인                     | [`phases/07-hardening.md`](phases/07-hardening.md)                           |
 | 08 Official API alignment | complete | 공식 API correction, 일반 CI와 실제 MYBOX acceptance 통과                       | [`phases/08-official-api-alignment.md`](phases/08-official-api-alignment.md) |
 | 09 Download               | complete | targeted probe, 3개 OS CI, 실제 MYBOX download acceptance와 cleanup 통과        | [`phases/09-download.md`](phases/09-download.md)                             |
+| 10 Cross-implementation hardening | complete | C0/DEL 방어, live delete/name probe, active-membership reconcile 및 CI 통과 | [`phases/10-cross-implementation-hardening.md`](phases/10-cross-implementation-hardening.md) |
 
 ## 초기화 상태
 
@@ -230,6 +231,40 @@ cleanup을 확인했다. Phase 09 완료 조건을 모두 충족해 `complete`�
   불완전 directory snapshot은 도입하지 않는다.
 - production code와 API ledger는 변경하지 않았고 live MYBOX 호출도 실행하지 않았다.
 - 새 phase를 시작하지 않았으며 Phase 09 complete와 릴리스 보류 상태를 유지한다.
+
+## Phase 10 시작
+
+2026-08-29 사용자는 PHP 구현체 교차 감사의 후속 hardening 진행을 승인했다. Phase 10은 remote
+path component의 C0 control/DEL 거부, delete 이후 ID detail·active path·parent listing targeted
+probe, NFC/NFD·대소문자 semantics targeted probe만 필수 범위로 둔다. resumable upload의 KST
+literal/overwrite offset/423과 directory snapshot 최적화는 실제 우선순위가 확인될 때 별도 phase로
+남긴다. generic mutation retry, quota exhaustion, purge/root clear, move/copy, full API wrapper는
+비범위다.
+
+P10-A를 구현했다. remote path component에서 C0 control과 DEL을 모두 거부하며 multipart filename
+boundary에서도 같은 문자를 방어적으로 거부한다. production resolver는 NFC/NFD normalization이나
+case folding을 수행하지 않는다.
+
+PR #6의 GitHub Actions CI run 33229198802에서 Ubuntu 24.04/Bun 1.4 frozen install, typecheck,
+Biome, build, 188 pass/31 opt-in skip/0 fail과 Git diff check가 통과했다. macOS/Ubuntu/Windows의
+download local commit regression도 모두 통과했다.
+
+Phase 10 targeted live probe code와 `phase10_probe` workflow input을 추가했다. GitHub Actions
+run 33230351165에서 전체 integration 8 pass, download probe 1 pass와 Phase 10 probe 2 pass가
+성공했다. unique integration child와 local temporary file cleanup도 성공했다.
+
+probe에서 삭제된 ID detail은 200을 유지했지만 active exact path와 parent listing에서는 사라졌고,
+같은 ID의 두 번째 DELETE는 404였다. retryable DELETE reconcile을 두 active membership 신호로
+교체했다. 양쪽에서 기존 ID가 사라진 경우만 성공으로 판정하며, 같은 path의 대체 ID는 삭제하지
+않는다. parent listing에 기존 ID가 남아 있으면 fail-closed한다.
+
+NFC/NFD spelling은 서로 다른 파일과 ID로 보존됐다. ASCII case만 다른 두 번째 파일 생성은
+conflict였으며 최초 spelling만 남았다. production은 NFC normalization이나 case folding을 추가하지
+않고 exact spelling 정책을 유지한다.
+
+최종 PR CI run 33231710723은 Ubuntu 24.04/Bun 1.4 check/build/diff와 191 pass/31 opt-in skip/0
+fail을 통과했고 Ubuntu/macOS/Windows download regression도 성공했다. Phase 10 완료 조건을 모두
+충족해 `complete`로 변경했다.
 
 ## 상태 변경 규칙
 

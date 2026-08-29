@@ -6,6 +6,9 @@
 ## 공통 규칙
 
 - 모든 remote path는 `/`로 시작해야 한다.
+- 각 remote path component의 C0 control(`U+0000..U+001F`)과 DEL(`U+007F`)은
+  `invalid-remote-path`/exit 2로 거부한다. 입력을 제거하거나 다른 경로로 정규화하지 않는다.
+- NFC/NFD normalization과 case folding은 적용하지 않으며, 입력 spelling을 그대로 보존한다.
 - 모든 명령은 자동화된 호출자를 위해 `--json`을 지원한다.
 - JSON mode에서 stdout에는 정확히 하나의 JSON document와 마지막 newline만 출력한다.
 - JSON mode의 예상 가능한 실패도 stdout에 JSON으로 출력하고 non-zero exit code를 사용한다.
@@ -228,5 +231,7 @@ download URL 발급과 signed content GET은 각각 한 번만 시도한다. 실
 `/` 삭제는 항상 argument 오류로 거부한다.
 
 `deleted`의 `data`에는 normalized `path`, 삭제 전에 resolve한 `resourceId`, `type`이 들어간다.
-`already-absent`에는 `path`만 포함한다. DELETE timeout/5xx/429 뒤에는 path를 다시 해석하지 않고 같은
-resource ID만 조회한다. 429에서 ID가 남아 있을 때만 같은 ID로 DELETE를 한 번 재시도한다.
+`already-absent`에는 `path`만 포함한다. DELETE timeout/5xx/429 뒤에는 active exact path와 parent
+listing에서 기존 resource ID의 membership을 확인한다. 양쪽에서 사라졌으면 성공으로 reconcile한다.
+429에서 기존 ID가 남아 있을 때만 같은 ID로 DELETE를 한 번 재시도한다. 같은 path의 다른 ID는
+절대 삭제하지 않는다.

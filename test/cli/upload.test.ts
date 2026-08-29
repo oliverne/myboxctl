@@ -132,6 +132,27 @@ describe("upload command subprocess contract", () => {
     ).toContain("content\r\n--");
   });
 
+  test("rejects a control-character remote path before HTTP", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "myboxctl-upload-cli-control-"));
+    directories.push(directory);
+    const localPath = join(directory, "local.txt");
+    await writeFile(localPath, "content");
+    const server = await createFakeHttpServer();
+    servers.push(server);
+
+    const remotePath = `/report${String.fromCodePoint(0x0d)}injected.txt`;
+    const result = await runCli(["upload", localPath, remotePath, "--json"], server.baseUrl);
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      command: "upload",
+      error: { kind: "invalid-remote-path", retryable: false },
+    });
+    expect(server.requests).toHaveLength(0);
+  });
+
   test("returns FILE_TOO_LARGE before upload mutation", async () => {
     const directory = await mkdtemp(join(tmpdir(), "myboxctl-upload-cli-large-"));
     directories.push(directory);

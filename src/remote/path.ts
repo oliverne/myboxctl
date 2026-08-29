@@ -22,6 +22,13 @@ function invalidPath(message: string): DomainError {
   return new DomainError("invalid-remote-path", message);
 }
 
+function hasControlCharacter(value: string): boolean {
+  return [...value].some((character) => {
+    const codePoint = character.codePointAt(0);
+    return codePoint !== undefined && (codePoint <= 0x1f || codePoint === 0x7f);
+  });
+}
+
 export function parseRemotePath(input: string): RemotePath {
   if (typeof input !== "string" || input.length === 0) {
     throw invalidPath("Remote path must not be empty.");
@@ -32,11 +39,10 @@ export function parseRemotePath(input: string): RemotePath {
   if (input.includes("\\")) {
     throw invalidPath("Remote path must use '/' separators only.");
   }
-  if (input.includes("\u0000")) {
-    throw invalidPath("Remote path must not contain NUL.");
-  }
-
   const pathComponents = input.split("/").filter((component) => component.length > 0);
+  if (pathComponents.some(hasControlCharacter)) {
+    throw invalidPath("Remote path components must not contain control characters.");
+  }
   if (pathComponents.some((component) => component === "." || component === "..")) {
     throw invalidPath("Remote path must not contain '.' or '..' components.");
   }

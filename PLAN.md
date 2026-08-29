@@ -212,6 +212,19 @@ Phase 00~08 MVP 완료 후 선택한 첫 후속 vertical slice다.
 Phase 09는 구현과 실제 MYBOX acceptance를 완료했다. Phase 00~08의 기존 MVP 완료 판정은 소급해
 변경하지 않으며, 다음 기능은 실제 요구가 확인될 때 별도 phase로 정의한다.
 
+### Phase 10 — Cross-implementation hardening
+
+문서: [`docs/phases/10-cross-implementation-hardening.md`](docs/phases/10-cross-implementation-hardening.md)
+
+PHP/Flysystem 구현체 교차 감사에서 확인한 후보 중 현재 CLI의 안전성과 신뢰성에 직접 필요한 항목만
+자체 targeted probe로 검증한다.
+
+- remote path component의 C0 control/DEL 거부
+- delete 이후 resource detail, active path, parent listing 교차 확인
+- NFC/NFD 및 대소문자 name semantics 관찰
+- 관찰 전 Unicode normalization/case folding을 production resolver에 추가하지 않음
+- generic mutation retry, purge/root clear, move/copy, full API wrapper는 제외
+
 ## 6. 전체 MVP 완료 조건
 
 다음 조건을 모두 충족해야 MVP를 완료할 수 있다.

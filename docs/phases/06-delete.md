@@ -48,18 +48,21 @@ test/integration/delete.test.ts
 4. resolve한 exact `resourceId`로 DELETE한다.
 5. 204면 deleted.
 6. 404면 mode에 따른 결과.
-7. timeout/5xx로 결과가 불명확하면 같은 ID를 단건 조회해 reconcile한다.
-8. path를 다시 resolve해 새 ID가 나타나더라도 그 새 resource를 삭제하지 않는다.
+7. timeout/5xx/429로 결과가 불명확하면 active exact path와 parent direct-child listing에서 기존
+   ID의 membership을 교차 확인한다.
+8. 양쪽에 기존 ID가 없을 때만 삭제 성공으로 reconcile한다. 휴지통 detail은 active membership
+   증거로 사용하지 않는다.
+9. path를 다시 resolve해 새 ID가 나타나더라도 그 새 resource를 삭제하지 않는다.
 
 `SharedRateLimiter`에 origin별 `delete` bucket을 추가하고 가장 낮은 공식 한도인 60회/분 sliding
 window를 적용한다. search와 같은 state/atomic lock을 사용하되 request timestamp와
 `blockedUntil`은 bucket별로 분리한다.
 
-DELETE 429는 즉시 같은 `resourceId`를 GET으로 reconcile한다. 404면 성공이다. 같은 ID가 남아
-있으면 `Retry-After` 또는 60초 + jitter까지 기다린 뒤 같은 ID로 DELETE를 한 번만 재시도한다.
-두 번째 429는 `retryAfterMs`와 exit 8로 반환한다. timeout/5xx에서 ID가 남아 있는 경우에는
-자동 DELETE를 반복하지 않고 retryable failure로 반환한다. path 재해석 후 새 ID를 자동 삭제하는
-retry는 항상 금지한다.
+Phase 10 probe에서 휴지통으로 이동한 ID의 detail GET이 200을 유지하는 것을 확인했다. 따라서
+DELETE 429/timeout/5xx reconcile은 active exact path와 fully paginated parent listing 양쪽에서
+기존 ID가 사라졌는지 확인한다. 사라졌으면 성공이며, 남아 있으면 429에 한해 `Retry-After` 또는
+fallback 뒤 같은 ID로 DELETE를 한 번만 재시도한다. timeout/5xx에서는 DELETE를 반복하지 않는다.
+path 재해석 후 새 ID를 자동 삭제하는 retry는 항상 금지한다.
 
 ## CLI
 

@@ -2,43 +2,37 @@
 
 ## 현재 상태
 
-- Phase 00~09: `complete`
+- Phase 00~10: `complete`
 - 활성 구현 phase: 없음
 - 공개 릴리스: 보류
-- 기준선: `1ab09182de11518e671eafb9550be7076320f849`
-- 2026-08-29 PHP 구현체 교차 감사:
-  [`reference/php-implementation-audit.md`](reference/php-implementation-audit.md)
+- PR: #6 `feat: harden remote paths and probe MYBOX name semantics`
+- Phase 10 기준 CI: run 33231710723
+- Phase 10 live evidence: run 33230351165
 
-이번 작업은 문서 전용이다. production code, API ledger, phase 상태는 바꾸지 않았고 live MYBOX
-호출과 Bun test/build도 실행하지 않았다.
+## Phase 10 완료 결과
 
-## 감사에서 확인한 결정
+- remote path component의 C0 control과 DEL을 mutation 전에 거부한다.
+- multipart filename boundary도 같은 문자를 방어적으로 거부한다.
+- 삭제된 ID의 detail은 휴지통에서 200을 유지할 수 있으므로 active membership 증거로 사용하지 않는다.
+- retryable DELETE 뒤 active exact path와 fully paginated parent listing 양쪽에서 기존 ID가
+  사라진 경우만 삭제 성공으로 reconcile한다.
+- 같은 path의 다른 ID는 절대 삭제하지 않으며 membership 증거가 불일치하면 fail-closed한다.
+- NFC/NFD spelling은 별도 resource로 보존한다.
+- ASCII case만 다른 create는 conflict였지만 production resolver는 exact spelling 정책을 유지한다.
 
-- 현재의 GET-only generic retry와 operation-specific mutation reconcile을 유지한다.
-- upload의 file-handle 안정성 검사와 download의 atomic local commit을 유지한다.
-- PHP/Flysystem의 live note와 소스 주석은 targeted probe 전까지 가설이다.
-- Flysystem의 same-name file/folder 허용 가정은 우리 API-09 관찰과 모순되므로 채택하지 않는다.
-- 앞선 탐색에서 잘못 표기한 저장소 이름은 `overworks/mybox`가 아니라
-  `overworks/php-mybox`다.
+## 검증
 
-## 다음 bounded 결정
+- 일반 CI: 191 pass, 31 opt-in skip, 0 fail
+- build/typecheck/Biome/diff: 성공
+- download regression: Ubuntu 24.04, macOS Latest, Windows Latest 성공
+- live integration: 8 pass
+- targeted download probe: 1 pass
+- Phase 10 targeted probe: 2 pass
+- unique remote/local cleanup: 성공
 
-사용자가 후속 구현을 선택하면 먼저 별도 Phase 10
-`cross-implementation-hardening` 문서를 만들고 다음 순서로 진행한다.
+## 다음 결정
 
-1. remote path component의 C0 control/DEL 거부와 unit/CLI test
-2. trash 이후 ID detail, active path, parent listing을 비교하는 delete targeted probe
-3. NFC/NFD와 대소문자 semantics targeted probe
-4. resumable upload가 실제 우선순위일 때만 KST literal/overwrite/423 probe
-5. 검색 비용이 확인될 때만 command-scoped directory snapshot benchmark
-
-각 live probe는 `/myboxctl-integration-test/` 아래 unique child와 exact cleanup을 사용한다.
-generic mutation retry, quota exhaustion, purge, root clear, move/copy, full API wrapper는 범위에 넣지
-않는다.
-
-## 검증 상태
-
-- 두 PHP 저장소의 source와 protocol/adapter note를 고정 commit에서 검토했다.
-- 우리 구현의 path/resolver/upload/download/delete/reliability 계약과 대조했다.
-- 문서 링크와 상태 기록만 변경했다.
-- 코드가 바뀌지 않아 `bun run check`와 `bun run build`는 실행하지 않았다.
+새 phase는 실제 agent workflow 요구가 확인될 때만 시작한다. 현재 조건부 후보는 ASCII
+case-insensitive lookup의 필요성, resumable upload KST literal/overwrite offset/423, 검색 비용이
+확인된 경우의 directory snapshot이다. generic mutation retry, quota exhaustion, purge/root clear,
+move/copy와 full API wrapper는 계속 비범위다.

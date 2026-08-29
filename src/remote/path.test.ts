@@ -37,8 +37,8 @@ describe("remote paths", () => {
     expect(components("/foo//bar/")).toEqual(["foo", "bar"]);
   });
 
-  test.each(["", "foo", "../foo", "/foo/../bar", "\\foo", "/foo\\bar", "/foo/\u0000bar"])(
-    "rejects %j",
+  test.each(["", "foo", "../foo", "/foo/../bar", "\\foo", "/foo\\bar"])(
+    "rejects structurally invalid path %j",
     (input) => {
       try {
         parseRemotePath(input);
@@ -46,6 +46,16 @@ describe("remote paths", () => {
       } catch (error) {
         expect(error).toMatchObject({ kind: "invalid-remote-path" });
       }
+    },
+  );
+
+  test.each([...Array.from({ length: 32 }, (_, codePoint) => codePoint), 0x7f])(
+    "rejects U+%s in a path component",
+    (codePoint) => {
+      const control = String.fromCodePoint(codePoint);
+      expect(() => parseRemotePath(`/safe/before${control}after`)).toThrow(
+        expect.objectContaining({ kind: "invalid-remote-path" }),
+      );
     },
   );
 });

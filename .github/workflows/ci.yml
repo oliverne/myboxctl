@@ -13,6 +13,11 @@ on:
         required: false
         default: false
         type: boolean
+      phase10_probe:
+        description: Run the targeted delete and name-semantics hardening probe
+        required: false
+        default: false
+        type: boolean
   push:
     branches: [main]
   pull_request:
@@ -53,7 +58,7 @@ jobs:
 
   live-acceptance:
     name: Live MYBOX acceptance
-    if: github.event_name == 'workflow_dispatch' && (inputs.live_acceptance || inputs.download_probe)
+    if: github.event_name == 'workflow_dispatch' && (inputs.live_acceptance || inputs.download_probe || inputs.phase10_probe)
     needs: test
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -95,6 +100,12 @@ jobs:
         env:
           MYBOX_DOWNLOAD_PROBE: "1"
         run: bun run test:download-probe
+
+      - name: Run Phase 10 hardening probe
+        if: inputs.phase10_probe
+        env:
+          MYBOX_PHASE10_PROBE: "1"
+        run: bun run test:phase10-probe
 
       - name: Final diff check
         run: git diff --check

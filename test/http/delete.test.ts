@@ -17,6 +17,15 @@ function searchPage(resources: unknown[] = []) {
   return { resources, responseMetaData: {} };
 }
 
+function listPage(resources: unknown[] = []) {
+  return {
+    resources,
+    responseMetaData: {},
+    fileCount: resources.length,
+    subFolderCount: 0,
+  };
+}
+
 function searchResource(type: "file" | "folder" = "file") {
   return {
     resourceId: "resource-1",
@@ -53,12 +62,22 @@ function foundHandler(
   detailResponse?: { status: number; body?: unknown },
 ) {
   let deleteIndex = 0;
+  let fileSearchCount = 0;
+  const originalIsInactive = detailResponse?.status === 404;
   return (request: RecordedRequest) => {
     if (request.path === "/v1/search/resources/folders") {
       return { body: searchPage() };
     }
     if (request.path === "/v1/search/resources/files") {
-      return { body: searchPage([searchResource()]) };
+      fileSearchCount += 1;
+      return {
+        body: searchPage(originalIsInactive && fileSearchCount > 1 ? [] : [searchResource()]),
+      };
+    }
+    if (request.path === "/v1/drive/resources") {
+      return {
+        body: listPage(originalIsInactive ? [] : [{ ...resourceDetail(), path: "/report.txt" }]),
+      };
     }
     if (request.path === "/v1/drive/resources/resource-1" && request.method === "DELETE") {
       const response = deleteResponses[deleteIndex];
@@ -154,8 +173,105 @@ describe("delete HTTP operation", () => {
     });
     expect(server.requests.filter((request) => request.method === "DELETE")).toHaveLength(1);
     expect(server.requests.filter((request) => request.path.includes("/v1/search/"))).toHaveLength(
-      2,
+      4,
     );
+    expect(server.requests.some((request) => request.path === "/v1/drive/resources")).toBe(true);
+  });
+
+  test("treats trash-visible detail as deleted when active path and parent listing omit the ID", async () => {
+    let fileSearchCount = 0;
+    const server = await createFakeHttpServer({
+      handler: (request: RecordedRequest) => {
+        if (request.path === "/v1/search/resources/folders") {
+          return { body: searchPage() };
+        }
+        if (request.path === "/v1/search/resources/files") {
+          fileSearchCount += 1;
+          return { body: searchPage(fileSearchCount === 1 ? [searchResource()] : []) };
+        }
+        if (request.path === "/v1/drive/resources") {
+          return { body: listPage() };
+        }
+        if (request.path === "/v1/drive/resources/resource-1" && request.method === "DELETE") {
+          return { status: 503, body: { code: "BUSY", message: "unknown outcome" } };
+        }
+        if (request.path === "/v1/drive/resources/resource-1" && request.method === "GET") {
+          return { body: resourceDetail() };
+        }
+        return { status: 500, body: { code: "UNEXPECTED", message: "unexpected request" } };
+      },
+    });
+    servers.push(server);
+
+    await expect(runDelete("/report.txt", {}, dependencies(server))).resolves.toMatchObject({
+      action: "deleted",
+      data: { resourceId: "resource-1" },
+    });
+    expect(server.requests.filter((request) => request.method === "DELETE")).toHaveLength(1);
+    expect(server.requests.filter((request) => request.method === "GET")).not.toContainEqual(
+      expect.objectContaining({ path: "/v1/drive/resources/resource-1" }),
+    );
+  });
+
+  test("fails conservatively when the parent listing still contains the original ID", async () => {
+    let fileSearchCount = 0;
+    const server = await createFakeHttpServer({
+      handler: (request: RecordedRequest) => {
+        if (request.path === "/v1/search/resources/folders") {
+          return { body: searchPage() };
+        }
+        if (request.path === "/v1/search/resources/files") {
+          fileSearchCount += 1;
+          return { body: searchPage(fileSearchCount === 1 ? [searchResource()] : []) };
+        }
+        if (request.path === "/v1/drive/resources") {
+          return { body: listPage([{ ...resourceDetail(), path: "/report.txt" }]) };
+        }
+        if (request.path === "/v1/drive/resources/resource-1" && request.method === "DELETE") {
+          return { status: 503, body: { code: "BUSY", message: "unknown outcome" } };
+        }
+        return { status: 500, body: { code: "UNEXPECTED", message: "unexpected request" } };
+      },
+    });
+    servers.push(server);
+
+    await expect(runDelete("/report.txt", {}, dependencies(server))).rejects.toMatchObject({
+      kind: "api-unavailable",
+      status: 503,
+    });
+    expect(server.requests.filter((request) => request.method === "DELETE")).toHaveLength(1);
+  });
+
+  test("never deletes a same-path replacement while reconciling the original ID", async () => {
+    let deleted = false;
+    const replacement = { ...searchResource(), resourceId: "resource-2" };
+    const server = await createFakeHttpServer({
+      handler: (request: RecordedRequest) => {
+        if (request.path === "/v1/search/resources/folders") {
+          return { body: searchPage() };
+        }
+        if (request.path === "/v1/search/resources/files") {
+          return { body: searchPage([deleted ? replacement : searchResource()]) };
+        }
+        if (request.path === "/v1/drive/resources") {
+          return { body: listPage([{ ...resourceDetail(), ...replacement }]) };
+        }
+        if (request.path === "/v1/drive/resources/resource-1" && request.method === "DELETE") {
+          deleted = true;
+          return { status: 503, body: { code: "BUSY", message: "unknown outcome" } };
+        }
+        return { status: 500, body: { code: "UNEXPECTED", message: "unexpected request" } };
+      },
+    });
+    servers.push(server);
+
+    await expect(runDelete("/report.txt", {}, dependencies(server))).resolves.toMatchObject({
+      action: "deleted",
+      data: { resourceId: "resource-1" },
+    });
+    const deletes = server.requests.filter((request) => request.method === "DELETE");
+    expect(deletes).toHaveLength(1);
+    expect(deletes[0]?.path).toBe("/v1/drive/resources/resource-1");
   });
 
   test("does not repeat DELETE after a 5xx when the same ID remains", async () => {
