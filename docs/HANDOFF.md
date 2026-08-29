@@ -47,9 +47,15 @@ smoke와 Homebrew formula syntax가 모두 통과했고 일반 CI run 3323546071
 publish와 Release 공개는 저장소 public 전환, package/tap 소유권 및 전용 token 준비 전에는 실행하지
 않는다.
 
-## 다음 결정
+## 다음 계획
 
-새 phase는 실제 agent workflow 요구가 확인될 때만 시작한다. 현재 조건부 후보는 ASCII
-case-insensitive lookup의 필요성, resumable upload KST literal/overwrite offset/423, 검색 비용이
-확인된 경우의 directory snapshot이다. generic mutation retry, quota exhaustion, purge/root clear,
-move/copy와 full API wrapper는 계속 비범위다.
+Phase 12는 `pending`이다. macOS/Windows/WSL2의 NFC/NFD 차이를 흡수하기 위해 새 원격 이름은
+NFC로 만들고, 기존 NFD resource는 exact lookup 실패 시 단일 canonical fallback으로 찾는다.
+여러 canonical-equivalent 후보가 있으면 mutation 없이 conflict로 중단하며 local path는 절대
+정규화하지 않는다. Phase 11의 draft Release 검증은 계속할 수 있지만 Phase 12 완료 전에는 첫
+public Release를 게시하지 않는다.
+
+상세 범위와 검증 조건은
+[`phases/12-cross-platform-unicode-filenames.md`](phases/12-cross-platform-unicode-filenames.md)을
+따른다. ASCII case-insensitive lookup, 기존 resource 자동 migration, resumable upload
+KST literal/overwrite offset/423과 directory snapshot은 이번 범위에 포함하지 않는다.
