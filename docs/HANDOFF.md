@@ -26,6 +26,10 @@ PAT, Authorization 값과 signed upload/download URL 노출을 찾지 못했다.
 있었지만 모든 job은 성공했다. 향후 dependency maintenance 후보이며 현재 기능이나 Release 검증 실패는
 아니다.
 
+후속 local maintenance에서 두 action을 Node 24 기반 `actions/upload-artifact@v7`과
+`actions/download-artifact@v8`로 갱신했다. main 반영 후에도 tag/PR 기반 원격 Release workflow
+검증은 별도로 필요하다.
+
 ## Phase 상태
 
 - Phase 00~12: `complete`

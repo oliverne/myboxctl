@@ -15,6 +15,9 @@
 - Phase 13은 지연 원인 계측, 429 처리 판정과 기본 human/`--json` agent 출력 모드를 다루는 실행
   계획으로 구체화했다. 로컬 `my-cli` prototype을 조사해 TTY-only redraw, compact upload progress와
   dependency 비도입 원칙을 반영했으며 아직 구현은 시작하지 않았다.
+- Phase 11 후속 dependency maintenance로 Release workflow의 artifact action을 Node 24 기반
+  `upload-artifact@v7`과 `download-artifact@v8`로 갱신했다. 원격 Release workflow 검증은 아직
+  실행하지 않았다.
 - 마지막 갱신: 2026-08-30
 
 ## Phase 상태
