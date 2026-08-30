@@ -2,14 +2,14 @@
 
 ## 상태
 
-- 상태: `in_progress`
+- 상태: `complete`
 - 시작일: 2026-08-29
+- 완료일: 2026-08-30
 - 선행 조건: Phase 00~10 `complete`
 - 구현 브랜치: `phase-11-distribution-release`
 
-Phase 11의 배포 구현과 native smoke는 완료했지만, 첫 public Release는 Phase 12의 크로스 플랫폼
-Unicode filename 호환성 검증이 끝날 때까지 보류한다. tag 기반 draft Release 확인은 Phase 12 이후
-재개한다.
+Phase 11의 배포 구현, native smoke와 tag 기반 draft Release 재실행 검증을 완료했다. draft는 공개하지
+않았으며 npm publish, Homebrew tap 반영과 Scoop registry 등록도 수행하지 않았다.
 
 ## 목표
 
@@ -79,9 +79,30 @@ bun run verify:release -- --version 0.1.0-test --target bun-linux-x64
 - [x] 각 운영체제의 native runner에서 archive를 풀어 `--version`과 `--help` smoke가 통과한다.
 - [x] npm launcher가 지원 target을 정확한 optional package로 연결하고 exit code를 보존한다.
 - [x] Linux installer, Homebrew formula, Scoop manifest가 checksum을 사용한다.
-- [ ] tag workflow가 draft Release를 만들고 asset을 재실행 가능하게 업로드한다.
+- [x] tag workflow가 draft Release를 만들고 asset을 재실행 가능하게 업로드한다.
 - [x] README와 운영 문서가 clone/Bun 없이 설치하는 경로를 설명한다.
 - [x] `docs/PROGRESS.md`와 `docs/HANDOFF.md`를 사실 기준으로 갱신한다.
+
+## 실제 tag 및 draft Release 검증
+
+2026-08-30 `main` commit `4e895b745d7822b6b2e74fc80939642d27c542e5`에 annotated tag
+`v0.1.0`을 생성했다. Release workflow run
+[`33309779551`](https://github.com/oliverne/myboxctl/actions/runs/33309779551)의 최초 실행과 attempt 2
+재실행이 모두 성공했다.
+
+- build/check와 macOS arm64/x64, Linux arm64/x64, Windows x64의 checksum, `--version 0.1.0`,
+  `--help` native smoke가 성공했다.
+- draft Release ID `379266317` 하나만 유지됐고 재실행에서 동일 draft의 9개 asset이 `--clobber`로
+  교체됐다.
+- 5개 archive, `SHA256SUMS`, `install.sh`, `myboxctl.rb`, `myboxctl.json`이 모두 존재한다.
+- draft asset을 다시 내려받아 `SHA256SUMS`로 5개 archive를 검증했다.
+- run log와 asset의 credential 형태를 검사했으며 PAT, Authorization 값과 signed upload/download URL
+  노출을 찾지 못했다.
+- `actions/upload-artifact@v4`와 `actions/download-artifact@v5`의 Node.js 20 deprecation annotation이
+  있었지만 모든 job은 성공했다. 후속 dependency maintenance 후보이며 Phase 11 완료를 차단하지 않는다.
+
+검증된 draft는 [myboxctl 0.1.0](https://github.com/oliverne/myboxctl/releases/tag/untagged-28a14d408e2240b50b71)이다.
+저장소가 private인 현재 상태에서 공개와 package manager publish는 계속 보류한다.
 
 ## 공개 전 중단 조건
 
