@@ -1,97 +1,145 @@
-# Integration 테스트 지연·관측성 조사 (이슈)
+# Integration 테스트 지연·관측성 조사
 
-> 상태: 조사 중 (가설 단계, 미확증)
-> 관련 phase: `docs/phases/13-observability-and-test-latency.md`
+> 상태: 조사 중 — 지연 현상은 재현됐지만 원인은 미확증
+> 관련 phase: [`../phases/13-observability-and-test-latency.md`](../phases/13-observability-and-test-latency.md)
+> Human UI: [`human-cli-ui-investigation.md`](human-cli-ui-investigation.md)
 > 작성일: 2026-08-29
 
 ## 요약
 
-실제 MYBOX PAT로 통합 테스트를 돌리던 중, 개별 API 호출은 0.2~0.4초로 빠른데 특정 acceptance
-테스트 전체가 수 분씩 걸리는 지연이 발견됐다. 원인은 rate-limiter가 아니라 **중간 429/재시도가
-조용히 60초를 대기**하는 것으로 추정되나, 현재 코드에 로그가 없어 확증되지 않았다. 관측성(로깅)
-부족이 근본 문제다.
+실제 MYBOX PAT로 integration test를 실행했을 때 개별 API 호출은 0.2~0.4초였지만 일부 command
+acceptance에는 약 60초 단위의 긴 구간이 반복됐다. 현재 코드에는 local rate limiter 대기, 서버 429
+retry와 integration polling을 서로 구분해 보여주는 event가 없어 wall time만으로 원인을 확정할 수
+없다.
+
+Phase 13은 먼저 각 대기 경로에 구조화 event를 추가해 원인을 구분한다. 그 결과를 바탕으로 GET 429
+자동 retry를 유지할지, local bucket을 조정할지, 일정 조건에서 fail-fast할지를 결정한다. 같은 event
+boundary로 upload/put 진행 상태도 사람과 AI 에이전트에 제공한다.
 
 ## 측정 증거
 
-| 측정 대상 | 조건 | 소요 |
-| --- | --- | --- |
-| `bun run src/cli.ts --version` | 기동 기준선 | 0.03s |
-| `stat /myboxctl-integration-test` | read | 0.45s |
-| `listRoot` (직접 client 호출) | – | 318ms |
-| `listFolder` | – | 301ms |
-| `searchFolders({path})` | – | 207ms |
-| `createFolder` (noParent) | – | 204ms |
-| `createFolder` (parent) | – | 308ms |
-| `deleteResource` | – | 305~410ms |
-| `ensure-dir` CLI 직접 실행 | limiter OFF | **66.96s** (`action: created`) |
-| `ensure-dir` acceptance | limiter OFF | **~127s** (pass) |
-| `ensure-dir` acceptance | limiter ON (10/분) | **~121s** (pass) |
-| `delete` acceptance | limiter ON | **~244s** (pass) |
-| storage `GET` 직접 호출 | – | 207ms (200) |
-| search 12회 연속 (잘못된 query) | – | 모두 404, **429 없음** |
+| 측정 대상                          | 조건                  | 소요                           |
+| ---------------------------------- | --------------------- | ------------------------------ |
+| `bun run src/cli.ts --version`     | 기동 기준선           | 0.03s                          |
+| `stat /myboxctl-integration-test`  | read                  | 0.45s                          |
+| `listRoot` 직접 client 호출        | 단일 호출             | 318ms                          |
+| `listFolder`                       | 단일 호출             | 301ms                          |
+| `searchFolders({path})`            | 단일 호출             | 207ms                          |
+| `createFolder` (`noParent`)        | 단일 호출             | 204ms                          |
+| `createFolder` (`parent`)          | 단일 호출             | 308ms                          |
+| `deleteResource`                   | 단일 호출             | 305~410ms                      |
+| `ensure-dir` CLI 직접 실행         | limiter 진단 설정 OFF | 66.96s (`action: created`)     |
+| `ensure-dir` acceptance            | limiter 진단 설정 OFF | 약 127s (pass)                 |
+| `ensure-dir` acceptance            | production limiter ON | 약 121s (pass)                 |
+| `delete` acceptance                | production limiter ON | 약 244s (pass)                 |
+| storage `GET` 직접 호출            | 단일 호출             | 207ms (200)                    |
+| 잘못된 search query 12회 연속 호출 | 모두 404              | 429 미관찰, 한도 증거로 부적합 |
 
-핵심: 개별 호출은 전부 0.2~0.4초인데, `ensure-dir` 전체는 ~67초. 호출 간에 약 60초 블록이
-존재한다.
+개별 호출 시간과 command wall time 사이에 약 60초 단위 차이가 있다는 점은 확인됐다. 다만 당시에는
+대기 직전 event와 request별 status를 수집하지 않았으므로 어느 경로가 시간을 사용했는지는 미확증이다.
 
-## 가설
+## 현재 코드에서 확인된 대기 경로
 
-`src/mybox/client.ts`의 `requestJson`은 GET에서 `429`를 받으면 다음과 같이 처리한다:
+### Local shared rate limiter
+
+`SharedRateLimiter.beforeRequest()`는 다음 상황에서 요청 전에 대기한다.
+
+- 현재 process와 다른 process가 공유하는 bucket의 window 내 요청 수가 한도에 도달한 경우
+- 이전 서버 429가 기록한 `blockedUntil` cooldown이 남은 경우
+
+검색 bucket은 10회/60초이고, 다른 공식 operation bucket은 각각 60회/60초다. 따라서 서버 요청이
+발생하지 않은 60초 지연도 가능하다. 현재는 `quota`와 `server-cooldown`을 출력에서 구분할 수 없다.
+
+### GET 429 retry
+
+`MyboxClient.requestJson()`은 GET 응답이 429이면 최대 한 번 자동 retry한다.
 
 ```ts
+const mapped = this.parseError(result.response, result.body);
 if (isGet && result.response.status === 429 && rateLimitRetries < 1) {
   rateLimitRetries += 1;
-  await this.dependencies.sleep(mapped.retryAfterMs ?? SEARCH_WINDOW_MS); // 60초+
+  await this.dependencies.sleep(mapped.retryAfterMs ?? SEARCH_WINDOW_MS);
   continue;
 }
 ```
 
-- `retryAfterMs`가 없으면 `SEARCH_WINDOW_MS`(60초)만큼 **조용히** 대기 후 1회 재시도한다.
-- limiter를 꺼도 **서버 측 429 제한은 독립적**이므로, 서버가 429를 주면 client가 60초를 기다린다.
-- 따라서 `ensure-dir`의 search 호출 중 일부가 서버 429를 받아 60초를 기다리는 것이 67초 지연의
-  유력한 원인이다(재시도 후 성공하므로 테스트는 통과).
+`parseError()`는 429의 `retryAfterMs`를 다음 순서로 채운다.
 
-**아직 미확증**이다. 증명하려면 `client.ts` 429 분기에 로그를 넣어 실제 429 발생을 관찰해야 한다.
+1. 유효한 `Retry-After` header
+2. header가 없거나 해석할 수 없으면 `fallbackRateLimitDelayMs()`의 60~61초 delay
 
-## 로깅/관측 부족
+따라서 `?? SEARCH_WINDOW_MS`는 방어 코드이고, 정상적인 429 mapping에서 실제 fallback은
+`fallbackRateLimitDelayMs()`다. 두 번째 429는 더 기다리지 않고 `rate-limit` failure와
+`retryAfterMs`로 반환한다. mutation은 이 generic retry를 사용하지 않는다.
 
-- `src/` 전체에 `console.*` 호출 **0개**.
-- 출력은 `src/output.ts`의 JSON envelope(stdout)과 argument/commander 에러(stderr)뿐.
-- 중간 429/재시도/지연은 **완전히 침묵**.
-- `--verbose` / `--debug` / log level 플래그도 없다.
-- 그래서 지연 원인을 코드를 뒤져 가설만 세울 수 있었고, 실제 429 발생 여부를 확인할 방법이 없었다.
+### Integration polling
 
-### agent 관측 관점
+일부 integration helper는 생성·변경 결과가 보일 때까지 짧은 backoff polling을 수행한다. 개별 wait는
+429 fallback보다 짧지만 호출 횟수와 local bucket을 함께 증가시킬 수 있다. Phase 13 계측에서는
+polling 자체와 그 안의 limiter/429 wait를 구분한다.
 
-- 대부분의 AI agent subprocess 호출은 stdout+stderr를 모두 캡처하므로 stderr 경고도 읽을 수 있다.
-- 단, agent 구현에 따라 stdout만 "판정 결과"로 쓰는 경우도 있어, 429를 agent가 **신뢰적으로**
-  인지하게 하려면 stdout JSON envelope 내 구조화 필드(예: `notices`)가 정석이다.
-- AGENTS.md 원칙상 stdout JSON은 agent 판정용이므로 오염하지 않아야 하며, stderr는 부수 정보로
-  안전하다(PAT/헤더/업로드·다운로드 URL은 어떤 출력에도 절대 포함되지 않아야 함).
+## 현재 가설과 판정 기준
 
-## 미결정 사항
+| 가설                     | 확증 event                                       | 정책 후보                                    |
+| ------------------------ | ------------------------------------------------ | -------------------------------------------- |
+| local search quota 대기  | `rate-limit.local-wait`, cause `quota`           | 호출 수 축소 또는 공식 한도 내 bucket 재검토 |
+| 이전 429 cooldown 대기   | `rate-limit.local-wait`, cause `server-cooldown` | cooldown 공유 유지, 중복 대기 여부 검증      |
+| 서버 429 후 retry 대기   | `http.retry-scheduled`, status 429               | 유지, bounded wait 또는 fail-fast 검토       |
+| integration polling 누적 | polling 횟수/시간은 길지만 위 wait event가 없음  | polling 횟수와 visibility 조건 조정          |
+| 복합 원인                | 둘 이상의 event wait 합계가 wall time을 설명     | 각 원인별 최소 변경                          |
 
-1. **서버 429 가설 확증 방법**
-   - (a) `client.ts`에 임시 429 로그 → 1회 실행 후 즉시 revert
-   - (b) 영구 로그(관측성)로 그대로 둠 — 아래 2번과 연결
-2. **로깅 추가 범위** (agent 신뢰성 vs 최소 변경)
-   - A: stderr 경고만 (client.ts 1줄, 대부분의 agent가 읽음)
-   - B: stdout JSON에 `notices` 필드 추가 (contract 확장, 가장 reliable)
-   - C: A + B 둘 다 (권장)
-3. **rate-limiter 전략 역설**
-   - ON(10/분 선제 대기): 서버 429를 막지만 선제 대기로 60초 소요
-   - OFF: 서버 429를 피하지 못해 client가 60초 fallback 대기
-   - 둘 다 60초 소요 → 근본 해결은 아님. 로깅으로 실제 429 빈도/위치를 파악 후 한도/동작 재검토 필요
-4. **전체 integration suite 진행 방식**
-   - 각 테스트가 60초+ 대기할 수 있어 전체 완주가 매우 느림. suite를 파일별 직렬 실행할지,
-     limiter ON/OFF 중 어느 쪽으로 할지 결정 필요
-5. **`upload-contract` 100MB probe 포함 여부** — 별도로 매우 김(100MiB 전송 + 60초 sleep + resume)
-6. **실험적 코드 변경의 처리** — 아래 참조(uncommitted 상태)
+다음 규칙으로 결론을 제한한다.
 
-## 실험적 코드 변경 (진단용, 되돌림됨)
+- isolated state의 단일 실행에서 관찰하지 못한 서버 429를 실제 원인이라고 확정하지 않는다.
+- 잘못된 query의 404 반복은 429가 없다는 증거 또는 공식 한도 측정값으로 사용하지 않는다.
+- 실제 한도를 고의로 소진하는 probe를 만들지 않는다.
+- local bucket은 공식 문서 또는 재현 가능한 정상 요청 관찰과 모순될 때만 변경한다.
+- 429 처리 변경은 성공률, 총 대기 시간, `Retry-After` 유무와 agent의 재실행 가능성을 함께 비교한다.
 
-진단 중 다음 변경을 임시 적용했다가 2026-08-29 되돌렸다(revert, uncommitted 변경 버림):
+## 사람과 AI 에이전트용 출력 방향
 
-- `test/integration/helpers.ts`: `MYBOX_TEST_RATE_LIMIT=off` env 게이트로 test 프로세스 limiter 완화
-- `src/runtime.ts`: `MYBOX_DISABLE_RATE_LIMIT=1`이면 `noOpRateLimiter` 사용 (CLI subprocess limiter 비활성화)
+별도 format option을 만들지 않고 기존 `--json`으로 최종 오류와 실시간 event 형식을 함께 선택한다.
 
-위 변경은 진단 목적이었으며, 최종 방향(미결정 2, 3번)은 Phase 13에서 로깅/관측 데이터에 기반해 결정한다.
+| 모드        | stdout                                  | stderr                                    |
+| ----------- | --------------------------------------- | ----------------------------------------- |
+| 기본 human  | 사람이 읽는 최종 성공 결과              | human event와 사람이 읽는 최종 오류       |
+| `--json`    | 최종 성공/실패 JSON envelope 정확히 1개 | 실행 중 event JSON Lines                  |
+| `--quiet`   | 선택한 모드의 최종 결과 유지            | event만 억제, human 최종 오류는 유지      |
+| `--verbose` | 선택한 모드의 최종 결과 유지            | 상세 단계와 upload/put byte progress 추가 |
+
+현재 CLI도 기본 모드의 최종 오류는 stderr text, `--json` 오류는 stdout JSON으로 구분한다. Phase 13은 이
+분기를 유지하면서 recoverable error, 대기와 progress를 같은 출력 모드에 연결한다. terminal failure는
+최종 channel에서 한 번만 출력하고 JSON mode에서 stderr error event로 중복하지 않는다.
+
+human 최종 오류는 safe message를 기본으로 하고 optional code/requestId/retryAfter를 읽기 쉽게
+표시한다. 해결 방법이 command와 error code로 확정되는 경우에만 hint를 추가한다. TTY progress는 같은
+줄에서 갱신하고 warning/error 전에 정리하며, non-TTY stderr에서는 독립된 line log를 사용한다.
+
+기본 warning은 1초 이상 예정된 대기, 자동 retry와 resume처럼 멈춤으로 오해하기 쉬운 상황만
+출력한다. `--verbose`는 command stage와 upload/put byte progress를 추가하고, `--quiet`는 실행 중
+event만 억제한다. stderr를 수집하지 않는 에이전트는 실시간 event를 받을 수 없으며 최종 stdout
+failure의 `retryAfterMs`만 사용할 수 있다.
+
+event data는 allowlist로 구성한다. operation, status, attempt, waitMs, delay source, transferred/total
+byte와 offset은 허용하지만 raw URL, query, header, body와 error cause는 허용하지 않는다. PAT,
+Authorization, upload/download URL과 signed query는 redaction에만 의존하지 않고 애초에 event payload에
+전달하지 않는다.
+
+## 이전 진단 변경
+
+진단 중 다음 변경을 임시 적용했다가 2026-08-29 되돌렸다. 현재 checkout의 production surface에는
+포함되지 않는다.
+
+- `test/integration/helpers.ts`: `MYBOX_TEST_RATE_LIMIT=off`일 때 test process limiter를 완화
+- `src/runtime.ts`: `MYBOX_DISABLE_RATE_LIMIT=1`일 때 CLI subprocess limiter를 비활성화
+
+두 설정에서 모두 약 60초 단위 지연이 보였다는 사실만 남긴다. 당시 event가 없었으므로 이 결과만으로
+local limiter 또는 서버 429를 배제하지 않는다.
+
+## 다음 조사
+
+1. fake clock으로 local quota/cooldown과 서버 429 retry event를 각각 고정한다.
+2. clean shared-state path를 사용해 `ensure-dir` targeted acceptance를 한 번 실행한다.
+3. wall time, request 수, event별 waitMs와 자연 발생 429 여부를 기록한다.
+4. 증거에 따라 429 자동 retry 유지·조정·fail-fast 중 하나를 선택한다.
+5. 선택한 정책의 deterministic test를 추가하고 전체 command acceptance 시간을 다시 기록한다.

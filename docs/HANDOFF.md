@@ -12,25 +12,28 @@
 - 기본 브랜치: `main`
 - 마지막 기능 구현 기준점: `a9f0f66552c04bc1f019d0d00f399f2b8ab4d60b`
 - 기준점 내용: `feat: implement cross-platform Unicode filename compatibility (#9)`
-- 이후 변경: Codex CLI 인수를 위한 `docs/HANDOFF.md` 문서 커밋만 존재
+- 이후 변경: release handoff, README 정리와 pending Phase 13 계획 문서가 존재하며 production code는
+  변경하지 않았다.
+- 최신 변경은 Phase 13 계획 보완 문서이며 production code는 변경하지 않았다. 작업 시작 시 local/remote
+  HEAD와 working tree를 다시 확인한다.
 - 원격 브랜치: `main`만 존재
 - 열린 PR: 없음
 - 열린 issue: 없음
 - GitHub Release: 없음
-- README 하단 문서 정리만 추가로 진행했으며 production code와 릴리스 상태는 변경하지 않았다.
+- README 하단 문서 정리를 추가로 진행했으며 production code와 릴리스 상태는 변경하지 않았다.
 - 기능 구현 기준 main CI: run 33244880883 (CI 97), 성공
-- handoff 문서 커밋의 최신 CI는 작업 시작 시 성공 여부를 다시 확인
+- 최신 문서 커밋의 CI는 작업 시작 시 성공 여부를 다시 확인
 - 공개 릴리스: 보류
 
-작업 시작 시 `origin/main`의 최신 HEAD와 CI를 다시 확인한다. 위 기능 구현 기준점 이후에 이 handoff
-문서 변경만 존재하는 것은 정상이다. 다른 코드 변경, PR, tag 또는 Release가 있으면 내용을 대조한 뒤
-진행한다.
+작업 시작 시 `origin/main`의 최신 HEAD와 CI를 다시 확인한다. 위 기능 구현 기준점 이후에 문서 변경만
+존재하는 것은 정상이다. 다른 코드 변경, PR, tag 또는 Release가 있으면 내용을 대조한 뒤 진행한다.
 
 ## Phase 상태
 
 - Phase 00~10: `complete`
 - Phase 11 Distribution & Release: `in_progress`
 - Phase 12 Cross-platform Unicode filenames: `complete`
+- Phase 13 Observability & test latency: `pending`
 - 활성 phase: `11-distribution-release`
 
 Phase 11의 코드, 5개 standalone target, checksum, installer, Homebrew formula, Scoop manifest, npm
@@ -41,6 +44,17 @@ Phase 12는 CI 90, Release 21과 실제 MYBOX targeted probe run 33244082095를 
 NFC로 생성하고, 기존 NFD resource는 canonical fallback으로 찾으며, canonical-equivalent 후보가
 여러 개이면 mutation 없이 `UNICODE_NAME_COLLISION`로 중단한다. 로컬 `localPath`는 정규화하지
 않는다.
+
+Phase 13 계획은 integration 지연을 local limiter, 서버 429 retry와 polling으로 구분해 계측하고,
+관측 결과로 GET 429 정책을 유지·조정·fail-fast 중 하나로 결정한다. 별도 format option 없이 기본
+모드는 사람이 읽는 stdout 성공 결과와 stderr 오류/event를, `--json`은 stdout의 단일 최종 envelope와
+stderr JSON Lines event를 사용한다. `--quiet`는 event만 억제하고 최종 오류는 유지한다. upload/put byte
+progress도 같은 event boundary에 포함한다. 로컬 `my-cli` prototype의 실제 non-TTY capture를 조사해
+TTY에서만 redraw/countdown을 사용하고, non-TTY에는 line log만 남기며 범용 UI dependency는 추가하지
+않는 것으로 계획했다. Phase 13은 아직 시작하지 않았고 live probe도 실행하지 않았다.
+
+Phase 13을 먼저 시작하려면 Phase 11과 동시에 `in_progress`로 두지 말고 사용자가 활성 phase 변경을
+명시한 뒤 `docs/PROGRESS.md`를 갱신한다.
 
 ## 이번 세션의 목표
 
@@ -170,5 +184,8 @@ Release workflow나 asset 검증이 실패해 코드 수정이 필요하면 기�
 - `docs/PROGRESS.md`
 - `docs/phases/11-distribution-release.md`
 - `docs/phases/12-cross-platform-unicode-filenames.md`
+- `docs/phases/13-observability-and-test-latency.md`
+- `docs/reference/test-latency-investigation.md`
+- `docs/reference/human-cli-ui-investigation.md`
 - `docs/operations/release.md`
 - `docs/reference/cli-contract.md`

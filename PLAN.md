@@ -264,12 +264,20 @@ Phase 12는 case folding, 로컬 파일 rename, 기존 resource 자동 migration
 
 상세 분석: [`docs/reference/test-latency-investigation.md`](docs/reference/test-latency-investigation.md)
 
+Human UI 조사: [`docs/reference/human-cli-ui-investigation.md`](docs/reference/human-cli-ui-investigation.md)
+
 실제 MYBOX PAT로 통합 테스트를 돌리던 중, 개별 API 호출은 0.2~0.4초로 빠른데 `ensure-dir`/
-`delete` acceptance가 수 분씩 걸리는 지연이 발견됐다. 유력 가설은 서버 429에 대한 client의
-60초 fallback 대기이며, 현재 코드에 로그가 없어 미확증이다. Phase 13은 429 가설을 확증하고,
-429/재시도/지연을 사용자와 AI agent가 관측할 수 있도록 로깅을 추가하며, 실제 관측 데이터에
-기반해 rate-limiter 전략을 재검토한다. 실행 계획은 사용자가 구체화한다. Phase 13은 CLI 기능/
-API 범위를 늘리지 않으며, stdout JSON 판정 계약을 오염하지 않는다.
+`delete` acceptance가 수 분씩 걸리는 지연이 발견됐다. local shared limiter, 서버 429 retry와
+integration polling 중 어느 경로가 긴 대기를 만드는지 현재 출력만으로는 구분할 수 없다.
+
+Phase 13은 각 대기 경로를 구조화 event로 계측한 뒤 GET 429의 1회 retry와 60~61초 fallback을
+유지·조정·fail-fast 중 하나로 판정한다. 같은 event boundary로 사람과 AI 에이전트에 자동 retry,
+rate-limit 대기, upload/put 단계와 byte progress를 제공한다. 별도 format option 없이 기본 모드는
+사람이 읽는 stdout 성공 결과와 stderr 오류/event를, `--json`은 stdout의 단일 최종 envelope와
+stderr JSON Lines event를 사용한다. `--quiet`는 event만 억제하고 최종 오류는 유지한다. Phase 13은
+로컬 CLI UI prototype에서 검증한 semantic status, 단일 progress bar와 단계 표현을 참고하되 범용
+TUI dependency는 추가하지 않는다. TTY에서만 redraw/countdown을 사용하고 non-TTY는 line log로
+유지한다. Phase 13은 신규 MYBOX API 범위나 mutation retry 정책을 추가하지 않는다.
 
 ## 6. 전체 MVP 완료 조건
 

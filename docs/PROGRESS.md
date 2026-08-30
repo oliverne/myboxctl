@@ -12,26 +12,29 @@
 - 다음 담당자: tag 기반 draft Release 생성 및 검증
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
 - README 하단의 설치·제약·개발 안내를 간결하게 정리했으며, 상단 58줄과 production code는 변경하지 않았다.
+- Phase 13은 지연 원인 계측, 429 처리 판정과 기본 human/`--json` agent 출력 모드를 다루는 실행
+  계획으로 구체화했다. 로컬 `my-cli` prototype을 조사해 TTY-only redraw, compact upload progress와
+  dependency 비도입 원칙을 반영했으며 아직 구현은 시작하지 않았다.
 - 마지막 갱신: 2026-08-29
 
 ## Phase 상태
 
-| Phase                             | 상태        | 완료 증거                                                                       | 문서                                                                                         |
-| --------------------------------- | ----------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| 00 API contract                   | complete    | contract test 4회 성공, resolver/upload 결과 및 미확정 항목을 API ledger에 기록 | [`phases/00-api-contract.md`](phases/00-api-contract.md)                                     |
-| 01 Foundation                     | complete    | config/error/output/client 및 fake HTTP test 통과, typecheck/lint/build 통과    | [`phases/01-foundation.md`](phases/01-foundation.md)                                         |
-| 02 Read commands                  | complete    | path/resolver/stat/ls 구현, fake HTTP/subprocess 및 실제 MYBOX smoke 통과       | [`phases/02-read-commands.md`](phases/02-read-commands.md)                                   |
-| 03 Ensure directory               | complete    | ensure-dir, 공유 검색 limiter, fake/subprocess/실제 MYBOX acceptance 통과       | [`phases/03-ensure-dir.md`](phases/03-ensure-dir.md)                                         |
-| 04 Upload                         | complete    | 실제 소형 acceptance와 100MiB bounded-memory resume 완료 전송 통과              | [`phases/04-upload.md`](phases/04-upload.md)                                                 |
-| 05 Put                            | complete    | 순수 decision, CLI/fake HTTP, 실제 metadata policy flow 및 cleanup 통과         | [`phases/05-put.md`](phases/05-put.md)                                                       |
-| 06 Delete                         | complete    | file/non-empty-folder 실제 삭제, ID reconcile, limiter 및 cleanup 통과          | [`phases/06-delete.md`](phases/06-delete.md)                                                 |
-| 07 Hardening                      | complete    | P07-A~D CI 및 통합 P07-E live acceptance 1회와 cleanup 확인                     | [`phases/07-hardening.md`](phases/07-hardening.md)                                           |
-| 08 Official API alignment         | complete    | 공식 API correction, 일반 CI와 실제 MYBOX acceptance 통과                       | [`phases/08-official-api-alignment.md`](phases/08-official-api-alignment.md)                 |
-| 09 Download                       | complete    | targeted probe, 3개 OS CI, 실제 MYBOX download acceptance와 cleanup 통과        | [`phases/09-download.md`](phases/09-download.md)                                             |
-| 10 Cross-implementation hardening | complete    | C0/DEL 방어, live delete/name probe, active-membership reconcile 및 CI 통과     | [`phases/10-cross-implementation-hardening.md`](phases/10-cross-implementation-hardening.md) |
-| 11 Distribution & Release         | in_progress | standalone build/native smoke 완료, Phase 12 complete, draft Release 생성 대기        | [`phases/11-distribution-release.md`](phases/11-distribution-release.md)                     |
-| 12 Cross-platform Unicode names   | complete    | CI 90·Release 21, Phase 12 live probe run 33244082095 성공                              | [`phases/12-cross-platform-unicode-filenames.md`](phases/12-cross-platform-unicode-filenames.md)     |
-| 13 Observability & test latency   | pending     | —                                                                                     | [`phases/13-observability-and-test-latency.md`](phases/13-observability-and-test-latency.md)         |·Release 21, Phase 12 live probe run 33244082095 성공                              | [`phases/12-cross-platform-unicode-filenames.md`](phases/12-cross-platform-unicode-filenames.md) |
+| Phase                             | 상태        | 완료 증거                                                                       | 문서                                                                                             |
+| --------------------------------- | ----------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 00 API contract                   | complete    | contract test 4회 성공, resolver/upload 결과 및 미확정 항목을 API ledger에 기록 | [`phases/00-api-contract.md`](phases/00-api-contract.md)                                         |
+| 01 Foundation                     | complete    | config/error/output/client 및 fake HTTP test 통과, typecheck/lint/build 통과    | [`phases/01-foundation.md`](phases/01-foundation.md)                                             |
+| 02 Read commands                  | complete    | path/resolver/stat/ls 구현, fake HTTP/subprocess 및 실제 MYBOX smoke 통과       | [`phases/02-read-commands.md`](phases/02-read-commands.md)                                       |
+| 03 Ensure directory               | complete    | ensure-dir, 공유 검색 limiter, fake/subprocess/실제 MYBOX acceptance 통과       | [`phases/03-ensure-dir.md`](phases/03-ensure-dir.md)                                             |
+| 04 Upload                         | complete    | 실제 소형 acceptance와 100MiB bounded-memory resume 완료 전송 통과              | [`phases/04-upload.md`](phases/04-upload.md)                                                     |
+| 05 Put                            | complete    | 순수 decision, CLI/fake HTTP, 실제 metadata policy flow 및 cleanup 통과         | [`phases/05-put.md`](phases/05-put.md)                                                           |
+| 06 Delete                         | complete    | file/non-empty-folder 실제 삭제, ID reconcile, limiter 및 cleanup 통과          | [`phases/06-delete.md`](phases/06-delete.md)                                                     |
+| 07 Hardening                      | complete    | P07-A~D CI 및 통합 P07-E live acceptance 1회와 cleanup 확인                     | [`phases/07-hardening.md`](phases/07-hardening.md)                                               |
+| 08 Official API alignment         | complete    | 공식 API correction, 일반 CI와 실제 MYBOX acceptance 통과                       | [`phases/08-official-api-alignment.md`](phases/08-official-api-alignment.md)                     |
+| 09 Download                       | complete    | targeted probe, 3개 OS CI, 실제 MYBOX download acceptance와 cleanup 통과        | [`phases/09-download.md`](phases/09-download.md)                                                 |
+| 10 Cross-implementation hardening | complete    | C0/DEL 방어, live delete/name probe, active-membership reconcile 및 CI 통과     | [`phases/10-cross-implementation-hardening.md`](phases/10-cross-implementation-hardening.md)     |
+| 11 Distribution & Release         | in_progress | standalone build/native smoke 완료, Phase 12 complete, draft Release 생성 대기  | [`phases/11-distribution-release.md`](phases/11-distribution-release.md)                         |
+| 12 Cross-platform Unicode names   | complete    | CI 90·Release 21, Phase 12 live probe run 33244082095 성공                      | [`phases/12-cross-platform-unicode-filenames.md`](phases/12-cross-platform-unicode-filenames.md) |
+| 13 Observability & test latency   | pending     | 실행 계획·human UI 조사 완료, 구현·live probe 미실행                            | [`phases/13-observability-and-test-latency.md`](phases/13-observability-and-test-latency.md)     |
 
 ## 초기화 상태
 
