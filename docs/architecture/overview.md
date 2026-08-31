@@ -47,12 +47,18 @@ src/
 │   └── upload.ts
 ├── remote/
 │   ├── path.ts
+│   ├── destination.ts
 │   └── resolver.ts
 └── features/
-    ├── stat.ts
-    ├── ls.ts
+    ├── public-resource.ts
+    ├── info.ts
+    ├── list.ts
+    ├── mkdir.ts
+    ├── upload-command.ts
     ├── ensure-dir.ts
     ├── upload.ts
+    ├── download-command.ts
+    ├── download.ts
     ├── delete.ts
     └── put/
         ├── command.ts
@@ -60,8 +66,8 @@ src/
         └── decision.test.ts
 ```
 
-단순 명령은 파일 하나로 유지한다. `put`처럼 정책과 orchestration을 분리해야 테스트가 쉬운
-경우에만 하위 디렉터리를 만든다.
+단순 명령은 파일 하나로 유지한다. metadata 기반 업로드 정책처럼 정책과 orchestration을 분리해야
+테스트가 쉬운 경우에만 하위 디렉터리를 만든다.
 
 ## API contract와 domain model
 

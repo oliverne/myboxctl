@@ -10,19 +10,18 @@
 NAVER MYBOX Open API를 이용하여 다음 작업을 결정적으로 수행하는 경량 CLI를 만든다.
 
 1. 원격 경로의 파일과 폴더 조회
-2. 원격 폴더 계층 보장
-3. 로컬 파일의 신규 업로드와 명시적 덮어쓰기
-4. 로컬/원격 메타데이터를 비교하는 조건부 `put`
-5. 원격 파일과 폴더를 MYBOX 휴지통으로 이동
-6. 원격 파일을 로컬 파일로 안전하게 다운로드
-7. 다양한 AI 에이전트가 파싱할 수 있는 안정적인 JSON과 exit code 제공
+2. 원격 폴더 생성과 계층 보장
+3. 로컬 파일의 안전한 조건부 업로드와 명시적 강제 덮어쓰기
+4. 원격 파일과 폴더를 MYBOX 휴지통으로 이동
+5. 원격 파일을 로컬 파일로 안전하게 다운로드
+6. 다양한 AI 에이전트가 파싱할 수 있는 안정적인 JSON과 exit code 제공
 
 예상 사용 방식:
 
 ```bash
-myboxctl stat /agents/output/report.md --json
-myboxctl ensure-dir /agents/output --json
-myboxctl put ./report.md /agents/output/report.md --json
+myboxctl info /agents/output/report.md --json
+myboxctl mkdir --parents /agents/output --json
+myboxctl upload ./report.md /agents/output/ --mkdir --json
 myboxctl download /agents/output/report.md ./report.md --json
 myboxctl delete /agents/output/old-report.md --json
 ```
@@ -44,8 +43,8 @@ myboxctl delete /agents/output/old-report.md --json
 - Bun 1.4의 TypeScript 실행, `fetch`, test runner, build 기능을 사용한다.
 - CLI command에서 직접 HTTP를 호출하지 않는다.
 - 사용자는 POSIX 형식의 절대 원격 경로만 입력하며 `resourceId`를 입력하지 않는다.
-- `resourceId`는 `stat`/`ls`의 진단용 JSON 출력에는 포함할 수 있다.
-- `put`은 원격 파일이 명확히 더 최신이면 기본적으로 conflict를 반환한다.
+- `resourceId`는 `list`/`info`와 mutation 결과의 machine JSON에 포함한다.
+- `upload`는 원격 파일이 명확히 더 최신이면 기본적으로 conflict를 반환한다.
 - 원격 최신 파일을 포함해 반드시 덮어써야 할 때만 `--force`를 사용한다.
 - 변경 요청은 공통 fetch retry로 재실행하지 않고 operation별 reconcile/resume 정책을 사용한다.
 - 검색 요청은 문서상 최저 한도인 10회/분을 기본값으로 프로세스 간 공유 조정한다.
@@ -288,7 +287,7 @@ opt-in skip, 0 fail로 1,875.35초가 걸렸다. 자연 발생 서버 429와 `se
 문서: [`docs/phases/14-cli-ux-and-agent-contract.md`](docs/phases/14-cli-ux-and-agent-contract.md)
 
 Phase 14는 첫 공개 Release 전에 기존 기능을 사람이 이해하기 쉽고 AI 에이전트가 안정적으로 파싱할 수
-있는 public CLI contract로 정리한다. 상태는 `pending`이며 구현은 시작하지 않았다.
+있는 public CLI contract로 정리한다. 상태는 `complete`이며 아래 구현·검증을 완료했다.
 
 - canonical command를 `list`, `info`, `mkdir`, `upload`, `download`, `delete`로 정리
 - upload/download destination과 not-found 동작을 예측 가능한 규칙으로 통일
@@ -297,8 +296,9 @@ Phase 14는 첫 공개 Release 전에 기존 기능을 사람이 이해하기 �
 - global presentation option과 stdout/stderr 계약 단순화
 - 일반 회귀, release smoke와 필요한 최소 live acceptance 후 공개 Release 경계 재확인
 
-Phase 14는 새 MYBOX API나 동기화 기능을 추가하지 않는다. 구현을 시작할 때만
-`docs/PROGRESS.md`에서 `pending → in_progress`로 변경한다.
+Phase 14는 새 MYBOX API나 동기화 기능을 추가하지 않는다. 구현 결과와 검증 사실은
+`docs/PROGRESS.md`와 `docs/HANDOFF.md`에 기록한다. 실제 MYBOX live acceptance는 opt-in이라 이번
+로컬 검증에서는 실행하지 않았다.
 
 ## 6. 전체 MVP 완료 조건
 

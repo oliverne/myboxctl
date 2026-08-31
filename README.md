@@ -9,8 +9,8 @@ MCP 서버나 범용 MYBOX 클라이언트(혹은 SDK)를 만드는 것도 아�
 예를 들어 에이전트가 다음처럼 단순한 subprocess 호출만으로 작업할 수 있는 형태를 목표로 합니다.
 
 ```bash
-myboxctl stat /agents/output/report.md --json
-myboxctl put ./report.md /agents/output/report.md --mkdir --json
+myboxctl info /agents/output/report.md --json
+myboxctl upload ./report.md /agents/output/ --mkdir --json
 myboxctl download /agents/output/report.md ./report.md --json
 myboxctl delete /agents/output/old-report.md --json
 ```
@@ -33,25 +33,25 @@ myboxctl delete /agents/output/old-report.md --json
 ## 현재 제공하는 기능
 
 ```text
-stat        원격 파일/폴더 메타데이터 조회
-ls          폴더의 direct children 조회
-ensure-dir  원격 폴더 계층 보장
-upload      신규 업로드 및 명시적 overwrite
-put         로컬/원격 metadata를 비교한 조건부 업로드
+list (ls)   폴더 내용 또는 단일 resource 조회 (생략 시 /)
+info        원격 파일/폴더 메타데이터 조회
+mkdir       원격 폴더 생성 (-p/--parents 지원)
+upload      metadata 기반 조건부 업로드/갱신
 download    원격 파일의 안전한 streaming download
 delete      원격 파일/폴더를 MYBOX 휴지통으로 이동
 ```
 
-긴 대기나 자동 재시도는 stderr event로 확인할 수 있습니다. `--json`에서는 최종 결과 한 개만
-stdout에 유지하고 실행 중 event는 JSON Lines로 stderr에 출력합니다.
+긴 대기나 자동 재시도 event가 필요할 때만 `--json --verbose`를 사용하세요. 기본 `--json`은 최종
+결과 한 개만 stdout에 출력하고 stderr는 비워 둡니다.
 
 ```bash
-myboxctl put ./report.md /agents/output/report.md --json --verbose \
+myboxctl upload ./report.md /agents/output/ --mkdir --json --verbose \
   2>myboxctl-events.jsonl
 ```
 
-`--verbose`는 단계와 upload/put 진행률을 추가하고, `--quiet`는 실행 중 event만 억제합니다. 두
-옵션은 함께 사용할 수 없습니다. 기본 human 오류는 stderr에 `Error:`로 한 번만 출력됩니다.
+`--verbose`는 단계와 upload 진행률을 추가하고, `--quiet`는 실행 중 event만 억제합니다. 두 옵션은
+함께 사용할 수 없으며 root/subcommand 앞뒤 어느 위치에도 둘 수 있습니다. 기본 human 오류는
+stderr에 `Error:`로 한 번만 출력됩니다.
 
 NAVER 공식 API에는 rename, move, copy, favorite, 휴지통 복원/영구 삭제 같은 기능도 있지만,
 `myboxctl`은 모든 API를 구현하는게 목표가 아닙니다. 실제 agent workflow에서 필요성이 확인되면
@@ -129,11 +129,12 @@ bun run dev -- --help
 PAT는 `MYBOX_PAT` 환경 변수나 credentials 파일로 전달할 수 있습니다. PAT와 credentials는 저장소에
 커밋하지 마세요. 설정 예시는 [`.env.example`](.env.example)을 참고하세요.
 
-## `put` 주의사항
+## 업로드 주의사항
 
-`put`은 content hash 대신 파일 크기와 수정 시각을 비교합니다. 크기가 같고 수정 시각 차이가 2초
-이내면 내용이 달라도 `skipped`가 될 수 있습니다. 원격 파일이 더 최신이면 기본적으로 conflict를
-반환하므로, 덮어쓰려면 `--force`를 사용하세요.
+`upload`는 content hash 대신 파일 크기와 수정 시각을 비교합니다. 크기가 같고 수정 시각 차이가
+2초 이내면 내용이 달라도 `skipped`가 될 수 있습니다. 원격 파일이 더 최신이면 기본적으로 conflict를
+반환하므로, 덮어쓰려면 `--force`를 사용하세요. destination을 생략하거나 `/`로 지정하면 local
+basename을 root에 사용하고, 기존 directory에는 basename을 붙입니다.
 
 ## 테스트
 

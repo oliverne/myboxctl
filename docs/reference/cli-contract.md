@@ -1,245 +1,132 @@
 # CLI contract
 
-이 문서는 AI 에이전트와 `myboxctl` 사이의 안정적인 public contract다. 특정 에이전트에 종속되지
-않으며, API 응답 구조가 달라져도 이 계약은 명시적인 version change 없이 바꾸지 않는다.
+이 문서는 `myboxctl`의 versioned public CLI contract다. API 응답 구조가 바뀌어도 이 문서의
+`schemaVersion`을 명시적으로 올리지 않는 한 자동화 호출자가 의존하는 출력 규칙을 바꾸지 않는다.
 
 ## 공통 규칙
 
-- 모든 remote path는 `/`로 시작해야 한다.
-- 각 remote path component의 C0 control(`U+0000..U+001F`)과 DEL(`U+007F`)은
-  `invalid-remote-path`/exit 2로 거부한다. 입력을 제거하거나 다른 경로로 정규화하지 않는다.
-- 새 remote file/folder component는 NFC로 생성한다. 기존 resource 조회는 exact match를 우선하고,
-  exact match가 없을 때 단일 NFC-equivalent 후보를 사용할 수 있다. case folding은 적용하지 않는다.
-- local path는 정규화하지 않으며 사용자가 전달한 spelling 그대로 파일시스템에 사용한다.
-- mutation 대상에 NFC-equivalent resource가 여러 개면 `conflict`/code `UNICODE_NAME_COLLISION`으로
-  중단하며 임의 대상을 선택하지 않는다.
-- 모든 명령은 자동화된 호출자를 위해 `--json`을 지원한다.
-- JSON mode에서 stdout에는 정확히 하나의 JSON document와 마지막 newline만 출력한다.
-- JSON mode의 예상 가능한 실패도 stdout에 JSON으로 출력하고 non-zero exit code를 사용한다.
-- stderr는 실행 중 warning/progress event와 human 최종 오류에 사용한다. `--json`의 event는 각 줄을
-  독립적으로 파싱할 수 있는 JSON Lines다.
-- `--verbose`는 단계와 upload/put byte progress를 추가하고, `--quiet`는 실행 중 event만 억제한다.
-  두 옵션은 함께 사용할 수 없다.
-- terminal failure는 최종 결과 channel에 한 번만 출력한다. `--json` failure는 stdout envelope에만
-  남고 stderr error event로 중복하지 않는다.
-- PAT 또는 credential 성격 URL은 어느 출력에도 포함하지 않는다.
+- 원격 경로는 `/`로 시작하는 absolute path다. `.`/`..`, glob, remote cwd는 지원하지 않는다.
+- 새 원격 이름은 NFC로 저장하고, Unicode-equivalent mutation 충돌은 임의 선택하지 않고 실패한다.
+- 로컬 경로는 사용자가 입력한 spelling 그대로 사용한다.
+- 모든 명령은 `--json`을 지원한다. `--json`은 stdout에 마지막 newline을 포함한 JSON document 하나만
+  출력하고 stderr는 비운다.
+- `--json --verbose`를 사용하면 최종 envelope는 stdout에 하나, 안전한 progress/warning event JSONL은
+  stderr에 출력한다. `--quiet`는 실행 event만 숨긴다. `--verbose`와 `--quiet`는 함께 쓸 수 없다.
+- PAT, `Authorization` header, upload/download URL과 query token은 어느 stream에도 출력하지 않는다.
+- 성공/실패의 exit code는 다음과 같다.
 
-## 성공 envelope
+| Code | 의미                                                |
+| ---- | --------------------------------------------------- |
+| 0    | 성공 (`skipped`, `existing`, `already-absent` 포함) |
+| 2    | argument/config/remote path 오류                    |
+| 3    | 인증 또는 권한 실패                                 |
+| 4    | 원격 또는 필요한 대상이 없음                        |
+| 5    | type/conflict/remote-newer 충돌                     |
+| 6    | 네트워크 또는 MYBOX API 실패                        |
+| 7    | 로컬 파일 시스템 또는 업로드 중 파일 변경 실패      |
+| 8    | rate limit 또는 재시도 소진                         |
+| 70   | 분류하지 못한 내부 오류                             |
+
+## JSON envelope
+
+모든 성공 결과는 다음 공통 shape를 사용한다.
+
+```json
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "list",
+  "action": "listed",
+  "data": {}
+}
+```
+
+실패 결과는 다음 shape를 사용하며 nullable field도 항상 존재한다.
+
+```json
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "info",
+  "error": {
+    "kind": "not-found",
+    "message": "The remote resource was not found.",
+    "retryable": false,
+    "code": null,
+    "requestId": null,
+    "retryAfterMs": null
+  }
+}
+```
+
+공통 resource shape는 다음과 같다.
 
 ```ts
-type Success<T> = {
-  ok: true;
-  command: "stat" | "ls" | "ensure-dir" | "upload" | "put" | "download" | "delete";
-  action: string;
-  data: T;
+type Resource = {
+  resourceId: string | null;
+  path: string;
+  name: string;
+  type: "file" | "folder";
+  sizeBytes: number | null;
+  modifiedAt: string | null; // UTC ISO 8601
 };
 ```
 
-`data`가 필요 없는 명령도 `{}`를 사용하여 필드를 생략하지 않는다.
-
-## 실패 envelope
-
-```ts
-type Failure = {
-  ok: false;
-  command: string;
-  error: {
-    kind:
-      | "invalid-arguments"
-      | "authentication"
-      | "not-found"
-      | "conflict"
-      | "rate-limit"
-      | "api-unavailable"
-      | "invalid-remote-path"
-      | "local-file"
-      | "local-file-changed"
-      | "unexpected";
-    message: string;
-    retryable: boolean;
-    code?: string;
-    requestId?: string;
-    retryAfterMs?: number;
-  };
-};
-```
-
-`message`는 비밀정보를 포함하지 않는 안정적인 설명이다. stack trace와 raw response body를
-JSON에 넣지 않는다. `retryAfterMs`는 429 응답에서 다음 시도까지 기다려야 할 상대 시간이며,
-서버 header가 없을 때는 CLI의 보수적인 fallback 값이다.
-
-## Exit code
-
-| Code | 의미                                               |
-| ---- | -------------------------------------------------- |
-| 0    | 성공, `skipped`, `existing`, `already-absent` 포함 |
-| 2    | 잘못된 argument/config/remote path                 |
-| 3    | 인증 또는 권한 실패                                |
-| 4    | strict not found                                   |
-| 5    | remote path/type/newer-resource conflict           |
-| 6    | network 또는 MYBOX API 실패                        |
-| 7    | 로컬 파일 시스템 실패 또는 업로드 중 파일 변경     |
-| 8    | rate limit/retry exhausted                         |
-| 70   | 분류하지 못한 내부 오류                            |
+`sizeBytes`는 byte 단위이며 folder와 API가 시간을 주지 않는 resource는 `null`이다. `type`은 항상
+소문자다. `action`은 명령별로 `list: listed`, `info: found`, `mkdir: created|existing`,
+`upload: uploaded|overwritten|skipped`, `download: downloaded`, `delete: deleted|already-absent`로
+고정한다.
 
 ## 명령
 
-### `stat <remote-path>`
+### `list [remote-path]` (alias: `ls`)
 
-없는 경로는 조회 결과이므로 exit 0과 `resource: null`을 반환한다.
+경로를 생략하면 `/`의 direct children을 표시한다. 대상이 file이면 해당 resource 한 개를 같은 row
+shape로 반환한다. missing은 exit 4다. JSON의 `command`는 alias를 사용해도 항상 `list`다.
 
-```json
-{
-  "ok": true,
-  "command": "stat",
-  "action": "found",
-  "data": {
-    "resource": {
-      "resourceId": "...",
-      "path": "/agents/report.md",
-      "name": "report.md",
-      "type": "file",
-      "size": 12345,
-      "modifiedAt": "2026-08-22T10:00:00+09:00"
-    }
-  }
-}
-```
+### `info <remote-path>`
 
-없는 경우 `action`은 `absent`, `data.resource`는 `null`이다. `/`는 원격 루트 폴더로
-표현하며 API에 루트 resource ID가 없으므로 `resourceId`를 만들지 않는다.
+file 또는 folder의 정보를 반환한다. `/`는 `resourceId: null`, `sizeBytes: null`, `modifiedAt: null`인
+root folder다. missing은 성공 결과가 아니라 exit 4 failure다.
 
-### `ls <remote-directory>`
+### `mkdir [-p|--parents] <remote-directory>`
 
-direct child만 반환한다. 결과 순서는 folder 먼저, 이후 file이며 각 그룹에서 Unicode code
-point 기준 이름 오름차순으로 CLI에서 고정한다. API 응답 순서에 의존하지 않는다.
+기본 모드는 parent가 이미 존재할 때 한 단계만 만들고, target이 이미 있으면 exit 5다. `-p` 또는
+`--parents`는 누락된 parent를 계층적으로 만들고 target이 이미 있어도 `action: "existing"`으로 성공한다.
+중간 component가 file이면 exit 5다. `/`와 `-p`는 이미 존재하는 root로 성공한다.
 
-```json
-{
-  "ok": true,
-  "command": "ls",
-  "action": "listed",
-  "data": {
-    "path": "/agents",
-    "resources": []
-  }
-}
-```
+### `upload <local-file> [remote-destination]`
 
-없는 경로는 exit 4, 파일 경로는 exit 5다.
+기존 directory destination에는 local basename을 붙이고, destination을 생략하거나 `/`를 주면
+`/<local-basename>`을 사용한다. trailing `/`는 directory intent다. intent가 있는 missing directory는
+`--mkdir` 없이는 exit 4이며, intent가 없는 missing path는 정확한 새 file path다.
 
-### `ensure-dir <remote-directory>`
+size와 modified time을 비교하는 안전한 조건부 업로드다. 같은 metadata는 `skipped`, local이 변경되었거나
+없으면 `uploaded`/`overwritten`, remote가 tolerance(2초)를 넘어 더 최신이면 `REMOTE_NEWER` conflict다.
+`--force`는 file overwrite를 강제하고 `--mkdir`는 missing parent/directory destination을 만든다.
+content hash 비교는 하지 않는다.
 
-모든 parent를 계층적으로 생성한다.
+### `download <remote-file> [local-destination]`
 
-- 새로 하나 이상 생성: `action: "created"`
-- 전부 존재: `action: "existing"`
-- 중간 component가 file: exit 5
+destination을 생략하거나 `.`을 주면 `./<remote-basename>`을 사용한다. 기존 local directory에는
+basename을 붙이고, 그 외 path는 정확한 file destination이다. trailing separator인데 directory가 없으면
+실패하며 local parent directory는 자동 생성하지 않는다. 기존 regular file은 `--overwrite` 없이는
+exit 5다. 전송은 임시 파일에 한 뒤 metadata와 byte count를 확인하고 atomic commit한다.
 
-`data`에는 normalized `path`, 최종 folder `resourceId`, `createdPaths: string[]`를 반환한다.
-루트 `/`는 API resource ID가 없으므로 `resourceId: null`, `createdPaths: []`를 반환한다.
-`createdPaths`에는 이번 실행에서 성공한 create 요청의 경로만 포함한다. 동시 생성 race를
-reconcile한 경우에는 상태를 안전하게 `existing`으로 보고한다.
+### `delete [--ignore-missing] <remote-path>`
 
-### `upload <local-path> <remote-path>`
+file 또는 folder를 MYBOX trash로 이동한다. folder는 subtree 전체가 함께 이동한다. missing은 기본 exit 4,
+`--ignore-missing`일 때만 `action: "already-absent"`와 exit 0이다. `/` 삭제는 항상 exit 2다.
 
-조건 비교 없이 신규 업로드한다. 대상이 존재하면 기본 exit 5다. `--overwrite`가 있을 때만
-기존 파일을 덮어쓴다. parent가 없으면 기본 not found이며 `--mkdir`로 생성할 수 있다.
+## Human output
 
-성공 action은 `uploaded` 또는 `overwritten`이다.
+`--json` 없이 실행하면 self-describing한 출력이 나온다. `list`는 `TYPE NAME SIZE MODIFIED` table과
+빈 결과의 `No items in ...` 문장을 사용하고, `info`는 `Path/Type/Size/Modified` key/value를 사용한다.
+mutation과 download는 `Created`, `Uploaded`, `Updated`, `Skipped`, `Downloaded`, `Deleted`,
+`Folder moved to trash`, `Already absent` 형식의 짧은 문장을 사용한다. 오류는 stderr의 `Error:`와
+필요한 `Code:`, `Request ID:`, `Retry after:`로 한 번만 출력한다.
 
-업로드 mutation 전에 공식 storage 응답의 `maxFileBytes`와 열린 로컬 file handle의 크기를
-비교한다. 최대 크기를 초과하면 mutation 없이 `invalid-arguments`, code `FILE_TOO_LARGE`, exit 2로
-실패한다. 같은 크기는 허용한다. 남은 quota는 클라이언트가 계산하지 않으며 서버의 507 응답을 따른다.
+## Presentation option 위치
 
-```json
-{
-  "ok": true,
-  "command": "upload",
-  "action": "uploaded",
-  "data": {
-    "path": "/agents/report.md",
-    "resourceId": "...",
-    "size": 12345,
-    "modifiedAt": "2026-08-23T10:00:00+09:00"
-  }
-}
-```
-
-content 전송이 retryable하게 실패하면 동일한 파일 identity로 예약을 정확히 한 번 재발급한다.
-재예약 응답의 offset이 0이면 전체 파일을 한 번 다시 보내고, non-zero면 해당 지점부터 남은 byte만
-보낸다. 두 번째 전송 실패 뒤에는 세 번째 시도를 하지 않는다.
-
-`local-path`가 symbolic link이면 명령 시작 시 link target을 연 file handle로 전송한다. 열린 대상이
-regular file이 아니면 거부하며, 업로드 전후 같은 handle의 size와 mtime이 달라지면
-`local-file-changed`로 실패한다. 경로를 다시 resolve해 다른 target으로 전환하지 않는다.
-
-### `put <local-path> <remote-path>`
-
-지원 옵션은 `--force`, `--mkdir`, `--json`이다.
-
-성공 action:
-
-- `uploaded`: 원격에 없어서 생성
-- `overwritten`: 정책 또는 force에 따라 덮어씀
-- `skipped`: 현재 metadata상 업로드 불필요
-
-원격이 명확히 더 최신이면 기본 exit 5다. `--force`는 이를 overwrite한다.
-
-성공 응답의 `data.reason`은 다음 안정적인 값 중 하나다.
-
-```text
-remote-absent
-size-different
-local-newer
-forced
-remote-is-current
-```
-
-원격 파일이 2초 tolerance를 초과해 최신이면 conflict의 `error.code`는 `REMOTE_NEWER`다. 원격 대상이
-folder이면 `REMOTE_TYPE_CONFLICT`다. 두 경우 모두 mutation을 수행하지 않는다.
-
-### `download <remote-file> <local-path>`
-
-정확한 원격 파일을 지정한 로컬 파일로 streaming한다. local parent를 자동 생성하지 않으며 기존
-destination은 기본적으로 exit 5 conflict로 보존한다. `--overwrite`는 기존 regular file만 원자적으로
-교체한다. directory, symbolic link와 기타 non-regular entry는 옵션과 관계없이 거부한다.
-
-```json
-{
-  "ok": true,
-  "command": "download",
-  "action": "downloaded",
-  "data": {
-    "remotePath": "/agents/report.md",
-    "localPath": "./report.md",
-    "resourceId": "...",
-    "size": 12345,
-    "modifiedAt": "2026-08-27T12:00:00+09:00"
-  }
-}
-```
-
-원격 부재는 exit 4, folder/type conflict는 exit 5다. destination conflict는 download URL 발급 전에
-판정한다. content는 destination과 같은 directory의 exclusive temporary file에 기록하고, remote size와
-전송 전후의 `resourceId`, `size`, `modifiedAt`을 검증한 뒤에만 공개한다. 실패와 SIGINT에서는 partial
-destination을 만들지 않고 temporary file을 제거한다.
-
-download URL 발급과 signed content GET은 각각 한 번만 시도한다. 실패한 1회용 URL을 재사용하거나 같은
-실행에서 새 URL을 자동 발급하지 않는다. PAT, Authorization header와 download URL은 출력하지 않는다.
-
-### `delete <remote-path>`
-
-기본은 idempotent다.
-
-- 삭제 성공: `action: "deleted"`
-- 이미 없음: `action: "already-absent"`, exit 0
-- `--strict`에서 없음: exit 4
-
-`/` 삭제는 항상 argument 오류로 거부한다.
-
-`deleted`의 `data`에는 normalized `path`, 삭제 전에 resolve한 `resourceId`, `type`이 들어간다.
-`already-absent`에는 `path`만 포함한다. DELETE timeout/5xx/429 뒤에는 active exact path와 parent
-listing에서 기존 resource ID의 membership을 확인한다. 양쪽에서 사라졌으면 성공으로 reconcile한다.
-429에서 기존 ID가 남아 있을 때만 같은 ID로 DELETE를 한 번 재시도한다. 같은 path의 다른 ID는
-절대 삭제하지 않는다.
+`--json`, `--verbose`, `--quiet`는 root 또는 subcommand 앞/뒤 어느 위치에도 둘 수 있으며 의미가 같다.
+예를 들어 `myboxctl --json list /`와 `myboxctl list / --json`은 같은 machine mode다.

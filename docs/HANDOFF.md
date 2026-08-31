@@ -2,22 +2,31 @@
 
 ## 인수 목적
 
-Phase 00~13의 구현과 검증을 완료했다. 첫 공개 Release 전에 CLI command surface와 출력 계약을 정리하는
-Phase 14 계획을 추가했으며 상태는 `pending`이다. 아직 production code와 현재 CLI contract는 변경하지
-않았다.
+Phase 00~14의 구현과 로컬 검증을 완료했다. 첫 공개 Release 전에 CLI command surface와 출력 계약을
+정리하는 Phase 14를 반영했으며 상태는 `complete`이다. 공개 Release/publish는 별도 승인 대상이다.
 
 ## 현재 상태
 
 - Phase 00~13: `complete`
-- Phase 14: `pending`
+- Phase 14: `complete`
 - 활성 구현 phase: 없음
 - 작업 브랜치: 없음 (PR #11은 `main`으로 merge 완료)
 - PR: [#11 feat: add Phase 13 observability and progress events](https://github.com/oliverne/myboxctl/pull/11) — 2026-08-31 merge됨
 - integration stderr 계약 수정 commit: `710cde214f93d7758b7cabe226b6d0d769c28bd4`
-- 로컬 검증: 212 pass, 35 opt-in skip, 0 fail
-- 별도 release contract: 3 pass, 0 fail
+- 로컬 검증: `bun run check` 227 pass, 35 opt-in skip, 0 fail; `bun run build` 통과
+- 별도 release contract: `bun run test:release` 4 pass, 0 fail
 - Phase 14 계획: [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)
-- Phase 14 구현·검증: 미시작
+- Phase 14 구현·검증: P14-A~E 완료
+
+canonical command는 `list`/`ls`, `info`, `mkdir`, `upload`, `download`, `delete`다. destination intent와
+`mkdir -p`, delete `--ignore-missing`, human table/sentence renderer, `schemaVersion: 1`,
+`sizeBytes`와 explicit nullable fields, normalized type/time, JSON stdout/stderr와 global presentation
+option 위치를 구현했다. 기존 legacy command와 제거된 option은 public CLI에서 제거했다.
+
+Phase 14 review 후 기본 `mkdir`도 생성 응답 유실 가능 오류 뒤에 exact path를 polling해 reconcile하고
+mutation POST를 반복하지 않는다. `download` command는 검증한 최초 canonical resolution을 local
+destination 계산과 실제 download 실행에 전달하므로 command당 원격 path search는 1회다. 두 동작은
+unit regression으로 고정했다.
 
 5개 live integration test의 오래된 `stderr === ""` assertion을 제거했다. 각 CLI subprocess는
 `--json` stderr가 비어 있거나 모든 non-empty line이 다음 조건을 만족하는지 검증한다.
@@ -84,11 +93,9 @@ Phase 14 완료 후에도 저장소 public 전환, Release 공개, package publi
 
 ## 다음 실행 범위
 
-1. Phase 14 구현을 시작할 때 `docs/PROGRESS.md`의 상태를 `pending → in_progress`로 변경한다.
-2. `docs/phases/14-cli-ux-and-agent-contract.md`의 P14-A~E 순서와 완료 조건을 따른다.
-3. production code 변경 전 관련 CLI subprocess test를 실패 상태로 먼저 고정한다.
-4. 일반 회귀와 release smoke를 통과한 뒤 필요한 최소 MYBOX live acceptance만 별도 동의를 받아 실행한다.
-5. Phase 14 완료 전에는 draft Release를 공개하지 않는다.
+1. Phase 14 완료 상태를 유지하고, 필요하면 새 destination contract의 최소 MYBOX live acceptance를 별도 동의 후 실행한다.
+2. draft `v0.1.0` 공개, 저장소 public 전환, package publish와 registry 반영은 각각 별도 승인을 받는다.
+3. 추가 CLI contract 변경은 `PLAN.md`, `docs/PROGRESS.md`, `docs/phases/14-cli-ux-and-agent-contract.md`를 함께 갱신한다.
 
 ## 로컬 시작 명령
 

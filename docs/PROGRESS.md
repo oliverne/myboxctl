@@ -6,16 +6,20 @@
 ## 현재 상태
 
 - 현재 phase: `Phase 14 CLI UX & Agent Contract`
-- 상태: `pending`
+- 상태: `complete`
 - 릴리스 상태: `v0.1.0 draft 검증 완료, 공개 보류`
 - 활성 구현 phase: 없음
-- 다음 담당자: 없음 (Phase 14 구현은 시작하지 않았으며, 공개 Release/publish는 별도 승인)
+- 다음 담당자: 없음 (공개 Release/publish는 별도 승인)
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
-- `docs/phases/14-cli-ux-and-agent-contract.md`에 CLI command surface, human output과 versioned JSON
-  contract 개선 계획을 정리했다. 상태는 `pending`이며 production code와 현재 CLI contract는 변경하지 않았다.
+- Phase 14 command surface, destination semantics, human renderer와 versioned machine envelope 구현을
+  완료했다. `list`, `info`, `mkdir`, `upload`, `download`, `delete`와 `ls` alias를 제공하며, 기존
+  legacy command와 제거된 option은 public CLI에서 노출하지 않는다.
 - `docs/reference/cli-contract-improvements.md`의 CLI `--help`와 `--json` 개선 제안은 Phase 14 계획의
   입력으로 반영했다.
-- README 하단의 설치·제약·개발 안내를 간결하게 정리했으며, 상단 58줄과 production code는 변경하지 않았다.
+- README와 stable CLI contract를 현재 command surface와 JSON/output semantics에 맞춰 갱신했다.
+- Phase 14 review 후 기본 `mkdir`도 retryable/409/invalid-response 생성 실패를 exact path polling으로
+  reconcile하며 POST를 반복하지 않도록 기존 ensure-dir 정책을 공유했다. `download` command는 최초
+  canonical resolution을 destination 계산과 전송 실행에 재사용해 원격 검색을 1회만 수행한다.
 - Phase 13은 지연 원인 계측, 429 처리 판정과 기본 human/`--json` agent 출력 모드를 다루는 실행
   계획으로 구체화한 뒤 P13-A~D 일반 구현을 완료했다. typed event sink, human/JSONL renderer,
   `--verbose`/`--quiet`, local limiter와 GET retry 계측, upload/put 진행률을 추가했다. 일반 검증은
@@ -24,6 +28,9 @@
 - Phase 11 후속 dependency maintenance로 Release workflow의 artifact action을 Node 24 기반
   `upload-artifact@v7`과 `download-artifact@v8`로 갱신했다. PR Release workflow의 5개 native
   smoke는 통과했으며 새 tag 기반 artifact transfer는 아직 실행하지 않았다.
+- 로컬 검증: `bun run check` 227 pass, 35 opt-in skip, 0 fail; `bun run build` 통과;
+  `bun run test:release` 4 pass.
+- 실제 MYBOX live acceptance는 opt-in 환경에서 별도 실행하지 않았다.
 - 마지막 갱신: 2026-09-01
 
 ## Phase 상태
@@ -44,7 +51,7 @@
 | 11 Distribution & Release         | complete | v0.1.0 draft Release 최초 실행·재실행과 5개 native smoke 성공                   | [`phases/11-distribution-release.md`](phases/11-distribution-release.md)                         |
 | 12 Cross-platform Unicode names   | complete | CI 90·Release 21, Phase 12 live probe run 33244082095 성공                      | [`phases/12-cross-platform-unicode-filenames.md`](phases/12-cross-platform-unicode-filenames.md) |
 | 13 Observability & test latency   | complete | 212 pass, targeted probe 1 pass, live acceptance 8 pass                         | [`phases/13-observability-and-test-latency.md`](phases/13-observability-and-test-latency.md)     |
-| 14 CLI UX & Agent Contract        | pending  | 실행 계획 수립, production code와 검증 변경 없음                                | [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)               |
+| 14 CLI UX & Agent Contract        | complete | canonical surface, destination/output contract, docs와 release smoke 검증 완료  | [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)               |
 
 ## 초기화 상태
 
@@ -363,12 +370,17 @@ run 33388258127과 Release run 33388258207의 5개 native smoke가 성공했다.
 header가 없을 때 60~61초 fallback 정책을 유지한다. Phase 13 완료 조건을 충족해 `complete`로
 변경했다. PR #11은 2026-08-31에 `main`으로 merge되었으며, public Release/publish는 별도 결정으로 남긴다.
 
-## Phase 14 계획
+## Phase 14 완료
 
 2026-09-01 첫 공개 Release 전에 command surface, destination semantics, human output과 versioned JSON
-contract를 정리하는 Phase 14 실행 계획을 추가했다. 상태는 `pending`이며 production code, 현재 CLI
-contract와 Release artifact는 변경하지 않았다. 구현을 시작할 때만 활성 phase를 Phase 14
-`in_progress`로 변경한다.
+contract를 정리하는 Phase 14 구현을 완료했다. canonical command 여섯 개와 `ls` alias, destination
+intent, `mkdir -p`, delete missing policy, human renderer, `schemaVersion: 1`, explicit nullable
+fields, normalized type/time, JSON stream와 global presentation options를 구현하고 subprocess/unit
+regression으로 고정했다. README, architecture overview와 stable CLI contract도 갱신했다.
+
+검증은 `bun run check`에서 225 pass, 35 opt-in integration skip, 0 fail이며 `bun run test:release`의
+artifact/help/invalid-argument/list smoke 4건도 통과했다. live MYBOX acceptance는 새 API를 추가하지 않는
+CLI contract 변경이라 opt-in 정책에 따라 실행하지 않았고, 공개 Release는 별도 승인 전까지 보류한다.
 
 ## 상태 변경 규칙
 

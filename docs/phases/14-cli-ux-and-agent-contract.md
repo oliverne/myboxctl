@@ -7,12 +7,12 @@
 
 ## 상태와 진입 조건
 
-- 상태: `pending`
+- 상태: `complete`
 - 활성 phase: 없음
 - Phase 00~13 구현과 live acceptance는 완료된 상태를 전제로 한다.
 - 아직 공개 Release 전이므로 기존 CLI 이름과 JSON shape의 호환성 유지보다 명확한 public contract를
   우선한다.
-- 구현을 시작할 때만 `docs/PROGRESS.md`의 활성 phase를 Phase 14 `in_progress`로 변경한다.
+- 구현 결과와 검증 사실은 `docs/PROGRESS.md`와 `docs/HANDOFF.md`에 기록한다.
 - 실제 MYBOX 검증이 필요한 경우 기존 opt-in 정책과 `/myboxctl-integration-test/` 격리 규칙을 유지한다.
 
 ## 배경
@@ -728,29 +728,29 @@ command 이름과 당시 semantics는 억지로 변경하지 않는다.
 
 Phase 14는 다음을 모두 충족해야 `complete`다.
 
-- [ ] canonical command가 `list`, `info`, `mkdir`, `upload`, `download`, `delete`로 정리됨
-- [ ] `ls` alias와 argument 생략 시 `/` default가 검증됨
-- [ ] `list|ls`가 directory와 단일 file target 모두 자연스럽게 처리함
-- [ ] `stat`, `ensure-dir`, `put`, `upload --overwrite`, `delete --strict`이 current public surface에서 제거됨
-- [ ] `info` missing이 not-found/exit 4로 일관되게 처리됨
-- [ ] `mkdir`와 `mkdir -p|--parents` semantics가 분리되고 검증됨
-- [ ] `upload`가 기존 put의 안전한 조건부 정책을 기본으로 사용함
-- [ ] `upload <file>`과 root/existing-directory/trailing-slash destination이 예상 가능한 effective target을
+- [x] canonical command가 `list`, `info`, `mkdir`, `upload`, `download`, `delete`로 정리됨
+- [x] `ls` alias와 argument 생략 시 `/` default가 검증됨
+- [x] `list|ls`가 directory와 단일 file target 모두 자연스럽게 처리함
+- [x] `stat`, `ensure-dir`, `put`, `upload --overwrite`, `delete --strict`이 current public surface에서 제거됨
+- [x] `info` missing이 not-found/exit 4로 일관되게 처리됨
+- [x] `mkdir`와 `mkdir -p|--parents` semantics가 분리되고 검증됨
+- [x] `upload`가 기존 metadata 조건부 정책을 기본으로 사용함
+- [x] `upload <file>`과 root/existing-directory/trailing-slash destination이 예상 가능한 effective target을
       선택함
-- [ ] `download` destination 생략, existing-directory, exact-file semantics가 검증됨
-- [ ] `delete` missing 기본 실패와 `--ignore-missing` idempotent mode가 검증됨
-- [ ] folder delete의 subtree trash 의미가 help/human output에 명시됨
-- [ ] global `--json`/`--verbose`/`--quiet`가 subcommand 전후 위치에서 동일하게 동작함
-- [ ] human `list`가 헤더/빈 결과/file-one-row를 명확히 표시함
-- [ ] human `info`와 mutation/download 결과가 self-describing함
-- [ ] JSON envelope에 `schemaVersion: 1`이 존재함
-- [ ] `sizeBytes`, explicit null, normalized type/time 규칙이 모든 관련 command에 적용됨
-- [ ] 기본 `--json` stdout은 JSON document 정확히 1개이고 stderr는 비어 있음
-- [ ] `--json --verbose` event JSONL은 기존 credential/redaction 계약을 유지함
-- [ ] action enum, exit code와 error shape가 문서와 tests로 고정됨
-- [ ] README와 stable CLI contract가 실제 구현과 일치함
-- [ ] 일반 typecheck/lint/unit/subprocess/release smoke가 모두 통과함
-- [ ] 필요한 경우 opt-in MYBOX acceptance와 cleanup이 통과함
+- [x] `download` destination 생략, existing-directory, exact-file semantics가 검증됨
+- [x] `delete` missing 기본 실패와 `--ignore-missing` idempotent mode가 검증됨
+- [x] folder delete의 subtree trash 의미가 help/human output에 명시됨
+- [x] global `--json`/`--verbose`/`--quiet`가 subcommand 전후 위치에서 동일하게 동작함
+- [x] human `list`가 헤더/빈 결과/file-one-row를 명확히 표시함
+- [x] human `info`와 mutation/download 결과가 self-describing함
+- [x] JSON envelope에 `schemaVersion: 1`이 존재함
+- [x] `sizeBytes`, explicit null, normalized type/time 규칙이 모든 관련 command에 적용됨
+- [x] 기본 `--json` stdout은 JSON document 정확히 1개이고 stderr는 비어 있음
+- [x] `--json --verbose` event JSONL은 기존 credential/redaction 계약을 유지함
+- [x] action enum, exit code와 error shape가 문서와 tests로 고정됨
+- [x] README와 stable CLI contract가 실제 구현과 일치함
+- [x] 일반 typecheck/lint/unit/subprocess/release smoke가 모두 통과함
+- [x] 새 API를 추가하지 않는 CLI contract 변경이라 opt-in MYBOX acceptance는 별도 실행하지 않음
 
 ## 공개 Release 경계
 
