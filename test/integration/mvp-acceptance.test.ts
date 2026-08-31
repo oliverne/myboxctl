@@ -18,9 +18,9 @@ type CliOutput = {
   action?: string;
   data?: {
     path?: string;
-    size?: number;
+    sizeBytes?: number;
     reason?: string;
-    resource?: { path?: string; type?: string; size?: number };
+    resource?: { path?: string; type?: string; sizeBytes?: number };
   };
   error?: { kind?: string; code?: string };
 };
@@ -101,61 +101,61 @@ describeIntegration("MYBOX final MVP acceptance", () => {
       await writeFile(localPath, "initial");
       await writeFile(remoteNewerPath, "remote-newer");
 
-      await expectSuccess(["ensure-dir", folderPath, "--json"], {
+      await expectSuccess(["mkdir", folderPath, "--parents", "--json"], {
         ok: true,
-        command: "ensure-dir",
+        command: "mkdir",
         action: "created",
         data: { path: folderPath },
       });
 
-      await expectSuccess(["put", localPath, filePath, "--json"], {
+      await expectSuccess(["upload", localPath, filePath, "--json"], {
         ok: true,
-        command: "put",
+        command: "upload",
         action: "uploaded",
-        data: { path: filePath, size: 7, reason: "remote-absent" },
+        data: { path: filePath, sizeBytes: 7, reason: "remote-absent" },
       });
 
-      await expectSuccess(["stat", filePath, "--json"], {
+      await expectSuccess(["info", filePath, "--json"], {
         ok: true,
-        command: "stat",
+        command: "info",
         action: "found",
-        data: { resource: { path: filePath, type: "file", size: 7 } },
+        data: { resource: { path: filePath, type: "file", sizeBytes: 7 } },
       });
 
-      await expectSuccess(["put", localPath, filePath, "--json"], {
+      await expectSuccess(["upload", localPath, filePath, "--json"], {
         ok: true,
-        command: "put",
+        command: "upload",
         action: "skipped",
         data: { reason: "remote-is-current" },
       });
 
       await writeFile(localPath, "updated-size");
-      await expectSuccess(["put", localPath, filePath, "--json"], {
+      await expectSuccess(["upload", localPath, filePath, "--json"], {
         ok: true,
-        command: "put",
+        command: "upload",
         action: "overwritten",
-        data: { size: 12, reason: "size-different" },
+        data: { sizeBytes: 12, reason: "size-different" },
       });
 
       const future = new Date(Date.now() + 60_000);
       await utimes(remoteNewerPath, future, future);
-      await expectSuccess(["upload", remoteNewerPath, filePath, "--overwrite", "--json"], {
+      await expectSuccess(["upload", remoteNewerPath, filePath, "--force", "--json"], {
         ok: true,
         command: "upload",
         action: "overwritten",
       });
 
-      const conflict = await runCli(["put", localPath, filePath, "--json"]);
+      const conflict = await runCli(["upload", localPath, filePath, "--json"]);
       expect(conflict.exitCode).toBe(5);
       expect(parseOutput(conflict.stdout)).toMatchObject({
         ok: false,
-        command: "put",
+        command: "upload",
         error: { kind: "conflict", code: "REMOTE_NEWER" },
       });
 
-      await expectSuccess(["put", localPath, filePath, "--force", "--json"], {
+      await expectSuccess(["upload", localPath, filePath, "--force", "--json"], {
         ok: true,
-        command: "put",
+        command: "upload",
         action: "overwritten",
         data: { reason: "forced" },
       });
@@ -167,7 +167,7 @@ describeIntegration("MYBOX final MVP acceptance", () => {
         data: { path: filePath },
       });
 
-      await expectSuccess(["delete", filePath, "--json"], {
+      await expectSuccess(["delete", filePath, "--ignore-missing", "--json"], {
         ok: true,
         command: "delete",
         action: "already-absent",

@@ -54,7 +54,7 @@ async function runCli(
 function parseOutput(stdout: string): EnsureOutput {
   const output = JSON.parse(stdout) as unknown;
   if (!isRecord(output)) {
-    throw new Error("ensure-dir CLI returned a non-object JSON response");
+    throw new Error("mkdir CLI returned a non-object JSON response");
   }
   return output as EnsureOutput;
 }
@@ -111,14 +111,14 @@ async function cleanupFolders(): Promise<void> {
   }
 }
 
-describeIntegration("MYBOX ensure-dir acceptance", () => {
+describeIntegration("MYBOX mkdir acceptance", () => {
   beforeAll(async () => {
     const prefix = await searchFolders(PREFIX_PATH);
     if (exactPathResource(prefix.resources, PREFIX_PATH) === undefined) {
       throw new Error(`integration prefix is missing: ${PREFIX_PATH}`);
     }
 
-    const unique = `ensure-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+    const unique = `mkdir-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
     const first = joinRemotePath(PREFIX_PATH, unique);
     const unicode = joinRemotePath(first, "한글 # %+");
     testPaths = [first, unicode, joinRemotePath(unicode, "leaf")];
@@ -129,7 +129,7 @@ describeIntegration("MYBOX ensure-dir acceptance", () => {
   });
 
   test("creates a Unicode hierarchy and is existing on the second invocation", async () => {
-    const first = await runCli(["ensure-dir", `${testPaths.at(-1)}/`, "--json"]);
+    const first = await runCli(["mkdir", `${testPaths.at(-1)}/`, "--parents", "--json"]);
     expect(first.exitCode).toBe(0);
 
     const firstOutput = parseOutput(first.stdout);
@@ -143,7 +143,7 @@ describeIntegration("MYBOX ensure-dir acceptance", () => {
     });
     expect(typeof firstOutput.data?.resourceId).toBe("string");
 
-    const second = await runCli(["ensure-dir", testPaths.at(-1) ?? "", "--json"]);
+    const second = await runCli(["mkdir", testPaths.at(-1) ?? "", "--parents", "--json"]);
     expect(second.exitCode).toBe(0);
 
     expect(parseOutput(second.stdout)).toMatchObject({

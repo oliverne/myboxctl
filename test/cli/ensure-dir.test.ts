@@ -46,7 +46,7 @@ afterEach(() => {
   }
 });
 
-describe("ensure-dir command subprocess contract", () => {
+describe("mkdir command subprocess contract", () => {
   test("creates a missing Unicode hierarchy and emits one JSON success envelope", async () => {
     let nextFolderId = 0;
     const server = await createFakeHttpServer({
@@ -64,12 +64,13 @@ describe("ensure-dir command subprocess contract", () => {
     });
     servers.push(server);
 
-    const result = await runCli(["ensure-dir", "/agents/한글/reports/", "--json"], server.baseUrl);
+    const result = await runCli(["mkdir", "/agents/한글/reports/", "-p", "--json"], server.baseUrl);
 
     expect(result.exitCode).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual({
       ok: true,
-      command: "ensure-dir",
+      schemaVersion: 1,
+      command: "mkdir",
       action: "created",
       data: {
         path: "/agents/한글/reports",
@@ -90,12 +91,13 @@ describe("ensure-dir command subprocess contract", () => {
     const server = await createFakeHttpServer();
     servers.push(server);
 
-    const result = await runCli(["ensure-dir", "/", "--json"], server.baseUrl);
+    const result = await runCli(["mkdir", "/", "-p", "--json"], server.baseUrl);
 
     expect(result.exitCode).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual({
       ok: true,
-      command: "ensure-dir",
+      schemaVersion: 1,
+      command: "mkdir",
       action: "existing",
       data: { path: "/", resourceId: null, createdPaths: [] },
     });
@@ -124,12 +126,12 @@ describe("ensure-dir command subprocess contract", () => {
     });
     servers.push(server);
 
-    const result = await runCli(["ensure-dir", "/agents/reports", "--json"], server.baseUrl);
+    const result = await runCli(["mkdir", "/agents/reports", "-p", "--json"], server.baseUrl);
 
     expect(result.exitCode).toBe(5);
     expect(JSON.parse(result.stdout)).toMatchObject({
       ok: false,
-      command: "ensure-dir",
+      command: "mkdir",
       error: { kind: "conflict", retryable: false },
     });
     expect(result.stderr).toBe("");

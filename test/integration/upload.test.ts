@@ -143,7 +143,7 @@ describeIntegration("MYBOX upload acceptance", () => {
     expect(parseOutput(first.stdout)).toMatchObject({
       ok: true,
       action: "uploaded",
-      data: { path: filePath, size: 0 },
+      data: { path: filePath, sizeBytes: 0 },
     });
 
     await writeFile(localPath, "updated");
@@ -154,12 +154,12 @@ describeIntegration("MYBOX upload acceptance", () => {
       error: { kind: "conflict" },
     });
 
-    const overwrite = await runCli(["upload", localPath, filePath, "--overwrite", "--json"]);
+    const overwrite = await runCli(["upload", localPath, filePath, "--force", "--json"]);
     expect(overwrite.exitCode).toBe(0);
     expect(parseOutput(overwrite.stdout)).toMatchObject({
       ok: true,
       action: "overwritten",
-      data: { path: filePath, size: 7 },
+      data: { path: filePath, sizeBytes: 7 },
     });
   });
 });

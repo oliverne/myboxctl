@@ -74,9 +74,9 @@ afterEach(() => {
 
 describe("read command subprocess contract", () => {
   test.each([
-    [["stat", "--json"], "stat"],
+    [["info", "--json"], "info"],
     [["unknown", "--json"], "unknown"],
-    [["stat", "/", "--json", "--verbose", "--quiet"], "stat"],
+    [["info", "/", "--json", "--verbose", "--quiet"], "info"],
   ] as const)("renders Commander argument errors as JSON for %j", async (args, command) => {
     const server = await createFakeHttpServer();
     servers.push(server);
@@ -96,33 +96,43 @@ describe("read command subprocess contract", () => {
   test("renders one human error on stderr and leaves stdout empty", async () => {
     const server = await createFakeHttpServer();
     servers.push(server);
-    const result = await runCli(["stat", "/invalid/../path"], server.baseUrl);
+    const result = await runCli(["info", "/invalid/../path"], server.baseUrl);
     expect(result.exitCode).toBe(2);
     expect(result.stdout).toBe("");
     expect(result.stderr.trim().split("\n")[0]).toStartWith("Error: ");
     expect(result.stderr.match(/^Error:/gm)).toHaveLength(1);
   });
 
-  test("stat root returns a folder without inventing a resource id", async () => {
+  test("info root returns a folder without inventing a resource id", async () => {
     const server = await createFakeHttpServer({
       handler: () => ({ body: page([]) }),
     });
     servers.push(server);
 
-    const result = await runCli(["stat", "/", "--json"], server.baseUrl);
+    const result = await runCli(["info", "/", "--json"], server.baseUrl);
 
     expect(result.exitCode).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual({
       ok: true,
-      command: "stat",
+      schemaVersion: 1,
+      command: "info",
       action: "found",
-      data: { resource: { path: "/", name: "/", type: "folder" } },
+      data: {
+        resource: {
+          resourceId: null,
+          path: "/",
+          name: "/",
+          type: "folder",
+          sizeBytes: null,
+          modifiedAt: null,
+        },
+      },
     });
     expect(result.stderr).toBe("");
     expect(server.requests).toHaveLength(0);
   });
 
-  test("stat resolves an exact nested file and emits stable metadata", async () => {
+  test("info resolves an exact nested file and emits normalized metadata", async () => {
     const detail = resource({
       resourceId: "file-1",
       name: "report #1.txt",
@@ -175,12 +185,13 @@ describe("read command subprocess contract", () => {
     });
     servers.push(server);
 
-    const result = await runCli(["stat", "/reports/report #1.txt", "--json"], server.baseUrl);
+    const result = await runCli(["info", "/reports/report #1.txt", "--json"], server.baseUrl);
 
     expect(result.exitCode).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual({
       ok: true,
-      command: "stat",
+      schemaVersion: 1,
+      command: "info",
       action: "found",
       data: {
         resource: {
@@ -188,15 +199,15 @@ describe("read command subprocess contract", () => {
           path: "/reports/report #1.txt",
           name: "report #1.txt",
           type: "file",
-          size: 12,
-          modifiedAt: "2026-08-22T11:00:00Z",
+          sizeBytes: 12,
+          modifiedAt: "2026-08-22T11:00:00.000Z",
         },
       },
     });
     expect(server.requests[2]?.query.get("parentPath")).toBe("/reports");
   });
 
-  test("ls uses direct-child pagination and deterministic folder-first ordering", async () => {
+  test("list uses direct-child pagination and deterministic folder-first ordering", async () => {
     const server = await createFakeHttpServer({
       handler: (request: RecordedRequest) => {
         if (request.path === "/v1/drive/resources") {
@@ -214,7 +225,7 @@ describe("read command subprocess contract", () => {
     });
     servers.push(server);
 
-    const result = await runCli(["ls", "/", "--json"], server.baseUrl);
+    const result = await runCli(["list", "/", "--json"], server.baseUrl);
 
     expect(result.exitCode).toBe(0);
     const output = JSON.parse(result.stdout) as {
@@ -234,22 +245,34 @@ describe("read command subprocess contract", () => {
     ]);
   });
 
-  test("stat reports an absent path as a successful lookup", async () => {
+  test("human list output explains columns and empty results", async () => {
+    const server = await createFakeHttpServer({
+      handler: () => ({ body: page([]) }),
+    });
+    servers.push(server);
+
+    const result = await runCli(["list"], server.baseUrl);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe("No items in /.\n");
+    expect(result.stderr).toBe("");
+  });
+
+  test("info reports an absent path as not-found", async () => {
     const server = await createFakeHttpServer([{ body: {} }, { body: {} }]);
     servers.push(server);
 
-    const result = await runCli(["stat", "/missing", "--json"], server.baseUrl);
+    const result = await runCli(["info", "/missing", "--json"], server.baseUrl);
 
-    expect(result.exitCode).toBe(0);
-    expect(JSON.parse(result.stdout)).toEqual({
-      ok: true,
-      command: "stat",
-      action: "absent",
-      data: { resource: null },
+    expect(result.exitCode).toBe(4);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      command: "info",
+      error: { kind: "not-found" },
     });
   });
 
-  test("ls reports absent directories and file targets with their documented exit codes", async () => {
+  test("list reports absent paths and file targets with their documented exit codes", async () => {
     const absentServer = await createFakeHttpServer([
       { body: { resources: [], responseMetaData: {} } },
       { body: { resources: [], responseMetaData: {} } },
@@ -270,23 +293,26 @@ describe("read command subprocess contract", () => {
           responseMetaData: {},
         },
       },
+      { body: resource({ resourceId: "file-1", name: "file.txt", type: "file", size: 4 }) },
     ]);
     servers.push(absentServer, fileServer);
 
-    const absent = await runCli(["ls", "/missing", "--json"], absentServer.baseUrl);
-    const file = await runCli(["ls", "/file.txt", "--json"], fileServer.baseUrl);
+    const absent = await runCli(["list", "/missing", "--json"], absentServer.baseUrl);
+    const file = await runCli(["list", "/file.txt", "--json"], fileServer.baseUrl);
 
     expect(absent.exitCode).toBe(4);
     expect(JSON.parse(absent.stdout)).toMatchObject({
       ok: false,
-      command: "ls",
+      command: "list",
       error: { kind: "not-found" },
     });
-    expect(file.exitCode).toBe(5);
+    expect(file.exitCode).toBe(0);
     expect(JSON.parse(file.stdout)).toMatchObject({
-      ok: false,
-      command: "ls",
-      error: { kind: "conflict" },
+      ok: true,
+      schemaVersion: 1,
+      command: "list",
+      action: "listed",
+      data: { resources: [{ name: "file.txt", type: "file", sizeBytes: 4 }] },
     });
   });
 
@@ -305,12 +331,12 @@ describe("read command subprocess contract", () => {
       });
       servers.push(server);
 
-      const result = await runCli(["stat", remotePath, "--json"], server.baseUrl);
+      const result = await runCli(["info", remotePath, "--json"], server.baseUrl);
 
       expect(result.exitCode).toBe(2);
       expect(JSON.parse(result.stdout)).toMatchObject({
         ok: false,
-        command: "stat",
+        command: "info",
         error: { kind: "invalid-remote-path", retryable: false },
       });
       expect(server.requests).toHaveLength(0);

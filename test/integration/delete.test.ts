@@ -138,9 +138,9 @@ describeIntegration("MYBOX delete acceptance", () => {
     }
   });
 
-  test("deletes a file and a non-empty folder with idempotent and strict behavior", async () => {
+  test("deletes a file and a non-empty folder with optional ignore-missing behavior", async () => {
     for (const path of [filePath, childFilePath]) {
-      const created = await runCli(["put", localPath, path, "--mkdir", "--json"]);
+      const created = await runCli(["upload", localPath, path, "--mkdir", "--json"]);
       expect(created.exitCode).toBe(0);
       expect(parseOutput(created.stdout)).toMatchObject({ ok: true, action: "uploaded" });
     }
@@ -162,14 +162,14 @@ describeIntegration("MYBOX delete acceptance", () => {
     });
     expect(deletedFileAgain.status).toBe(404);
 
-    const secondFileDelete = await runCli(["delete", filePath, "--json"]);
+    const secondFileDelete = await runCli(["delete", filePath, "--ignore-missing", "--json"]);
     expect(secondFileDelete.exitCode).toBe(0);
     expect(parseOutput(secondFileDelete.stdout)).toMatchObject({
       ok: true,
       action: "already-absent",
       data: { path: filePath },
     });
-    const strictFileDelete = await runCli(["delete", filePath, "--strict", "--json"]);
+    const strictFileDelete = await runCli(["delete", filePath, "--json"]);
     expect(strictFileDelete.exitCode).toBe(4);
     expect(parseOutput(strictFileDelete.stdout)).toMatchObject({
       ok: false,

@@ -135,12 +135,12 @@ async function observeNamePair(
 ): Promise<NameObservation> {
   const firstPath = joinRemotePath(parentPath, firstName);
   const secondPath = joinRemotePath(parentPath, secondName);
-  const firstCreate = await runCli(["put", localPath, firstPath, "--mkdir", "--json"]);
+  const firstCreate = await runCli(["upload", localPath, firstPath, "--mkdir", "--json"]);
   expect(firstCreate.exitCode).toBe(0);
   expect(firstCreate.stderr).toBe("");
   expect(parseOutput(firstCreate.stdout)).toMatchObject({ ok: true, action: "uploaded" });
 
-  const secondCreate = await runCli(["put", localPath, secondPath, "--json"]);
+  const secondCreate = await runCli(["upload", localPath, secondPath, "--json"]);
   expect([0, 5]).toContain(secondCreate.exitCode);
   expect(secondCreate.stderr).toBe("");
 
@@ -202,7 +202,7 @@ describeProbe("MYBOX Phase 10 cross-implementation hardening probe", () => {
       PREFIX_PATH,
       `phase10-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`,
     );
-    const created = await runCli(["ensure-dir", rootPath, "--json"]);
+    const created = await runCli(["mkdir", rootPath, "--parents", "--json"]);
     expect(created.exitCode).toBe(0);
     const output = parseOutput(created.stdout);
     rootId = output.data?.resourceId ?? "";
@@ -230,7 +230,7 @@ describeProbe("MYBOX Phase 10 cross-implementation hardening probe", () => {
   test("observes delete visibility through detail, exact path, and parent listing", async () => {
     const deleteParentPath = joinRemotePath(rootPath, "delete");
     const deletePath = joinRemotePath(deleteParentPath, "target.txt");
-    const created = await runCli(["put", localPath, deletePath, "--mkdir", "--json"]);
+    const created = await runCli(["upload", localPath, deletePath, "--mkdir", "--json"]);
     expect(created.exitCode).toBe(0);
     const createdOutput = parseOutput(created.stdout);
     const originalId = createdOutput.data?.resourceId;

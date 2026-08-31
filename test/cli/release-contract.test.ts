@@ -66,12 +66,16 @@ describe("built CLI release contract", () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("Usage: myboxctl");
-    expect(result.stdout).toContain("stat");
+    expect(result.stdout).toContain("list|ls");
+    expect(result.stdout).toContain("info");
+    expect(result.stdout).not.toMatch(/\n\s+stat\b/);
+    expect(result.stdout).not.toMatch(/\n\s+ensure-dir\b/);
+    expect(result.stdout).not.toMatch(/\n\s+put\b/);
     expect(result.stderr).toBe("");
   });
 
   test("keeps an invalid argument failure as one JSON document on stdout", async () => {
-    const result = await runArtifact(["stat", "--json"]);
+    const result = await runArtifact(["info", "--json"]);
 
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toBe("");
@@ -79,7 +83,8 @@ describe("built CLI release contract", () => {
     expect(result.stdout.trim().split(/\r?\n/u)).toHaveLength(1);
     expect(JSON.parse(result.stdout)).toMatchObject({
       ok: false,
-      command: "stat",
+      schemaVersion: 1,
+      command: "info",
       error: {
         kind: "invalid-arguments",
         retryable: false,
@@ -87,5 +92,18 @@ describe("built CLI release contract", () => {
     });
     const failure = JSON.parse(result.stdout) as { error?: { message?: unknown } };
     expect(typeof failure.error?.message).toBe("string");
+  });
+
+  test("keeps the canonical list command in machine mode", async () => {
+    const result = await runArtifact(["list", "--unknown", "--json"]);
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      schemaVersion: 1,
+      ok: false,
+      command: "list",
+      error: { kind: "invalid-arguments" },
+    });
   });
 });

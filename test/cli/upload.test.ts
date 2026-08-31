@@ -116,14 +116,16 @@ describe("upload command subprocess contract", () => {
 
     expect(result.exitCode).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual({
+      schemaVersion: 1,
       ok: true,
       command: "upload",
       action: "uploaded",
       data: {
         path: "/report.txt",
         resourceId: "file-1",
-        size: 7,
-        modifiedAt: "2026-08-23T10:00:01Z",
+        sizeBytes: 7,
+        modifiedAt: "2026-08-23T10:00:01.000Z",
+        reason: "remote-absent",
       },
     });
     expect(result.stderr).toBe("");
@@ -176,6 +178,9 @@ describe("upload command subprocess contract", () => {
       handler: (request: RecordedRequest) => {
         if (request.path === "/v1/drive/storage") {
           return { body: storageResponse(1) };
+        }
+        if (request.path.startsWith("/v1/search/resources/")) {
+          return { body: searchPage() };
         }
         return { status: 500, body: { code: "UNEXPECTED", message: "unexpected request" } };
       },

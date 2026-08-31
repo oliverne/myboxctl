@@ -14,8 +14,9 @@ describeProbe("MYBOX Phase 13 observability probe", () => {
         "bun",
         "run",
         "src/cli.ts",
-        "ensure-dir",
+        "mkdir",
         "/myboxctl-integration-test/",
+        "--parents",
         "--json",
         "--verbose",
       ],
@@ -33,13 +34,13 @@ describeProbe("MYBOX Phase 13 observability probe", () => {
     ]);
 
     expect(exitCode).toBe(0);
-    expect(JSON.parse(stdout)).toMatchObject({ ok: true, command: "ensure-dir" });
+    expect(JSON.parse(stdout)).toMatchObject({ ok: true, command: "mkdir" });
     const events = stderr
       .split("\n")
       .filter(Boolean)
       .map((line) => JSON.parse(line) as Record<string, unknown>);
     for (const event of events) {
-      expect(event).toMatchObject({ type: "event", command: "ensure-dir" });
+      expect(event).toMatchObject({ type: "event", command: "mkdir" });
     }
     const combined = `${stdout}\n${stderr}`.toLowerCase();
     expect(combined).not.toContain("authorization");

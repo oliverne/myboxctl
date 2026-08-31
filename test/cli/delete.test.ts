@@ -73,6 +73,7 @@ describe("delete command subprocess contract", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
     expect(JSON.parse(result.stdout)).toEqual({
+      schemaVersion: 1,
       ok: true,
       command: "delete",
       action: "deleted",
@@ -80,7 +81,7 @@ describe("delete command subprocess contract", () => {
     });
   });
 
-  test("distinguishes default and strict absent behavior", async () => {
+  test("distinguishes default and ignore-missing absent behavior", async () => {
     const server = await createFakeHttpServer({
       handler: (request: RecordedRequest) => {
         if (request.path.startsWith("/v1/search/resources/")) {
@@ -92,22 +93,27 @@ describe("delete command subprocess contract", () => {
     servers.push(server);
 
     const regular = await runCli(["delete", "/missing.txt", "--json"], server.baseUrl);
-    expect(regular.exitCode).toBe(0);
+    expect(regular.exitCode).toBe(4);
     expect(regular.stderr).toBe("");
-    expect(JSON.parse(regular.stdout)).toEqual({
-      ok: true,
-      command: "delete",
-      action: "already-absent",
-      data: { path: "/missing.txt" },
-    });
-
-    const strict = await runCli(["delete", "/missing.txt", "--strict", "--json"], server.baseUrl);
-    expect(strict.exitCode).toBe(4);
-    expect(strict.stderr).toBe("");
-    expect(JSON.parse(strict.stdout)).toMatchObject({
+    expect(JSON.parse(regular.stdout)).toMatchObject({
+      schemaVersion: 1,
       ok: false,
       command: "delete",
       error: { kind: "not-found" },
+    });
+
+    const ignored = await runCli(
+      ["delete", "/missing.txt", "--ignore-missing", "--json"],
+      server.baseUrl,
+    );
+    expect(ignored.exitCode).toBe(0);
+    expect(ignored.stderr).toBe("");
+    expect(JSON.parse(ignored.stdout)).toMatchObject({
+      schemaVersion: 1,
+      ok: true,
+      command: "delete",
+      action: "already-absent",
+      data: { path: "/missing.txt", resourceId: null, type: null },
     });
     expect(server.requests.filter((request) => request.method === "DELETE")).toHaveLength(0);
   });

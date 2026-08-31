@@ -104,14 +104,15 @@ describe("download command subprocess contract", () => {
     expect(result.stderr).toBe("");
     expect(JSON.parse(result.stdout)).toEqual({
       ok: true,
+      schemaVersion: 1,
       command: "download",
       action: "downloaded",
       data: {
         remotePath: "/한글 report.txt",
         localPath: destination,
         resourceId: "file-1",
-        size: bytes.byteLength,
-        modifiedAt: "2026-08-27T12:00:00Z",
+        sizeBytes: bytes.byteLength,
+        modifiedAt: "2026-08-27T12:00:00.000Z",
       },
     });
     expect(new Uint8Array(await readFile(destination))).toEqual(bytes);
@@ -154,6 +155,7 @@ describe("download command subprocess contract", () => {
     expect(result.exitCode).toBe(5);
     expect(JSON.parse(result.stdout)).toMatchObject({
       ok: false,
+      schemaVersion: 1,
       command: "download",
       error: { kind: "conflict" },
     });
@@ -236,6 +238,7 @@ describe("download command subprocess contract", () => {
     expect(stderr).toBe("");
     expect(JSON.parse(stdout)).toMatchObject({
       ok: false,
+      schemaVersion: 1,
       command: "download",
       error: { kind: "api-unavailable", retryable: true },
     });

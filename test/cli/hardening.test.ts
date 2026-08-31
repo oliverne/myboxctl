@@ -62,11 +62,10 @@ describe("cross-command CLI hardening", () => {
     servers.push(server);
 
     const cases = [
-      { command: "stat", args: ["stat", "/한글 # +.txt", "--json"] },
-      { command: "ls", args: ["ls", "/", "--json"] },
-      { command: "ensure-dir", args: ["ensure-dir", "/한글 # +", "--json"] },
+      { command: "info", args: ["info", "/한글 # +.txt", "--json"] },
+      { command: "list", args: ["list", "/", "--json"] },
+      { command: "mkdir", args: ["mkdir", "/한글 # +", "--json"] },
       { command: "upload", args: ["upload", localPath, "/한글 # +.txt", "--json"] },
-      { command: "put", args: ["put", localPath, "/한글 # +.txt", "--json"] },
       {
         command: "download",
         args: ["download", "/한글 # +.txt", join(directory, "download.txt"), "--json"],
@@ -107,12 +106,13 @@ describe("cross-command CLI hardening", () => {
       expect(combinedOutput).not.toContain("response-secret");
     }
 
-    const quiet = await runCli(["stat", "/한글 # +.txt", "--json", "--quiet"], server.baseUrl);
+    const quiet = await runCli(["info", "/한글 # +.txt", "--json", "--quiet"], server.baseUrl);
     expect(quiet.exitCode).toBe(8);
     expect(quiet.stderr).toBe("");
     expect(JSON.parse(quiet.stdout)).toMatchObject({
       ok: false,
-      command: "stat",
+      schemaVersion: 1,
+      command: "info",
       error: { kind: "rate-limit" },
     });
   });

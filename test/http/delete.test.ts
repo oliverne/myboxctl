@@ -113,7 +113,7 @@ describe("delete HTTP operation", () => {
     ).toHaveLength(1);
   });
 
-  test("returns already-absent by default and not-found in strict mode", async () => {
+  test("fails missing by default and supports ignore-missing", async () => {
     const server = await createFakeHttpServer({
       handler: (request: RecordedRequest) => {
         if (request.path.startsWith("/v1/search/resources/")) {
@@ -124,13 +124,12 @@ describe("delete HTTP operation", () => {
     });
     servers.push(server);
 
-    await expect(runDelete("/missing.txt", {}, dependencies(server))).resolves.toEqual({
-      action: "already-absent",
-      data: { path: "/missing.txt" },
+    await expect(runDelete("/missing.txt", {}, dependencies(server))).rejects.toMatchObject({
+      kind: "not-found",
     });
     await expect(
-      runDelete("/missing.txt", { strict: true }, dependencies(server)),
-    ).rejects.toMatchObject({ kind: "not-found" });
+      runDelete("/missing.txt", { ignoreMissing: true }, dependencies(server)),
+    ).resolves.toEqual({ action: "already-absent", data: { path: "/missing.txt" } });
     expect(server.requests.filter((request) => request.method === "DELETE")).toHaveLength(0);
   });
 
@@ -144,18 +143,17 @@ describe("delete HTTP operation", () => {
     expect(server.requests).toHaveLength(0);
   });
 
-  test("maps DELETE 404 by strict mode", async () => {
+  test("maps DELETE 404 by ignore-missing mode", async () => {
     const response = { status: 404, body: { code: "NOT_FOUND", message: "gone" } };
     const server = await createFakeHttpServer({ handler: foundHandler([response, response]) });
     servers.push(server);
 
-    await expect(runDelete("/report.txt", {}, dependencies(server))).resolves.toEqual({
-      action: "already-absent",
-      data: { path: "/report.txt" },
+    await expect(runDelete("/report.txt", {}, dependencies(server))).rejects.toMatchObject({
+      kind: "not-found",
     });
     await expect(
-      runDelete("/report.txt", { strict: true }, dependencies(server)),
-    ).rejects.toMatchObject({ kind: "not-found" });
+      runDelete("/report.txt", { ignoreMissing: true }, dependencies(server)),
+    ).resolves.toEqual({ action: "already-absent", data: { path: "/report.txt" } });
   });
 
   test("reconciles a retryable ambiguous failure only by the original ID", async () => {

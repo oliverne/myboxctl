@@ -113,7 +113,7 @@ describeIntegration("MYBOX download acceptance", () => {
     expect(output(first.stdout)).toMatchObject({
       ok: true,
       action: "downloaded",
-      data: { remotePath: filePath, localPath: destinationPath, size: 0 },
+      data: { remotePath: filePath, localPath: destinationPath, sizeBytes: 0 },
     });
     expect((await readFile(destinationPath)).byteLength).toBe(0);
 
@@ -123,7 +123,7 @@ describeIntegration("MYBOX download acceptance", () => {
 
     const updated = "새 다운로드 내용\n";
     await writeFile(sourcePath, updated);
-    const upload = await runCli(["upload", sourcePath, filePath, "--overwrite", "--json"]);
+    const upload = await runCli(["upload", sourcePath, filePath, "--force", "--json"]);
     expect(upload.exitCode).toBe(0);
 
     const overwrite = await runCli([

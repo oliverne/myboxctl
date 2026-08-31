@@ -100,7 +100,7 @@ async function localFile() {
   return { path, stats: await stat(path) };
 }
 
-describe("put command subprocess contract", () => {
+describe("upload command subprocess contract", () => {
   test("emits skipped metadata and reason as one JSON envelope", async () => {
     const local = await localFile();
     const modifiedAt = new Date(local.stats.mtimeMs).toISOString();
@@ -123,19 +123,20 @@ describe("put command subprocess contract", () => {
     });
     servers.push(server);
 
-    const result = await runCli(["put", local.path, "/report.txt", "--json"], server.baseUrl);
+    const result = await runCli(["upload", local.path, "/report.txt", "--json"], server.baseUrl);
 
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
     expect(JSON.parse(result.stdout)).toEqual({
       ok: true,
-      command: "put",
+      schemaVersion: 1,
+      command: "upload",
       action: "skipped",
       data: {
         path: "/report.txt",
         resourceId: "file-1",
-        size: 6,
-        modifiedAt,
+        sizeBytes: 6,
+        modifiedAt: new Date(modifiedAt).toISOString(),
         reason: "remote-is-current",
       },
     });
@@ -172,25 +173,27 @@ describe("put command subprocess contract", () => {
     });
     servers.push(server);
 
-    const conflict = await runCli(["put", local.path, "/report.txt", "--json"], server.baseUrl);
+    const conflict = await runCli(["upload", local.path, "/report.txt", "--json"], server.baseUrl);
     expect(conflict.exitCode).toBe(5);
     expect(conflict.stderr).toBe("");
     expect(JSON.parse(conflict.stdout)).toMatchObject({
       ok: false,
-      command: "put",
+      schemaVersion: 1,
+      command: "upload",
       error: { kind: "conflict", code: "REMOTE_NEWER" },
     });
     expect(server.requests.filter((request) => request.method === "POST")).toHaveLength(0);
 
     const forced = await runCli(
-      ["put", local.path, "/report.txt", "--force", "--json"],
+      ["upload", local.path, "/report.txt", "--force", "--json"],
       server.baseUrl,
     );
     expect(forced.exitCode).toBe(0);
     expect(forced.stderr).toBe("");
     expect(JSON.parse(forced.stdout)).toMatchObject({
       ok: true,
-      command: "put",
+      schemaVersion: 1,
+      command: "upload",
       action: "overwritten",
       data: { reason: "forced" },
     });

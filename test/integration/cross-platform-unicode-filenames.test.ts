@@ -175,7 +175,7 @@ describeProbe("MYBOX Phase 12 cross-platform Unicode filename probe", () => {
       PREFIX_PATH,
       `phase12-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`,
     );
-    const created = await runCli(["ensure-dir", rootPath, "--json"]);
+    const created = await runCli(["mkdir", rootPath, "--parents", "--json"]);
     expect(created.exitCode).toBe(0);
     expect(created.stderr).toBe("");
     const output = parseOutput(created.stdout);
@@ -208,7 +208,7 @@ describeProbe("MYBOX Phase 12 cross-platform Unicode filename probe", () => {
     await writeFile(localPath, newBytes);
 
     const created = await runCli([
-      "put",
+      "upload",
       localPath,
       joinRemotePath(rootPath, nfdName),
       "--force",
@@ -230,7 +230,7 @@ describeProbe("MYBOX Phase 12 cross-platform Unicode filename probe", () => {
     expect(canonicalResource?.name).toBe(nfcName);
     expect(resourceId(canonicalResource, "new NFC resource")).toBe(createdId);
 
-    const stat = await runCli(["stat", joinRemotePath(rootPath, nfcName), "--json"]);
+    const stat = await runCli(["info", joinRemotePath(rootPath, nfcName), "--json"]);
     expect(stat.exitCode).toBe(0);
     expect(parseOutput(stat.stdout)).toMatchObject({
       ok: true,
@@ -245,7 +245,7 @@ describeProbe("MYBOX Phase 12 cross-platform Unicode filename probe", () => {
     const legacyPath = joinRemotePath(rootPath, legacyNfcName);
     expect(await waitForResource(joinRemotePath(rootPath, legacyNfdName), "file")).toBeDefined();
 
-    const legacyStat = await runCli(["stat", legacyPath, "--json"]);
+    const legacyStat = await runCli(["info", legacyPath, "--json"]);
     expect(legacyStat.exitCode).toBe(0);
     expect(parseOutput(legacyStat.stdout)).toMatchObject({
       ok: true,
@@ -270,7 +270,7 @@ describeProbe("MYBOX Phase 12 cross-platform Unicode filename probe", () => {
     const collisionNfdId = await createRawFile(rootId, collisionNfdName, collisionBytes);
 
     const collision = await runCli([
-      "put",
+      "upload",
       localPath,
       joinRemotePath(rootPath, collisionNfcName),
       "--force",
