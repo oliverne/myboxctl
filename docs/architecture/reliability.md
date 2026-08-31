@@ -67,9 +67,10 @@ Phase 13은 기존 retry 횟수나 bucket을 바꾸지 않고 typed event sink�
   Authorization과 signed URL은 전달하지 않는다.
 - fake clock 검증에서 quota와 server cooldown, 429 fallback의 event 순서와 대기시간을 고정했다.
 
-현재 정책은 공식 한도와 기존 성공 증거를 유지하기 위해 GET 429 한 번 retry 및 `Retry-After` 우선,
-header가 없을 때 60~61초 fallback을 유지한다. Phase 13 live probe에서 자연 발생 429가 관찰되지
-않으면 이를 실제 지연 원인으로 확정하거나 bucket 값을 변경하지 않는다.
+Phase 13의 격리된 targeted probe와 full live acceptance에서 자연 발생 서버 429와
+`server-cooldown`은 관찰되지 않았다. 장시간 지연은 공식 10회/분 검색 한도를 지키는 local shared
+limiter의 `quota` 대기로 확인됐다. 따라서 bucket을 완화하지 않고 GET 429 한 번 retry,
+`Retry-After` 우선, header가 없을 때 60~61초 fallback 정책을 유지한다.
 
 ### operation별 처리
 

@@ -1,6 +1,6 @@
 # Integration 테스트 지연·관측성 조사
 
-> 상태: 조사 중 — 지연 현상은 재현됐지만 원인은 미확증
+> 상태: 완료 — 장시간 지연 원인은 local shared limiter의 검색 `quota` 대기
 > 관련 phase: [`../phases/13-observability-and-test-latency.md`](../phases/13-observability-and-test-latency.md)
 > Human UI: [`human-cli-ui-investigation.md`](human-cli-ui-investigation.md)
 > 작성일: 2026-08-29
@@ -8,13 +8,14 @@
 ## 요약
 
 실제 MYBOX PAT로 integration test를 실행했을 때 개별 API 호출은 0.2~0.4초였지만 일부 command
-acceptance에는 약 60초 단위의 긴 구간이 반복됐다. 현재 코드에는 local rate limiter 대기, 서버 429
-retry와 integration polling을 서로 구분해 보여주는 event가 없어 wall time만으로 원인을 확정할 수
-없다.
+acceptance에는 약 60초 단위의 긴 구간이 반복됐다. Phase 13 event 계측과 분리 dispatch 결과,
+장시간 지연은 서버 429가 아니라 공식 검색 한도를 지키는 local shared limiter의 `quota` 대기로
+확인됐다.
 
-Phase 13은 먼저 각 대기 경로에 구조화 event를 추가해 원인을 구분한다. 그 결과를 바탕으로 GET 429
-자동 retry를 유지할지, local bucket을 조정할지, 일정 조건에서 fail-fast할지를 결정한다. 같은 event
-boundary로 upload/put 진행 상태도 사람과 AI 에이전트에 제공한다.
+격리된 targeted probe에서는 대기가 없었고 full acceptance처럼 검색 호출이 누적될 때 quota 대기가
+발생했다. 자연 발생 서버 429와 `server-cooldown`은 관찰되지 않았으므로 local bucket과 bounded GET
+429 retry 정책은 유지한다. 같은 event boundary는 upload/put 진행 상태도 사람과 AI 에이전트에
+제공한다.
 
 ## 측정 증거
 
@@ -136,13 +137,36 @@ Authorization, upload/download URL과 signed query는 redaction에만 의존하�
 두 설정에서 모두 약 60초 단위 지연이 보였다는 사실만 남긴다. 당시 event가 없었으므로 이 결과만으로
 local limiter 또는 서버 429를 배제하지 않는다.
 
-## 다음 조사
+## 2026-08-31 live 판정
 
-1. fake clock으로 local quota/cooldown과 서버 429 retry event를 각각 고정한다.
-2. clean shared-state path를 사용해 `ensure-dir` targeted acceptance를 한 번 실행한다.
-3. wall time, request 수, event별 waitMs와 자연 발생 429 여부를 기록한다.
-4. 증거에 따라 429 자동 retry 유지·조정·fail-fast 중 하나를 선택한다.
-5. 선택한 정책의 deterministic test를 추가하고 전체 command acceptance 시간을 다시 기록한다.
+GitHub Actions dispatch input을 분리해 같은 branch head `710cde2`에서 두 번 실행했다.
+
+| 실행                                                                                                   | 결과                           | wall time       | event 관찰                                                 |
+| ------------------------------------------------------------------------------------------------------ | ------------------------------ | --------------- | ---------------------------------------------------------- |
+| Phase 13 targeted probe [`33388395781`](https://github.com/oliverne/myboxctl/actions/runs/33388395781) | 1 pass, 0 fail                 | test 1,095.83ms | event 0건, 원인별 wait 합계 0ms                            |
+| full live acceptance [`33388494698`](https://github.com/oliverne/myboxctl/actions/runs/33388494698)    | 8 pass, 17 opt-in skip, 0 fail | 1,875.35s       | 모든 non-empty stderr line의 allowlist·redaction 검증 통과 |
+
+직전 진단 run [`33385894964`](https://github.com/oliverne/myboxctl/actions/runs/33385894964)은 오래된 빈
+stderr assertion 때문에 실패했지만, assertion diff에 실제 event가 보존됐다. 중복 출력된 diff를
+제외하면 `rate-limit.wait-started/completed` 16쌍이 모두 search `quota`였고 시작 event의 `waitMs`
+합계는 271,777ms였다.
+
+| command      | quota wait 횟수 | `waitMs` 합계 |
+| ------------ | --------------: | ------------: |
+| `put`        |               8 |     162,764ms |
+| `upload`     |               3 |      53,214ms |
+| `ensure-dir` |               5 |      55,799ms |
+| 합계         |              16 |     271,777ms |
+
+세 실행에서 `http.retry-scheduled`, `server-cooldown` 또는 자연 발생 서버 429 증거는 없었다. full
+acceptance의 subprocess stderr는 test helper가 검증한 뒤 캡처하므로 성공 로그에 개별 raw event는
+다시 출력하지 않는다. 따라서 정확한 event별 합계는 진단 run을 근거로 하고, 성공 run은 같은 event
+계약과 전체 command 결과가 함께 통과했다는 회귀 증거로 사용한다.
+
+결론은 현행 유지다. 검색 10회/분 local bucket은 공식 한도와 일치하므로 완화하지 않는다. GET 429는
+한 번만 retry하고 `Retry-After`를 우선하며, header가 없을 때 60~61초 fallback을 사용하는 bounded
+정책을 유지한다. 실제 서버 429가 자연 발생해 다른 증거가 생길 때만 bucket 조정이나 fail-fast를
+다시 검토한다.
 
 ## 2026-08-31 구현 결과
 
@@ -154,6 +178,6 @@ local limiter 또는 서버 429를 배제하지 않는다.
 - `--json` stdout envelope는 유지되고 warning/progress event는 stderr JSON Lines로 분리됐다.
 - 일반 회귀 검증은 212 pass, 35 opt-in skip, 0 fail이다.
 
-실제 Phase 13 probe는 아직 실행하지 않았다. 따라서 서버 429가 이전 장시간 지연의 원인이라는 결론은
-내리지 않는다. 현행 bounded GET retry 정책은 유지하고, live probe의 자연 관찰 결과가 다를 때만
-bucket 또는 fail-fast 정책을 다시 검토한다.
+targeted probe와 full live acceptance까지 통과했다. 서버 429가 장시간 지연의 원인이라는 증거는
+없고 local search quota 대기가 실제 원인으로 확인됐다. 현행 bounded GET retry 정책을 유지하며,
+향후 자연 관찰 결과가 다를 때만 bucket 또는 fail-fast 정책을 다시 검토한다.
