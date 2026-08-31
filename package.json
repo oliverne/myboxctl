@@ -28,6 +28,7 @@
     "test:download-probe": "MYBOX_DOWNLOAD_PROBE=1 bun test test/integration/download-contract.test.ts",
     "test:phase10-probe": "MYBOX_PHASE10_PROBE=1 bun test test/integration/cross-implementation-hardening.test.ts",
     "test:phase12-probe": "MYBOX_PHASE12_PROBE=1 bun test test/integration/cross-platform-unicode-filenames.test.ts",
+    "test:phase13-probe": "MYBOX_PHASE13_PROBE=1 bun test test/integration/observability.test.ts",
     "test:upload-probe": "MYBOX_UPLOAD_PROBE=1 bun test test/integration/upload-contract.test.ts",
     "test:contract": "MYBOX_CONTRACT=1 bun test test/integration/api-contract.test.ts",
     "check": "bun run typecheck && bun run lint && bun run build && bun test"

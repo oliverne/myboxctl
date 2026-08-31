@@ -57,6 +57,20 @@ resume/reconcile 정책을 사용한다. download는 요금제별 일일 한도�
 classifier, 429 `blockedUntil`, 여러 limiter instance의 slot 공유를 unit test로 고정한다. 실제
 429를 만들기 위해 한도를 고의로 소진하지 않는다.
 
+### 대기와 retry 관측
+
+Phase 13은 기존 retry 횟수나 bucket을 바꾸지 않고 typed event sink를 추가했다.
+
+- local quota 대기와 이전 서버 429 cooldown은 `rate-limit.wait-started/completed`로 구분한다.
+- GET network/5xx backoff와 단일 429 retry는 `http.retry-scheduled/completed`로 기록한다.
+- event에는 operation, waitMs, attempt, status와 delay source만 허용하며 URL, query, header, body,
+  Authorization과 signed URL은 전달하지 않는다.
+- fake clock 검증에서 quota와 server cooldown, 429 fallback의 event 순서와 대기시간을 고정했다.
+
+현재 정책은 공식 한도와 기존 성공 증거를 유지하기 위해 GET 429 한 번 retry 및 `Retry-After` 우선,
+header가 없을 때 60~61초 fallback을 유지한다. Phase 13 live probe에서 자연 발생 429가 관찰되지
+않으면 이를 실제 지연 원인으로 확정하거나 bucket 값을 변경하지 않는다.
+
 ### operation별 처리
 
 - `createFolder`: 실패 후 같은 exact path를 조회한다. 폴더가 있으면 성공으로 reconcile하고,

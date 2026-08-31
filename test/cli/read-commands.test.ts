@@ -76,6 +76,7 @@ describe("read command subprocess contract", () => {
   test.each([
     [["stat", "--json"], "stat"],
     [["unknown", "--json"], "unknown"],
+    [["stat", "/", "--json", "--verbose", "--quiet"], "stat"],
   ] as const)("renders Commander argument errors as JSON for %j", async (args, command) => {
     const server = await createFakeHttpServer();
     servers.push(server);
@@ -90,6 +91,16 @@ describe("read command subprocess contract", () => {
     });
     expect(result.stderr).toBe("");
     expect(server.requests).toHaveLength(0);
+  });
+
+  test("renders one human error on stderr and leaves stdout empty", async () => {
+    const server = await createFakeHttpServer();
+    servers.push(server);
+    const result = await runCli(["stat", "/invalid/../path"], server.baseUrl);
+    expect(result.exitCode).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(result.stderr.trim().split("\n")[0]).toStartWith("Error: ");
+    expect(result.stderr.match(/^Error:/gm)).toHaveLength(1);
   });
 
   test("stat root returns a folder without inventing a resource id", async () => {

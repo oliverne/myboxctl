@@ -9,13 +9,24 @@ Human UI 조사: [`../reference/human-cli-ui-investigation.md`](../reference/hum
 
 ## 상태와 진입 조건
 
-- 상태: `pending`
-- 활성 phase: Phase 11 Distribution & Release
+- 상태: `in_progress`
+- 활성 phase: Phase 13 Observability & Integration Test Latency
 - Phase 13 구현을 시작할 때 `docs/PROGRESS.md`의 활성 phase를 Phase 13 `in_progress`로 변경한다.
 - 원칙적으로 Phase 11과 Phase 13을 동시에 `in_progress`로 두지 않는다. Phase 11을 먼저 완료하거나,
   사용자가 Phase 13을 우선하도록 명시적으로 범위를 변경한 뒤 시작한다.
 - 실제 MYBOX 검증은 PAT가 준비된 opt-in 실행으로 제한하고, mutation은
   `/myboxctl-integration-test/` 아래의 unique child에서만 수행한다.
+
+### 구현 진행
+
+- [x] P13-A typed event sink, human/JSONL renderer와 CLI mode matrix
+- [x] P13-B local quota/server cooldown/GET retry 계측과 fake-clock 검증
+- [x] P13-C upload/put file-byte progress, resume event와 TTY/non-TTY renderer
+- [x] P13-D 일반 문서와 212 pass/35 opt-in skip 회귀 검증
+- [ ] `MYBOX_PHASE13_PROBE=1` targeted live probe와 실제 wall-time/event 증거 기록
+
+live probe 전까지 상태는 `in_progress`로 유지한다. 자연 발생 429가 관찰되지 않으면 서버 429를 지연
+원인으로 확정하지 않고 현행 bounded GET retry 정책을 유지한다.
 
 ## 목표
 

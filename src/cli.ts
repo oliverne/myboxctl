@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 
-import { Command, CommanderError } from "commander";
+import { Command, CommanderError, Option } from "commander";
 
-import { DomainError, normalizeError } from "./errors.ts";
+import { DomainError } from "./errors.ts";
 import { runDelete } from "./features/delete.ts";
 import { runDownload } from "./features/download.ts";
 import { runEnsureDir } from "./features/ensure-dir.ts";
@@ -10,14 +10,20 @@ import { runLs } from "./features/ls.ts";
 import { runPut } from "./features/put/command.ts";
 import { runStat } from "./features/stat.ts";
 import { runUpload } from "./features/upload.ts";
+import { createEventPresentation, type EventPresentationOptions } from "./human-ui.ts";
 import { exitCodeForError, redactSecrets, writeFailure, writeSuccess } from "./output.ts";
 import { createRuntime, type Runtime } from "./runtime.ts";
 import { VERSION } from "./version.ts";
 
-export type RuntimeFactory = () => Promise<Runtime>;
+export type RuntimeFactory = (presentation?: EventPresentationOptions) => Promise<Runtime>;
+
+const defaultRuntimeFactory: RuntimeFactory = (presentation) =>
+  createRuntime(presentation === undefined ? {} : { presentation });
 
 type OutputOptions = {
   json?: boolean;
+  verbose?: boolean;
+  quiet?: boolean;
 };
 
 type UploadOutputOptions = OutputOptions & {
@@ -114,11 +120,27 @@ function writeCommandSuccess(
   );
 }
 
-function addJsonOption(command: Command): Command {
-  return command.option("--json", "Print one machine-readable JSON envelope");
+function addOutputOptions(command: Command): Command {
+  return command
+    .option("--json", "Print one machine-readable JSON envelope")
+    .addOption(new Option("--verbose", "Print detailed progress events").conflicts("quiet"))
+    .addOption(new Option("--quiet", "Suppress progress events").conflicts("verbose"));
 }
 
-export function createProgram(runtimeFactory: RuntimeFactory = createRuntime): Command {
+function runtimeForCommand(
+  runtimeFactory: RuntimeFactory,
+  command: string,
+  options: OutputOptions,
+): Promise<Runtime> {
+  return runtimeFactory({
+    command,
+    ...(options.json === undefined ? {} : { json: options.json }),
+    ...(options.verbose === undefined ? {} : { verbose: options.verbose }),
+    ...(options.quiet === undefined ? {} : { quiet: options.quiet }),
+  });
+}
+
+export function createProgram(runtimeFactory: RuntimeFactory = defaultRuntimeFactory): Command {
   const program = new Command()
     .exitOverride()
     .configureOutput({ writeErr: () => {} })
@@ -126,43 +148,58 @@ export function createProgram(runtimeFactory: RuntimeFactory = createRuntime): C
     .description("Agent-friendly CLI for NAVER MYBOX file operations")
     .version(VERSION);
 
-  addJsonOption(
+  addOutputOptions(
     program
       .command("stat")
       .description("Show metadata for an exact remote path")
       .argument("<remote-path>")
       .action(async (remotePath: string, options: OutputOptions) => {
-        const runtime = await runtimeFactory();
-        const result = await runStat(remotePath, runtime.resolver);
-        writeCommandSuccess("stat", result, options);
+        const runtime = await runtimeForCommand(runtimeFactory, "stat", options);
+        try {
+          const result = await runStat(remotePath, runtime.resolver);
+          runtime.events.finish();
+          writeCommandSuccess("stat", result, options);
+        } finally {
+          runtime.events.finish();
+        }
       }),
   );
 
-  addJsonOption(
+  addOutputOptions(
     program
       .command("ls")
       .description("List direct children of a remote directory")
       .argument("<remote-directory>")
       .action(async (remotePath: string, options: OutputOptions) => {
-        const runtime = await runtimeFactory();
-        const result = await runLs(remotePath, runtime.resolver);
-        writeCommandSuccess("ls", result, options);
+        const runtime = await runtimeForCommand(runtimeFactory, "ls", options);
+        try {
+          const result = await runLs(remotePath, runtime.resolver);
+          runtime.events.finish();
+          writeCommandSuccess("ls", result, options);
+        } finally {
+          runtime.events.finish();
+        }
       }),
   );
 
-  addJsonOption(
+  addOutputOptions(
     program
       .command("ensure-dir")
       .description("Create a remote directory hierarchy if it is missing")
       .argument("<remote-directory>")
       .action(async (remotePath: string, options: OutputOptions) => {
-        const runtime = await runtimeFactory();
-        const result = await runEnsureDir(remotePath, runtime.resolver);
-        writeCommandSuccess("ensure-dir", result, options);
+        const runtime = await runtimeForCommand(runtimeFactory, "ensure-dir", options);
+        try {
+          const result = await runEnsureDir(remotePath, runtime.resolver);
+          runtime.events.finish();
+          writeCommandSuccess("ensure-dir", result, options);
+        } finally {
+          runtime.events.finish();
+        }
       }),
   );
 
-  addJsonOption(
+  addOutputOptions(
     program
       .command("upload")
       .description("Upload a local file to an exact remote path")
@@ -171,26 +208,37 @@ export function createProgram(runtimeFactory: RuntimeFactory = createRuntime): C
       .option("--overwrite", "Overwrite an existing remote file")
       .option("--mkdir", "Create missing remote parent directories")
       .action(async (localPath: string, remotePath: string, options: UploadOutputOptions) => {
-        const runtime = await runtimeFactory();
-        const result = await runUpload(
-          localPath,
-          remotePath,
-          {
-            ...(options.overwrite === undefined ? {} : { overwrite: options.overwrite }),
-            ...(options.mkdir === undefined ? {} : { mkdir: options.mkdir }),
-          },
-          {
-            client: runtime.client,
-            resolver: runtime.resolver,
-            uploader: runtime.uploader,
-            timeoutMs: runtime.config.timeoutMs,
-          },
-        );
-        writeCommandSuccess("upload", result, options);
+        const runtime = await runtimeForCommand(runtimeFactory, "upload", options);
+        const interrupt = new AbortController();
+        const onInterrupt = () => interrupt.abort();
+        process.once("SIGINT", onInterrupt);
+        try {
+          const result = await runUpload(
+            localPath,
+            remotePath,
+            {
+              ...(options.overwrite === undefined ? {} : { overwrite: options.overwrite }),
+              ...(options.mkdir === undefined ? {} : { mkdir: options.mkdir }),
+            },
+            {
+              client: runtime.client,
+              resolver: runtime.resolver,
+              uploader: runtime.uploader,
+              timeoutMs: runtime.config.timeoutMs,
+              eventSink: runtime.events.sink,
+              signal: interrupt.signal,
+            },
+          );
+          runtime.events.finish();
+          writeCommandSuccess("upload", result, options);
+        } finally {
+          process.removeListener("SIGINT", onInterrupt);
+          runtime.events.finish();
+        }
       }),
   );
 
-  addJsonOption(
+  addOutputOptions(
     program
       .command("put")
       .description("Upload a local file when metadata requires it")
@@ -199,26 +247,37 @@ export function createProgram(runtimeFactory: RuntimeFactory = createRuntime): C
       .option("--force", "Overwrite regardless of file metadata")
       .option("--mkdir", "Create missing remote parent directories")
       .action(async (localPath: string, remotePath: string, options: PutOutputOptions) => {
-        const runtime = await runtimeFactory();
-        const result = await runPut(
-          localPath,
-          remotePath,
-          {
-            ...(options.force === undefined ? {} : { force: options.force }),
-            ...(options.mkdir === undefined ? {} : { mkdir: options.mkdir }),
-          },
-          {
-            client: runtime.client,
-            resolver: runtime.resolver,
-            uploader: runtime.uploader,
-            timeoutMs: runtime.config.timeoutMs,
-          },
-        );
-        writeCommandSuccess("put", result, options);
+        const runtime = await runtimeForCommand(runtimeFactory, "put", options);
+        const interrupt = new AbortController();
+        const onInterrupt = () => interrupt.abort();
+        process.once("SIGINT", onInterrupt);
+        try {
+          const result = await runPut(
+            localPath,
+            remotePath,
+            {
+              ...(options.force === undefined ? {} : { force: options.force }),
+              ...(options.mkdir === undefined ? {} : { mkdir: options.mkdir }),
+            },
+            {
+              client: runtime.client,
+              resolver: runtime.resolver,
+              uploader: runtime.uploader,
+              timeoutMs: runtime.config.timeoutMs,
+              eventSink: runtime.events.sink,
+              signal: interrupt.signal,
+            },
+          );
+          runtime.events.finish();
+          writeCommandSuccess("put", result, options);
+        } finally {
+          process.removeListener("SIGINT", onInterrupt);
+          runtime.events.finish();
+        }
       }),
   );
 
-  addJsonOption(
+  addOutputOptions(
     program
       .command("download")
       .description("Download an exact remote file to a local path")
@@ -226,7 +285,7 @@ export function createProgram(runtimeFactory: RuntimeFactory = createRuntime): C
       .argument("<local-path>")
       .option("--overwrite", "Atomically replace an existing regular local file")
       .action(async (remotePath: string, localPath: string, options: DownloadOutputOptions) => {
-        const runtime = await runtimeFactory();
+        const runtime = await runtimeForCommand(runtimeFactory, "download", options);
         const interrupt = new AbortController();
         const onInterrupt = () => interrupt.abort();
         process.once("SIGINT", onInterrupt);
@@ -243,27 +302,34 @@ export function createProgram(runtimeFactory: RuntimeFactory = createRuntime): C
               signal: interrupt.signal,
             },
           );
+          runtime.events.finish();
           writeCommandSuccess("download", result, options);
         } finally {
           process.removeListener("SIGINT", onInterrupt);
+          runtime.events.finish();
         }
       }),
   );
 
-  addJsonOption(
+  addOutputOptions(
     program
       .command("delete")
       .description("Move an exact remote resource to MYBOX trash")
       .argument("<remote-path>")
       .option("--strict", "Return not-found when the resource is absent")
       .action(async (remotePath: string, options: DeleteOutputOptions) => {
-        const runtime = await runtimeFactory();
-        const result = await runDelete(
-          remotePath,
-          { ...(options.strict === undefined ? {} : { strict: options.strict }) },
-          { client: runtime.client, resolver: runtime.resolver },
-        );
-        writeCommandSuccess("delete", result, options);
+        const runtime = await runtimeForCommand(runtimeFactory, "delete", options);
+        try {
+          const result = await runDelete(
+            remotePath,
+            { ...(options.strict === undefined ? {} : { strict: options.strict }) },
+            { client: runtime.client, resolver: runtime.resolver },
+          );
+          runtime.events.finish();
+          writeCommandSuccess("delete", result, options);
+        } finally {
+          runtime.events.finish();
+        }
       }),
   );
 
@@ -280,7 +346,7 @@ function wantsJson(argv: readonly string[]): boolean {
 
 export async function runCli(
   argv: readonly string[] = Bun.argv,
-  runtimeFactory: RuntimeFactory = createRuntime,
+  runtimeFactory: RuntimeFactory = defaultRuntimeFactory,
 ): Promise<number> {
   try {
     await createProgram(runtimeFactory).parseAsync([...argv]);
@@ -298,8 +364,11 @@ export async function runCli(
     if (wantsJson(argv)) {
       writeFailure(command, cliError);
     } else {
-      const normalized = normalizeError(cliError);
-      process.stderr.write(`${normalized.message}\n`);
+      createEventPresentation({
+        command,
+        quiet: argv.includes("--quiet"),
+        verbose: argv.includes("--verbose"),
+      }).writeHumanFailure(cliError);
     }
     return exitCodeForError(cliError);
   }

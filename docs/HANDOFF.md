@@ -2,8 +2,9 @@
 
 ## 인수 목적
 
-Phase 11 Distribution & Release는 완료됐다. 다음 세션은 사용자가 시작을 명시하면 Phase 13
-Observability & Integration Test Latency의 P13-A 구조화 event boundary부터 진행한다.
+Phase 13 Observability & Integration Test Latency의 P13-A~D 일반 구현과 회귀 검증은 완료됐다.
+다음 단계는 PR CI 확인 후 opt-in targeted live probe를 실행하고 실제 wall time/event 증거를 기록하는
+것이다.
 
 ## 저장소와 Release 상태
 
@@ -33,26 +34,21 @@ PAT, Authorization 값과 signed upload/download URL 노출을 찾지 못했다.
 ## Phase 상태
 
 - Phase 00~12: `complete`
-- Phase 13 Observability & test latency: `pending`
-- 활성 phase: 없음
+- Phase 13 Observability & test latency: `in_progress`
+- 활성 phase: Phase 13
 
-Phase 13을 시작할 때만 `docs/PROGRESS.md`에서 Phase 13과 활성 phase를 `in_progress`로 변경한다. 실제
-MYBOX 검증은 PAT가 준비된 opt-in 실행이며 `/myboxctl-integration-test/` 아래의 unique child만
-변경한다.
+P13-A~D 일반 구현은 212 pass, 35 opt-in skip, 0 fail이다. 실제 MYBOX 검증은 PAT가 준비된 opt-in
+실행이며 Phase 13 probe는 기존 `/myboxctl-integration-test/` root를 조회할 뿐 mutation하지 않는다.
 
 ## 다음 실행 범위
 
 상세 계획은 [`phases/13-observability-and-test-latency.md`](phases/13-observability-and-test-latency.md)를
 따른다.
 
-1. P13-A에서 typed event sink와 human/JSONL renderer boundary를 추가한다.
-2. `--json` stdout 최종 envelope 1개, stderr JSON Lines event 계약을 subprocess test로 먼저 고정한다.
-3. `--quiet`는 event만 억제하고 `--verbose`는 단계/progress를 추가하도록 한다.
-4. TTY redraw와 non-TTY line log, `NO_COLOR`, `TERM=dumb`, narrow terminal, SIGINT cleanup을
-   deterministic test로 검증한다.
-5. P13-B에서 local limiter, 서버 429 retry와 integration polling 대기를 각각 계측한 뒤 429 정책을
-   유지·조정·fail-fast 중 하나로 결정한다.
-6. P13-C에서 upload/put byte progress를 연결하고 P13-D에서 문서·cross-platform·live 검증을 완료한다.
+1. PR의 Ubuntu/macOS/Windows 일반 CI를 확인한다.
+2. `phase13_probe=true` workflow_dispatch를 1회 실행한다.
+3. stderr JSONL event, wall time과 자연 발생 429 여부를 기록한다.
+4. 결과에 따라 현행 429 정책 유지 결정을 확정하고 Phase 13을 `complete`로 변경한다.
 
 관측 전에 서버 429를 지연 원인으로 확정하거나 rate-limit bucket을 변경하지 않는다. transport와
 feature에서 `console.*`를 직접 호출하지 않고 typed event boundary를 사용한다. event payload에는 raw

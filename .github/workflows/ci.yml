@@ -23,6 +23,11 @@ on:
         required: false
         default: false
         type: boolean
+      phase13_probe:
+        description: Run the targeted observability and latency probe
+        required: false
+        default: false
+        type: boolean
   push:
     branches: [main]
   pull_request:
@@ -63,7 +68,7 @@ jobs:
 
   live-acceptance:
     name: Live MYBOX acceptance
-    if: github.event_name == 'workflow_dispatch' && (inputs.live_acceptance || inputs.download_probe || inputs.phase10_probe || inputs.phase12_probe)
+    if: github.event_name == 'workflow_dispatch' && (inputs.live_acceptance || inputs.download_probe || inputs.phase10_probe || inputs.phase12_probe || inputs.phase13_probe)
     needs: test
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -117,6 +122,12 @@ jobs:
         env:
           MYBOX_PHASE12_PROBE: "1"
         run: bun run test:phase12-probe
+
+      - name: Run Phase 13 observability probe
+        if: inputs.phase13_probe
+        env:
+          MYBOX_PHASE13_PROBE: "1"
+        run: bun run test:phase13-probe
 
       - name: Final diff check
         run: git diff --check

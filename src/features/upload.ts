@@ -5,6 +5,7 @@ import { apiResponseError, DomainError, normalizeError } from "../errors.ts";
 import type { CreateUploadInput, MyboxClient } from "../mybox/client.ts";
 import type { UploadContentResponse } from "../mybox/contract.ts";
 import type { MyboxUploader } from "../mybox/upload.ts";
+import { type EventSink, noOpEventSink } from "../observability.ts";
 import { type ChildRemotePath, canonicalRemotePath, parseRemotePath } from "../remote/path.ts";
 import type { FoundResolution, RemoteResolver } from "../remote/resolver.ts";
 import { runEnsureDir } from "./ensure-dir.ts";
@@ -19,6 +20,9 @@ export type UploadDependencies = {
   resolver: RemoteResolver;
   uploader: MyboxUploader;
   timeoutMs: number;
+  eventSink?: EventSink;
+  now?: () => number;
+  signal?: AbortSignal;
 };
 
 export type UploadData = {
@@ -187,6 +191,30 @@ export async function runUpload(
   options: UploadOptions,
   dependencies: UploadDependencies,
 ): Promise<UploadResult> {
+  const eventSink = dependencies.eventSink ?? noOpEventSink;
+  const now = dependencies.now ?? (() => Date.now());
+  const transferSignal = () => {
+    const timeout = AbortSignal.timeout(dependencies.timeoutMs);
+    return dependencies.signal === undefined
+      ? timeout
+      : AbortSignal.any([dependencies.signal, timeout]);
+  };
+  const startStage = (stage: "reservation" | "transfer" | "postcondition") => {
+    const startedAt = now();
+    eventSink.emit({
+      type: "event",
+      level: "info",
+      event: "upload.stage-started",
+      data: { stage },
+    });
+    return () =>
+      eventSink.emit({
+        type: "event",
+        level: "info",
+        event: "upload.stage-completed",
+        data: { stage, elapsedMs: Math.max(0, now() - startedAt) },
+      });
+  };
   const target = parseRemotePath(remotePath);
   if (target.kind === "root") {
     throw new DomainError(
@@ -232,11 +260,22 @@ export async function runUpload(
       ...(parentId === undefined ? {} : { parentId }),
     };
 
+    let finishStage = startStage("reservation");
     let reservation = await dependencies.client.createUpload(reservationInput);
+    finishStage();
     let offset = reservationOffset(reservation.offset, local.stats.size);
+    if (offset > 0) {
+      eventSink.emit({
+        type: "event",
+        level: "warning",
+        event: "upload.resume",
+        data: { offset, totalBytes: local.stats.size },
+      });
+    }
     let completion: UploadContentResponse | undefined;
     if (offset < local.stats.size || local.stats.size === 0) {
       try {
+        finishStage = startStage("transfer");
         completion = await dependencies.uploader.uploadContent({
           uploadUrl: reservation.uploadUrl,
           fileHandle: local.handle,
@@ -244,17 +283,27 @@ export async function runUpload(
           fileSize: local.stats.size,
           offset,
           resume: offset > 0,
-          signal: AbortSignal.timeout(dependencies.timeoutMs),
+          signal: transferSignal(),
         });
+        finishStage();
       } catch (error) {
         const failure = normalizeError(error);
         if (!failure.retryable) {
           throw failure;
         }
 
+        finishStage = startStage("reservation");
         reservation = await dependencies.client.createUpload(reservationInput);
+        finishStage();
         offset = reservationOffset(reservation.offset, local.stats.size);
+        eventSink.emit({
+          type: "event",
+          level: "warning",
+          event: "upload.resume",
+          data: { offset, totalBytes: local.stats.size },
+        });
         if (offset < local.stats.size || local.stats.size === 0) {
+          finishStage = startStage("transfer");
           completion = await dependencies.uploader.uploadContent({
             uploadUrl: reservation.uploadUrl,
             fileHandle: local.handle,
@@ -262,12 +311,14 @@ export async function runUpload(
             fileSize: local.stats.size,
             offset,
             resume: true,
-            signal: AbortSignal.timeout(dependencies.timeoutMs),
+            signal: transferSignal(),
           });
+          finishStage();
         }
       }
     }
 
+    finishStage = startStage("postcondition");
     let data: UploadData;
     if (completion === undefined) {
       data = await postconditionWithoutResponse(effectiveTarget, local.stats.size, dependencies);
@@ -280,6 +331,7 @@ export async function runUpload(
         dependencies.client,
       );
     }
+    finishStage();
 
     let after: Stats;
     try {

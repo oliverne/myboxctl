@@ -143,3 +143,17 @@ local limiter 또는 서버 429를 배제하지 않는다.
 3. wall time, request 수, event별 waitMs와 자연 발생 429 여부를 기록한다.
 4. 증거에 따라 429 자동 retry 유지·조정·fail-fast 중 하나를 선택한다.
 5. 선택한 정책의 deterministic test를 추가하고 전체 command acceptance 시간을 다시 기록한다.
+
+## 2026-08-31 구현 결과
+
+- `rate-limit.wait-started/completed`가 local quota와 server cooldown을 구분한다.
+- `http.retry-scheduled/completed`가 backoff, `Retry-After`, fallback 출처를 구분한다.
+- fake clock에서 search quota 1,000ms, shared server cooldown 2,000ms와 GET 429 fallback 60,000ms를
+  각각 검증했다.
+- upload file byte는 offset부터 file size까지 단조 증가하며 최대 초당 1회와 완료 시점에 emit된다.
+- `--json` stdout envelope는 유지되고 warning/progress event는 stderr JSON Lines로 분리됐다.
+- 일반 회귀 검증은 212 pass, 35 opt-in skip, 0 fail이다.
+
+실제 Phase 13 probe는 아직 실행하지 않았다. 따라서 서버 429가 이전 장시간 지연의 원인이라는 결론은
+내리지 않는다. 현행 bounded GET retry 정책은 유지하고, live probe의 자연 관찰 결과가 다를 때만
+bucket 또는 fail-fast 정책을 다시 검토한다.
