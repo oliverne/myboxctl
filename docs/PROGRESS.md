@@ -11,6 +11,7 @@
 - 활성 구현 phase: 없음
 - 다음 담당자: 없음 (PR #11은 2026-08-31 merge 완료; 이후 공개 Release/publish는 별도 승인)
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
+- `docs/reference/cli-contract-improvements.md`를 추가했다. CLI `--help`와 `--json` 스키마의 AI-friendly 개선 제안(미적용)을 정리했다. 코드 변경은 없다.
 - README 하단의 설치·제약·개발 안내를 간결하게 정리했으며, 상단 58줄과 production code는 변경하지 않았다.
 - Phase 13은 지연 원인 계측, 429 처리 판정과 기본 human/`--json` agent 출력 모드를 다루는 실행
   계획으로 구체화한 뒤 P13-A~D 일반 구현을 완료했다. typed event sink, human/JSONL renderer,

@@ -15,6 +15,7 @@ live acceptance를 완료했다. PR [#11](https://github.com/oliverne/myboxctl/p
 - integration stderr 계약 수정 commit: `710cde214f93d7758b7cabe226b6d0d769c28bd4`
 - 로컬 검증: 212 pass, 35 opt-in skip, 0 fail
 - 별도 release contract: 3 pass, 0 fail
+- `docs/reference/cli-contract-improvements.md` 추가: CLI `--help`/`--json` AI-friendly 개선 제안(미적용). 코드/phase 변경 없음.
 
 5개 live integration test의 오래된 `stderr === ""` assertion을 제거했다. 각 CLI subprocess는
 `--json` stderr가 비어 있거나 모든 non-empty line이 다음 조건을 만족하는지 검증한다.
