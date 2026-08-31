@@ -9,6 +9,7 @@ import {
   isRecord,
   joinRemotePath,
   listPages,
+  parseSafeCliEvents,
   resourceId,
 } from "./helpers.ts";
 
@@ -46,6 +47,7 @@ async function runCli(args: string[]) {
     new Response(subprocess.stderr).text(),
     subprocess.exited,
   ]);
+  parseSafeCliEvents(stderr, args[0] ?? "unknown");
   return { exitCode, stdout, stderr };
 }
 
@@ -146,7 +148,6 @@ describeIntegration("MYBOX put acceptance", () => {
   test("runs the metadata policy flow and reuses mkdir/upload", async () => {
     const first = await runCli(["put", localPath, filePath, "--mkdir", "--json"]);
     expect(first.exitCode).toBe(0);
-    expect(first.stderr).toBe("");
     expect(parseOutput(first.stdout)).toMatchObject({
       ok: true,
       action: "uploaded",
@@ -155,7 +156,6 @@ describeIntegration("MYBOX put acceptance", () => {
 
     const same = await runCli(["put", localPath, filePath, "--json"]);
     expect(same.exitCode).toBe(0);
-    expect(same.stderr).toBe("");
     expect(parseOutput(same.stdout)).toMatchObject({
       ok: true,
       action: "skipped",
@@ -165,7 +165,6 @@ describeIntegration("MYBOX put acceptance", () => {
     await writeFile(localPath, "updated-size");
     const changed = await runCli(["put", localPath, filePath, "--json"]);
     expect(changed.exitCode).toBe(0);
-    expect(changed.stderr).toBe("");
     expect(parseOutput(changed.stdout)).toMatchObject({
       ok: true,
       action: "overwritten",
@@ -182,11 +181,9 @@ describeIntegration("MYBOX put acceptance", () => {
       "--json",
     ]);
     expect(makeRemoteNewer.exitCode).toBe(0);
-    expect(makeRemoteNewer.stderr).toBe("");
 
     const conflict = await runCli(["put", localPath, filePath, "--json"]);
     expect(conflict.exitCode).toBe(5);
-    expect(conflict.stderr).toBe("");
     expect(parseOutput(conflict.stdout)).toMatchObject({
       ok: false,
       error: { kind: "conflict", code: "REMOTE_NEWER" },
@@ -194,7 +191,6 @@ describeIntegration("MYBOX put acceptance", () => {
 
     const forced = await runCli(["put", localPath, filePath, "--force", "--json"]);
     expect(forced.exitCode).toBe(0);
-    expect(forced.stderr).toBe("");
     expect(parseOutput(forced.stdout)).toMatchObject({
       ok: true,
       action: "overwritten",
@@ -203,7 +199,6 @@ describeIntegration("MYBOX put acceptance", () => {
 
     const missingParent = await runCli(["put", localPath, nestedFilePath, "--json"]);
     expect(missingParent.exitCode).toBe(4);
-    expect(missingParent.stderr).toBe("");
     expect(parseOutput(missingParent.stdout)).toMatchObject({
       ok: false,
       error: { kind: "not-found" },
@@ -211,7 +206,6 @@ describeIntegration("MYBOX put acceptance", () => {
 
     const mkdir = await runCli(["put", localPath, nestedFilePath, "--mkdir", "--json"]);
     expect(mkdir.exitCode).toBe(0);
-    expect(mkdir.stderr).toBe("");
     expect(parseOutput(mkdir.stdout)).toMatchObject({
       ok: true,
       action: "uploaded",
