@@ -9,6 +9,7 @@ import {
   isRecord,
   joinRemotePath,
   listPages,
+  parseSafeCliEvents,
   resourceId,
 } from "./helpers.ts";
 
@@ -45,6 +46,7 @@ async function runCli(args: string[]) {
     new Response(subprocess.stderr).text(),
     subprocess.exited,
   ]);
+  parseSafeCliEvents(stderr, args[0] ?? "unknown");
   return { exitCode, stdout, stderr };
 }
 
@@ -140,13 +142,11 @@ describeIntegration("MYBOX delete acceptance", () => {
     for (const path of [filePath, childFilePath]) {
       const created = await runCli(["put", localPath, path, "--mkdir", "--json"]);
       expect(created.exitCode).toBe(0);
-      expect(created.stderr).toBe("");
       expect(parseOutput(created.stdout)).toMatchObject({ ok: true, action: "uploaded" });
     }
 
     const fileDelete = await runCli(["delete", filePath, "--json"]);
     expect(fileDelete.exitCode).toBe(0);
-    expect(fileDelete.stderr).toBe("");
     const fileOutput = parseOutput(fileDelete.stdout);
     expect(fileOutput).toMatchObject({
       ok: true,
@@ -178,7 +178,6 @@ describeIntegration("MYBOX delete acceptance", () => {
 
     const folderDelete = await runCli(["delete", childFolderPath, "--json"]);
     expect(folderDelete.exitCode).toBe(0);
-    expect(folderDelete.stderr).toBe("");
     const folderOutput = parseOutput(folderDelete.stdout);
     expect(folderOutput).toMatchObject({
       ok: true,

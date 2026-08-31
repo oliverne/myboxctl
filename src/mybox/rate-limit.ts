@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
 import { DomainError } from "../errors.ts";
+import { type EventSink, noOpEventSink } from "../observability.ts";
 
 export const SEARCH_REQUEST_LIMIT = 10;
 export const SEARCH_WINDOW_MS = 60_000;
@@ -45,6 +46,7 @@ export type SharedRateLimiterDependencies = {
   now: () => number;
   sleep: (ms: number) => Promise<void>;
   random: () => number;
+  eventSink: EventSink;
   policy?: Partial<SharedRateLimiterPolicy>;
 };
 
@@ -68,6 +70,7 @@ const defaultDependencies: SharedRateLimiterDependencies = {
   now: () => Date.now(),
   sleep: (ms) => Bun.sleep(ms),
   random: () => Math.random(),
+  eventSink: noOpEventSink,
 };
 
 const defaultPolicy: SharedRateLimiterPolicy = {
@@ -153,6 +156,7 @@ function parseState(contents: string): RateLimitState {
 
 type BucketConfig = {
   key: string;
+  operation: string;
   limit: number;
   windowMs: number;
 };
@@ -165,6 +169,7 @@ function bucketForRequest(
   if (method === "GET" && request.url.pathname.startsWith("/v1/search/")) {
     return {
       key: `${request.url.origin}:search`,
+      operation: "search",
       limit: policy.searchRequestLimit,
       windowMs: policy.searchWindowMs,
     };
@@ -172,6 +177,7 @@ function bucketForRequest(
   if (method === "DELETE" && /^\/v1\/drive\/resources\/[^/]+$/.test(request.url.pathname)) {
     return {
       key: `${request.url.origin}:delete`,
+      operation: "delete",
       limit: policy.deleteRequestLimit,
       windowMs: policy.deleteWindowMs,
     };
@@ -197,6 +203,7 @@ function bucketForRequest(
   if (operation !== undefined) {
     return {
       key: `${request.url.origin}:${operation}`,
+      operation,
       limit: policy.otherRequestLimit,
       windowMs: policy.otherWindowMs,
     };
@@ -341,7 +348,7 @@ export class SharedRateLimiter implements RequestRateLimiter {
     }
 
     while (true) {
-      const waitMs = await this.withState((state) => {
+      const wait = await this.withState((state) => {
         const now = this.dependencies.now();
         const bucket = state.buckets[config.key] ?? { requests: [] };
         bucket.requests = bucket.requests.filter(
@@ -350,20 +357,36 @@ export class SharedRateLimiter implements RequestRateLimiter {
         state.buckets[config.key] = bucket;
 
         if (bucket.blockedUntil !== undefined && bucket.blockedUntil > now) {
-          return bucket.blockedUntil - now;
+          return { waitMs: bucket.blockedUntil - now, reason: "server-cooldown" as const };
         }
         if (bucket.requests.length >= config.limit) {
-          return Math.max(1, (bucket.requests[0] ?? now) + config.windowMs - now);
+          return {
+            waitMs: Math.max(1, (bucket.requests[0] ?? now) + config.windowMs - now),
+            reason: "quota" as const,
+          };
         }
 
         bucket.requests.push(now);
-        return 0;
+        return { waitMs: 0, reason: "quota" as const };
       });
 
-      if (waitMs <= 0) {
+      if (wait.waitMs <= 0) {
         return;
       }
-      await this.dependencies.sleep(waitMs);
+      const level = wait.waitMs >= 1_000 ? "warning" : "info";
+      this.dependencies.eventSink.emit({
+        type: "event",
+        level,
+        event: "rate-limit.wait-started",
+        data: { operation: config.operation, waitMs: wait.waitMs, reason: wait.reason },
+      });
+      await this.dependencies.sleep(wait.waitMs);
+      this.dependencies.eventSink.emit({
+        type: "event",
+        level,
+        event: "rate-limit.wait-completed",
+        data: { operation: config.operation, waitMs: wait.waitMs, reason: wait.reason },
+      });
     }
   }
 

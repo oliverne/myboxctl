@@ -15,8 +15,83 @@ export type ApiResponse = {
   body: unknown;
 };
 
+const OBSERVABILITY_EVENT_DATA_KEYS: Record<string, ReadonlySet<string>> = {
+  "rate-limit.wait-started": new Set(["operation", "waitMs", "reason"]),
+  "rate-limit.wait-completed": new Set(["operation", "waitMs", "reason"]),
+  "http.retry-scheduled": new Set(["operation", "attempt", "waitMs", "delaySource", "status"]),
+  "http.retry-completed": new Set(["operation", "attempt", "waitMs", "delaySource", "status"]),
+  "upload.stage-started": new Set(["stage", "elapsedMs"]),
+  "upload.stage-completed": new Set(["stage", "elapsedMs"]),
+  "upload.transfer-started": new Set([
+    "transferredBytes",
+    "totalBytes",
+    "percent",
+    "offset",
+    "elapsedMs",
+  ]),
+  "upload.transfer-progress": new Set([
+    "transferredBytes",
+    "totalBytes",
+    "percent",
+    "offset",
+    "elapsedMs",
+  ]),
+  "upload.transfer-completed": new Set([
+    "transferredBytes",
+    "totalBytes",
+    "percent",
+    "offset",
+    "elapsedMs",
+  ]),
+  "upload.resume": new Set(["offset", "totalBytes"]),
+};
+
+const OBSERVABILITY_EVENT_KEYS = new Set(["type", "level", "event", "command", "data"]);
+
+const UNSAFE_EVENT_TEXT =
+  /authorization|bearer\s+|uploadurl|downloadurl|[?&](?:signature|token|key)=/i;
+
 export function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function parseSafeCliEvents(stderr: string, command: string): JsonRecord[] {
+  const events = stderr
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as unknown);
+
+  for (const event of events) {
+    if (!isRecord(event)) {
+      throw new Error(`${command} CLI emitted a non-object stderr event`);
+    }
+    if (
+      event.type !== "event" ||
+      event.command !== command ||
+      (event.level !== "info" && event.level !== "warning") ||
+      typeof event.event !== "string" ||
+      OBSERVABILITY_EVENT_DATA_KEYS[event.event] === undefined ||
+      !isRecord(event.data)
+    ) {
+      throw new Error(`${command} CLI emitted an invalid stderr event`);
+    }
+    const allowedDataKeys = OBSERVABILITY_EVENT_DATA_KEYS[event.event];
+    if (
+      Object.keys(event).some((key) => !OBSERVABILITY_EVENT_KEYS.has(key)) ||
+      Object.keys(event.data).some((key) => !allowedDataKeys?.has(key))
+    ) {
+      throw new Error(`${command} CLI emitted a non-allowlisted stderr event field`);
+    }
+    const serialized = JSON.stringify(event);
+    if (
+      UNSAFE_EVENT_TEXT.test(serialized) ||
+      (process.env.MYBOX_PAT !== undefined && serialized.includes(process.env.MYBOX_PAT))
+    ) {
+      throw new Error(`${command} CLI emitted unsafe stderr event data`);
+    }
+  }
+
+  return events as JsonRecord[];
 }
 
 export function asString(value: unknown, field: string): string {

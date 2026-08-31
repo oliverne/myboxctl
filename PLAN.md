@@ -267,8 +267,8 @@ Phase 12는 case folding, 로컬 파일 rename, 기존 resource 자동 migration
 Human UI 조사: [`docs/reference/human-cli-ui-investigation.md`](docs/reference/human-cli-ui-investigation.md)
 
 실제 MYBOX PAT로 통합 테스트를 돌리던 중, 개별 API 호출은 0.2~0.4초로 빠른데 `ensure-dir`/
-`delete` acceptance가 수 분씩 걸리는 지연이 발견됐다. local shared limiter, 서버 429 retry와
-integration polling 중 어느 경로가 긴 대기를 만드는지 현재 출력만으로는 구분할 수 없다.
+`delete` acceptance가 수 분씩 걸리는 지연이 발견됐다. Phase 13 계측 결과 긴 대기는 서버 429가
+아니라 공식 검색 한도를 지키는 local shared limiter의 `quota` 대기에서 발생했다.
 
 Phase 13은 각 대기 경로를 구조화 event로 계측한 뒤 GET 429의 1회 retry와 60~61초 fallback을
 유지·조정·fail-fast 중 하나로 판정한다. 같은 event boundary로 사람과 AI 에이전트에 자동 retry,
@@ -278,6 +278,10 @@ stderr JSON Lines event를 사용한다. `--quiet`는 event만 억제하고 최�
 로컬 CLI UI prototype에서 검증한 semantic status, 단일 progress bar와 단계 표현을 참고하되 범용
 TUI dependency는 추가하지 않는다. TTY에서만 redraw/countdown을 사용하고 non-TTY는 line log로
 유지한다. Phase 13은 신규 MYBOX API 범위나 mutation retry 정책을 추가하지 않는다.
+
+격리된 targeted probe는 약 1.096초에 event 없이 통과했고, full live acceptance는 8 pass, 17
+opt-in skip, 0 fail로 1,875.35초가 걸렸다. 자연 발생 서버 429와 `server-cooldown`은 관찰되지
+않았으므로 검색 bucket과 bounded GET 429 retry 정책을 유지한다.
 
 ## 6. 전체 MVP 완료 조건
 

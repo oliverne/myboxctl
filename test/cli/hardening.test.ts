@@ -77,7 +77,17 @@ describe("cross-command CLI hardening", () => {
     for (const testCase of cases) {
       const result = await runCli(testCase.args, server.baseUrl);
       expect(result.exitCode).toBe(8);
-      expect(result.stderr).toBe("");
+      const events = result.stderr
+        .split("\n")
+        .filter(Boolean)
+        .map((line) => JSON.parse(line) as Record<string, unknown>);
+      for (const event of events) {
+        expect(event).toMatchObject({
+          type: "event",
+          level: "warning",
+          command: testCase.command,
+        });
+      }
       expect(result.stdout.trim().split("\n")).toHaveLength(1);
       expect(JSON.parse(result.stdout)).toMatchObject({
         ok: false,
@@ -90,10 +100,20 @@ describe("cross-command CLI hardening", () => {
           retryAfterMs: 0,
         },
       });
-      expect(result.stdout).not.toContain("TEST_ONLY_SECRET");
-      expect(result.stdout).not.toContain("RESPONSE_SECRET");
-      expect(result.stdout).not.toContain("signed.example.test");
-      expect(result.stdout).not.toContain("response-secret");
+      const combinedOutput = `${result.stdout}\n${result.stderr}`;
+      expect(combinedOutput).not.toContain("TEST_ONLY_SECRET");
+      expect(combinedOutput).not.toContain("RESPONSE_SECRET");
+      expect(combinedOutput).not.toContain("signed.example.test");
+      expect(combinedOutput).not.toContain("response-secret");
     }
+
+    const quiet = await runCli(["stat", "/한글 # +.txt", "--json", "--quiet"], server.baseUrl);
+    expect(quiet.exitCode).toBe(8);
+    expect(quiet.stderr).toBe("");
+    expect(JSON.parse(quiet.stdout)).toMatchObject({
+      ok: false,
+      command: "stat",
+      error: { kind: "rate-limit" },
+    });
   });
 });

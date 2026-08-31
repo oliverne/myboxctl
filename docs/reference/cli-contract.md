@@ -16,7 +16,12 @@
 - 모든 명령은 자동화된 호출자를 위해 `--json`을 지원한다.
 - JSON mode에서 stdout에는 정확히 하나의 JSON document와 마지막 newline만 출력한다.
 - JSON mode의 예상 가능한 실패도 stdout에 JSON으로 출력하고 non-zero exit code를 사용한다.
-- stderr는 `--verbose` diagnostics와 process-level 예외에만 사용한다.
+- stderr는 실행 중 warning/progress event와 human 최종 오류에 사용한다. `--json`의 event는 각 줄을
+  독립적으로 파싱할 수 있는 JSON Lines다.
+- `--verbose`는 단계와 upload/put byte progress를 추가하고, `--quiet`는 실행 중 event만 억제한다.
+  두 옵션은 함께 사용할 수 없다.
+- terminal failure는 최종 결과 channel에 한 번만 출력한다. `--json` failure는 stdout envelope에만
+  남고 stderr error event로 중복하지 않는다.
 - PAT 또는 credential 성격 URL은 어느 출력에도 포함하지 않는다.
 
 ## 성공 envelope
@@ -24,8 +29,7 @@
 ```ts
 type Success<T> = {
   ok: true;
-  command:
-    "stat" | "ls" | "ensure-dir" | "upload" | "put" | "download" | "delete";
+  command: "stat" | "ls" | "ensure-dir" | "upload" | "put" | "download" | "delete";
   action: string;
   data: T;
 };

@@ -130,6 +130,20 @@ describe("upload command subprocess contract", () => {
     expect(
       server.requests.find((request) => request.path === "/storage/upload")?.bodyText,
     ).toContain("content\r\n--");
+
+    const verbose = await runCli(
+      ["upload", localPath, "/report.txt", "--json", "--verbose"],
+      server.baseUrl,
+    );
+    expect(verbose.exitCode).toBe(0);
+    expect(JSON.parse(verbose.stdout)).toMatchObject({ ok: true, command: "upload" });
+    const events = verbose.stderr
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as { event: string; command: string });
+    expect(events.every((event) => event.command === "upload")).toBe(true);
+    expect(events.map((event) => event.event)).toContain("upload.transfer-started");
+    expect(events.map((event) => event.event)).toContain("upload.transfer-completed");
   });
 
   test("rejects a control-character remote path before HTTP", async () => {

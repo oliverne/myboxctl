@@ -1,6 +1,7 @@
 import type { FileHandle } from "node:fs/promises";
 
 import { apiResponseError, DomainError, domainErrorForHttp, normalizeError } from "../errors.ts";
+import { type EventSink, noOpEventSink } from "../observability.ts";
 import {
   type MyboxError,
   myboxErrorSchema,
@@ -22,10 +23,14 @@ export type UploadContentInput = {
 
 export type UploaderDependencies = {
   fetch: typeof globalThis.fetch;
+  eventSink: EventSink;
+  now: () => number;
 };
 
 const defaultDependencies: UploaderDependencies = {
   fetch: globalThis.fetch,
+  eventSink: noOpEventSink,
+  now: () => Date.now(),
 };
 
 function localReadError(cause: unknown): DomainError {
@@ -84,7 +89,10 @@ function validateRange(fileSize: number, offset: number): void {
   }
 }
 
-function multipartBody(input: UploadContentInput): {
+function multipartBody(
+  input: UploadContentInput,
+  dependencies: { onProgress: (transferredBytes: number) => void },
+): {
   body: ReadableStream<Uint8Array>;
   boundary: string;
   contentLength: number;
@@ -121,6 +129,7 @@ function multipartBody(input: UploadContentInput): {
             return;
           }
           position += result.bytesRead;
+          dependencies.onProgress(position);
           controller.enqueue(buffer);
           return;
         } catch (error) {
@@ -154,7 +163,35 @@ export class MyboxUploader {
   async uploadContent(input: UploadContentInput): Promise<UploadContentResponse> {
     validateFileName(input.fileName);
     validateRange(input.fileSize, input.offset);
-    const multipart = multipartBody(input);
+    const startedAt = this.dependencies.now();
+    let lastProgressAt = startedAt;
+    const progressData = (transferredBytes: number) => ({
+      transferredBytes,
+      totalBytes: input.fileSize,
+      percent: input.fileSize === 0 ? 100 : (transferredBytes / input.fileSize) * 100,
+      offset: input.offset,
+      elapsedMs: Math.max(0, this.dependencies.now() - startedAt),
+    });
+    this.dependencies.eventSink.emit({
+      type: "event",
+      level: "info",
+      event: "upload.transfer-started",
+      data: progressData(input.offset),
+    });
+    const multipart = multipartBody(input, {
+      onProgress: (transferredBytes) => {
+        const now = this.dependencies.now();
+        if (transferredBytes === input.fileSize || now - lastProgressAt >= 1_000) {
+          lastProgressAt = now;
+          this.dependencies.eventSink.emit({
+            type: "event",
+            level: "info",
+            event: "upload.transfer-progress",
+            data: progressData(transferredBytes),
+          });
+        }
+      },
+    });
     const headers = new Headers({
       "Content-Length": String(multipart.contentLength),
       "Content-Type": `multipart/form-data; boundary=${multipart.boundary}`,
@@ -190,6 +227,12 @@ export class MyboxUploader {
     if (!parsed.success) {
       throw apiResponseError("MYBOX returned an invalid upload completion response.");
     }
+    this.dependencies.eventSink.emit({
+      type: "event",
+      level: "info",
+      event: "upload.transfer-completed",
+      data: progressData(input.fileSize),
+    });
     return parsed.data;
   }
 }

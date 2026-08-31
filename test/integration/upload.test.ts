@@ -9,6 +9,7 @@ import {
   isRecord,
   joinRemotePath,
   listPages,
+  parseSafeCliEvents,
   resourceId,
 } from "./helpers.ts";
 
@@ -48,6 +49,7 @@ async function runCli(
     new Response(subprocess.stderr).text(),
     subprocess.exited,
   ]);
+  parseSafeCliEvents(stderr, args[0] ?? "unknown");
   return { exitCode, stdout, stderr };
 }
 
@@ -138,7 +140,6 @@ describeIntegration("MYBOX upload acceptance", () => {
   test("uploads an empty Unicode file and overwrites it only when requested", async () => {
     const first = await runCli(["upload", localPath, filePath, "--mkdir", "--json"]);
     expect(first.exitCode).toBe(0);
-    expect(first.stderr).toBe("");
     expect(parseOutput(first.stdout)).toMatchObject({
       ok: true,
       action: "uploaded",
@@ -148,7 +149,6 @@ describeIntegration("MYBOX upload acceptance", () => {
     await writeFile(localPath, "updated");
     const conflict = await runCli(["upload", localPath, filePath, "--json"]);
     expect(conflict.exitCode).toBe(5);
-    expect(conflict.stderr).toBe("");
     expect(parseOutput(conflict.stdout)).toMatchObject({
       ok: false,
       error: { kind: "conflict" },
@@ -156,7 +156,6 @@ describeIntegration("MYBOX upload acceptance", () => {
 
     const overwrite = await runCli(["upload", localPath, filePath, "--overwrite", "--json"]);
     expect(overwrite.exitCode).toBe(0);
-    expect(overwrite.stderr).toBe("");
     expect(parseOutput(overwrite.stdout)).toMatchObject({
       ok: true,
       action: "overwritten",

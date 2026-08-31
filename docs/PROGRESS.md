@@ -5,20 +5,22 @@
 
 ## 현재 상태
 
-- 현재 phase: `없음`
-- 상태: `대기`
+- 현재 phase: `Phase 13 Observability & test latency`
+- 상태: `complete`
 - 릴리스 상태: `v0.1.0 draft 검증 완료, 공개 보류`
-- 활성 구현 phase: `없음`
-- 다음 담당자: Phase 13 시작 여부 확인 후 P13-A 구조화 event boundary 구현
+- 활성 구현 phase: 없음
+- 다음 담당자: PR #11 검토 및 merge 여부 결정
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
 - README 하단의 설치·제약·개발 안내를 간결하게 정리했으며, 상단 58줄과 production code는 변경하지 않았다.
 - Phase 13은 지연 원인 계측, 429 처리 판정과 기본 human/`--json` agent 출력 모드를 다루는 실행
-  계획으로 구체화했다. 로컬 `my-cli` prototype을 조사해 TTY-only redraw, compact upload progress와
-  dependency 비도입 원칙을 반영했으며 아직 구현은 시작하지 않았다.
+  계획으로 구체화한 뒤 P13-A~D 일반 구현을 완료했다. typed event sink, human/JSONL renderer,
+  `--verbose`/`--quiet`, local limiter와 GET retry 계측, upload/put 진행률을 추가했다. 일반 검증은
+  212 pass, 35 opt-in skip, 0 fail이다. targeted live probe는 1 pass, full live acceptance는 8 pass,
+  17 opt-in skip, 0 fail로 통과했다. 장시간 지연 원인은 local search quota 대기로 확인했다.
 - Phase 11 후속 dependency maintenance로 Release workflow의 artifact action을 Node 24 기반
-  `upload-artifact@v7`과 `download-artifact@v8`로 갱신했다. 원격 Release workflow 검증은 아직
-  실행하지 않았다.
-- 마지막 갱신: 2026-08-30
+  `upload-artifact@v7`과 `download-artifact@v8`로 갱신했다. PR Release workflow의 5개 native
+  smoke는 통과했으며 새 tag 기반 artifact transfer는 아직 실행하지 않았다.
+- 마지막 갱신: 2026-08-31
 
 ## Phase 상태
 
@@ -37,7 +39,7 @@
 | 10 Cross-implementation hardening | complete | C0/DEL 방어, live delete/name probe, active-membership reconcile 및 CI 통과     | [`phases/10-cross-implementation-hardening.md`](phases/10-cross-implementation-hardening.md)     |
 | 11 Distribution & Release         | complete | v0.1.0 draft Release 최초 실행·재실행과 5개 native smoke 성공                   | [`phases/11-distribution-release.md`](phases/11-distribution-release.md)                         |
 | 12 Cross-platform Unicode names   | complete | CI 90·Release 21, Phase 12 live probe run 33244082095 성공                      | [`phases/12-cross-platform-unicode-filenames.md`](phases/12-cross-platform-unicode-filenames.md) |
-| 13 Observability & test latency   | pending  | 실행 계획·human UI 조사 완료, 구현·live probe 미실행                            | [`phases/13-observability-and-test-latency.md`](phases/13-observability-and-test-latency.md)     |
+| 13 Observability & test latency   | complete | 212 pass, targeted probe 1 pass, live acceptance 8 pass                         | [`phases/13-observability-and-test-latency.md`](phases/13-observability-and-test-latency.md)     |
 
 ## 초기화 상태
 
@@ -335,6 +337,26 @@ Ubuntu/macOS/Windows local download regression이 성공했고, Release 17에서
 입력으로 기존 NFD resource를 찾는 단일 fallback, canonical-equivalent 중복 mutation 차단, 신규
 원격 이름의 NFC 전송, 그리고 local path 비정규화를 확인하며 `workflow_dispatch`의
 `phase12_probe=true`로 실행한다.
+
+## Phase 13 완료
+
+typed event sink, human/JSONL renderer, `--verbose`/`--quiet`, local limiter와 GET retry 계측,
+upload/put byte progress를 구현했다. 로컬 `bun run check`는 212 pass, 35 opt-in skip, 0 fail이며 별도
+build와 release contract 3 pass도 통과했다.
+
+기존 live integration test 5개가 `--json` stderr를 항상 빈 문자열로 가정하던 문제를 수정했다. 모든
+CLI subprocess는 stderr가 비어 있거나 각 줄이 command와 event/data allowlist 및 credential
+redaction을 통과하는 JSON object인지 검증한다. 수정 commit `710cde2`를 PR #11에 push했고 일반 CI
+run 33388258127과 Release run 33388258207의 5개 native smoke가 성공했다.
+
+분리 dispatch로 Phase 13 targeted probe run 33388395781이 1 pass, 0 fail, 1,095.83ms에 event 없이
+통과했다. full live acceptance run 33388494698은 8 pass, 17 opt-in skip, 0 fail이며 1,875.35초가
+걸렸다. 직전 진단 run의 실제 event 16쌍은 모두 local search `quota`였고 시작 event의 `waitMs`
+합계는 271,777ms였다. 서버 429, `server-cooldown`과 `http.retry-scheduled`는 관찰되지 않았다.
+
+공식 검색 한도와 일치하는 local bucket을 완화하지 않고, GET 429 한 번 retry, `Retry-After` 우선,
+header가 없을 때 60~61초 fallback 정책을 유지한다. Phase 13 완료 조건을 충족해 `complete`로
+변경했다. PR #11 merge와 public Release/publish는 별도 결정으로 남긴다.
 
 ## 상태 변경 규칙
 

@@ -6,6 +6,7 @@ import {
   isRecord,
   joinRemotePath,
   listPages,
+  parseSafeCliEvents,
   resourceId,
 } from "./helpers.ts";
 
@@ -46,6 +47,7 @@ async function runCli(
     new Response(subprocess.stderr).text(),
     subprocess.exited,
   ]);
+  parseSafeCliEvents(stderr, args[0] ?? "unknown");
   return { exitCode, stdout, stderr };
 }
 
@@ -129,7 +131,6 @@ describeIntegration("MYBOX ensure-dir acceptance", () => {
   test("creates a Unicode hierarchy and is existing on the second invocation", async () => {
     const first = await runCli(["ensure-dir", `${testPaths.at(-1)}/`, "--json"]);
     expect(first.exitCode).toBe(0);
-    expect(first.stderr).toBe("");
 
     const firstOutput = parseOutput(first.stdout);
     expect(firstOutput).toMatchObject({
@@ -144,7 +145,6 @@ describeIntegration("MYBOX ensure-dir acceptance", () => {
 
     const second = await runCli(["ensure-dir", testPaths.at(-1) ?? "", "--json"]);
     expect(second.exitCode).toBe(0);
-    expect(second.stderr).toBe("");
 
     expect(parseOutput(second.stdout)).toMatchObject({
       ok: true,

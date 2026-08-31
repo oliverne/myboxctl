@@ -3,7 +3,7 @@ import { mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { isRecord, joinRemotePath } from "./helpers.ts";
+import { isRecord, joinRemotePath, parseSafeCliEvents } from "./helpers.ts";
 
 const PREFIX_PATH = "/myboxctl-integration-test/";
 const integrationEnabled = process.env.MYBOX_INTEGRATION === "1" && Boolean(process.env.MYBOX_PAT);
@@ -40,6 +40,7 @@ async function runCli(args: string[]) {
     new Response(subprocess.stderr).text(),
     subprocess.exited,
   ]);
+  parseSafeCliEvents(stderr, args[0] ?? "unknown");
   return { exitCode, stdout, stderr };
 }
 
@@ -54,7 +55,6 @@ function parseOutput(stdout: string): CliOutput {
 async function expectSuccess(args: string[], expected: Partial<CliOutput>): Promise<CliOutput> {
   const result = await runCli(args);
   expect(result.exitCode).toBe(0);
-  expect(result.stderr).toBe("");
   const output = parseOutput(result.stdout);
   expect(output).toMatchObject(expected);
   return output;
@@ -147,7 +147,6 @@ describeIntegration("MYBOX final MVP acceptance", () => {
 
       const conflict = await runCli(["put", localPath, filePath, "--json"]);
       expect(conflict.exitCode).toBe(5);
-      expect(conflict.stderr).toBe("");
       expect(parseOutput(conflict.stdout)).toMatchObject({
         ok: false,
         command: "put",

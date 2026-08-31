@@ -1,5 +1,6 @@
 import type { z } from "zod";
 import { apiResponseError, DomainError, domainErrorForHttp } from "../errors.ts";
+import { type EventSink, noOpEventSink } from "../observability.ts";
 import {
   type CreateFolderResponse,
   type CreateUploadResponse,
@@ -43,6 +44,7 @@ export type ClientDependencies = {
   random: () => number;
   now: () => number;
   rateLimiter: RequestRateLimiter;
+  eventSink: EventSink;
 };
 
 type RequestOptions<T> = {
@@ -92,7 +94,21 @@ const defaultDependencies: ClientDependencies = {
   random: () => Math.random(),
   now: () => Date.now(),
   rateLimiter: noOpRateLimiter,
+  eventSink: noOpEventSink,
 };
+
+function operationFor(method: string, path: string): string {
+  if (path.startsWith("/v1/search/")) return "search";
+  if (path === "/v1/drive/storage") return "storage";
+  if (path === "/v1/drive/resources") return method === "GET" ? "root-list" : "resources";
+  if (/^\/v1\/drive\/folders\/[^/]+\/resources$/.test(path)) return "folder-list";
+  if (/^\/v1\/drive\/resources\/[^/]+$/.test(path)) {
+    return method === "DELETE" ? "delete" : "resource-detail";
+  }
+  if (path === "/v1/drive/folders") return "folder-create";
+  if (path === "/v1/drive/files") return "upload-reservation";
+  return "request";
+}
 
 function isRetryableServiceStatus(status: number): boolean {
   return [500, 502, 503].includes(status);
@@ -200,13 +216,15 @@ export class MyboxClient {
     }
     if (response.status === 429) {
       options.retryAfterMs =
-        parseRetryAfterMs(response.headers) ?? fallbackRateLimitDelayMs(this.dependencies.random);
+        parseRetryAfterMs(response.headers, this.dependencies.now()) ??
+        fallbackRateLimitDelayMs(this.dependencies.random);
     }
     return domainErrorForHttp(response.status, options);
   }
 
   async requestJson<T>(method: string, path: string, options: RequestOptions<T> = {}): Promise<T> {
     const isGet = method.toUpperCase() === "GET";
+    const operation = operationFor(method.toUpperCase(), path);
     let rateLimitRetries = 0;
 
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
@@ -218,7 +236,10 @@ export class MyboxClient {
           throw error;
         }
         if (isGet && attempt < MAX_ATTEMPTS - 1) {
-          await this.dependencies.sleep(retryBackoffMs(attempt, this.dependencies.random));
+          const waitMs = retryBackoffMs(attempt, this.dependencies.random);
+          this.emitRetry("http.retry-scheduled", operation, attempt + 1, waitMs, "backoff");
+          await this.dependencies.sleep(waitMs);
+          this.emitRetry("http.retry-completed", operation, attempt + 1, waitMs, "backoff");
           continue;
         }
 
@@ -229,7 +250,26 @@ export class MyboxClient {
         const mapped = this.parseError(result.response, result.body);
         if (isGet && result.response.status === 429 && rateLimitRetries < 1) {
           rateLimitRetries += 1;
-          await this.dependencies.sleep(mapped.retryAfterMs ?? SEARCH_WINDOW_MS);
+          const retryAfterMs = parseRetryAfterMs(result.response.headers, this.dependencies.now());
+          const waitMs = mapped.retryAfterMs ?? SEARCH_WINDOW_MS;
+          const delaySource = retryAfterMs === undefined ? "fallback" : "retry-after";
+          this.emitRetry(
+            "http.retry-scheduled",
+            operation,
+            rateLimitRetries,
+            waitMs,
+            delaySource,
+            429,
+          );
+          await this.dependencies.sleep(waitMs);
+          this.emitRetry(
+            "http.retry-completed",
+            operation,
+            rateLimitRetries,
+            waitMs,
+            delaySource,
+            429,
+          );
           continue;
         }
         if (
@@ -237,7 +277,24 @@ export class MyboxClient {
           isRetryableServiceStatus(result.response.status) &&
           attempt < MAX_ATTEMPTS - 1
         ) {
-          await this.dependencies.sleep(retryBackoffMs(attempt, this.dependencies.random));
+          const waitMs = retryBackoffMs(attempt, this.dependencies.random);
+          this.emitRetry(
+            "http.retry-scheduled",
+            operation,
+            attempt + 1,
+            waitMs,
+            "backoff",
+            result.response.status,
+          );
+          await this.dependencies.sleep(waitMs);
+          this.emitRetry(
+            "http.retry-completed",
+            operation,
+            attempt + 1,
+            waitMs,
+            "backoff",
+            result.response.status,
+          );
           continue;
         }
         throw mapped;
@@ -255,6 +312,28 @@ export class MyboxClient {
     }
 
     throw apiResponseError("MYBOX request retry limit was exceeded.");
+  }
+
+  private emitRetry(
+    event: "http.retry-scheduled" | "http.retry-completed",
+    operation: string,
+    attempt: number,
+    waitMs: number,
+    delaySource: "backoff" | "retry-after" | "fallback",
+    status?: number,
+  ): void {
+    this.dependencies.eventSink.emit({
+      type: "event",
+      level: "warning",
+      event,
+      data: {
+        operation,
+        attempt,
+        waitMs,
+        delaySource,
+        ...(status === undefined ? {} : { status }),
+      },
+    });
   }
 
   async getStorage(): Promise<StorageResponse> {

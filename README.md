@@ -42,6 +42,17 @@ download    원격 파일의 안전한 streaming download
 delete      원격 파일/폴더를 MYBOX 휴지통으로 이동
 ```
 
+긴 대기나 자동 재시도는 stderr event로 확인할 수 있습니다. `--json`에서는 최종 결과 한 개만
+stdout에 유지하고 실행 중 event는 JSON Lines로 stderr에 출력합니다.
+
+```bash
+myboxctl put ./report.md /agents/output/report.md --json --verbose \
+  2>myboxctl-events.jsonl
+```
+
+`--verbose`는 단계와 upload/put 진행률을 추가하고, `--quiet`는 실행 중 event만 억제합니다. 두
+옵션은 함께 사용할 수 없습니다. 기본 human 오류는 stderr에 `Error:`로 한 번만 출력됩니다.
+
 NAVER 공식 API에는 rename, move, copy, favorite, 휴지통 복원/영구 삭제 같은 기능도 있지만,
 `myboxctl`은 모든 API를 구현하는게 목표가 아닙니다. 실제 agent workflow에서 필요성이 확인되면
 선택적으로 추가합니다.
