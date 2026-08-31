@@ -7,7 +7,7 @@
 
 ## 상태와 진입 조건
 
-- 상태: `planned`
+- 상태: `pending`
 - 활성 phase: 없음
 - Phase 00~13 구현과 live acceptance는 완료된 상태를 전제로 한다.
 - 아직 공개 Release 전이므로 기존 CLI 이름과 JSON shape의 호환성 유지보다 명확한 public contract를
@@ -83,14 +83,14 @@ phase다.
 
 Phase 14 완료 후 canonical command는 다음 여섯 개로 정리한다.
 
-| Command | Alias | 의미 | destination/인자 생략 |
-| --- | --- | --- | --- |
-| `list [remote-path]` | `ls` | 폴더 내용 또는 단일 resource 표시 | 생략 시 `/` |
-| `info <remote-path>` | 없음 | 원격 파일/폴더 정보 조회 | 생략 불가 |
-| `mkdir [-p|--parents] <remote-directory>` | 없음 | 원격 폴더 생성 | 생략 불가 |
-| `upload <local-file> [remote-destination]` | 없음 | 안전한 조건부 업로드/갱신 | 생략 시 `/` destination |
-| `download <remote-file> [local-destination]` | 없음 | 원격 파일 다운로드 | 생략 시 현재 directory |
-| `delete [--ignore-missing] <remote-path>` | 없음 | 원격 파일/폴더를 휴지통으로 이동 | 생략 불가 |
+| Command                                      | Alias | 의미                              | destination/인자 생략   |
+| -------------------------------------------- | ----- | --------------------------------- | ----------------------- |
+| `list [remote-path]`                         | `ls`  | 폴더 내용 또는 단일 resource 표시 | 생략 시 `/`             |
+| `info <remote-path>`                         | 없음  | 원격 파일/폴더 정보 조회          | 생략 불가               |
+| `mkdir [-p\|--parents] <remote-directory>`   | 없음  | 원격 폴더 생성                    | 생략 불가               |
+| `upload <local-file> [remote-destination]`   | 없음  | 안전한 조건부 업로드/갱신         | 생략 시 `/` destination |
+| `download <remote-file> [local-destination]` | 없음  | 원격 파일 다운로드                | 생략 시 현재 directory  |
+| `delete [--ignore-missing] <remote-path>`    | 없음  | 원격 파일/폴더를 휴지통으로 이동  | 생략 불가               |
 
 ### `list` / `ls`
 
@@ -195,17 +195,17 @@ myboxctl upload ./file.zip /store/archive.zip --force
 
 remote destination 결정:
 
-| 입력/상태 | effective target |
-| --- | --- |
-| destination 생략 | `/<local-basename>` |
-| `/` | `/<local-basename>` |
-| `/store`가 기존 directory | `/store/<local-basename>` |
-| `/store`가 기존 file | `/store` |
-| `/store`가 없음, trailing `/` 없음 | 정확한 file path `/store` |
-| `/store/`가 기존 directory | `/store/<local-basename>` |
-| `/store/`가 없음 | 기본 실패 |
-| `/store/`가 없음 + `--mkdir` | directory 생성 후 `/store/<local-basename>` |
-| `/a/b/file.zip`가 없음 | 정확한 file path `/a/b/file.zip`; parent 정책 적용 |
+| 입력/상태                          | effective target                                   |
+| ---------------------------------- | -------------------------------------------------- |
+| destination 생략                   | `/<local-basename>`                                |
+| `/`                                | `/<local-basename>`                                |
+| `/store`가 기존 directory          | `/store/<local-basename>`                          |
+| `/store`가 기존 file               | `/store`                                           |
+| `/store`가 없음, trailing `/` 없음 | 정확한 file path `/store`                          |
+| `/store/`가 기존 directory         | `/store/<local-basename>`                          |
+| `/store/`가 없음                   | 기본 실패                                          |
+| `/store/`가 없음 + `--mkdir`       | directory 생성 후 `/store/<local-basename>`        |
+| `/a/b/file.zip`가 없음             | 정확한 file path `/a/b/file.zip`; parent 정책 적용 |
 
 - destination을 생략하거나 `/`를 지정하면 root 업로드를 정상 지원한다.
 - 기존 remote directory를 destination으로 지정하면 conflict가 아니라 local basename을 그 아래에 붙인다.
@@ -214,15 +214,15 @@ remote destination 결정:
 
 최종 effective target에 대한 metadata 정책:
 
-| 상태 | 결과 |
-| --- | --- |
-| 원격 파일 없음 | `uploaded` |
-| size 다름 | `overwritten` |
-| local이 2초 tolerance를 넘어 더 최신 | `overwritten` |
-| 현재 metadata상 동일 | `skipped` |
-| remote가 2초 tolerance를 넘어 더 최신 | conflict / exit 5 |
-| effective target이 folder | conflict / exit 5 |
-| `--force` | metadata 비교 결과와 관계없이 file overwrite |
+| 상태                                  | 결과                                         |
+| ------------------------------------- | -------------------------------------------- |
+| 원격 파일 없음                        | `uploaded`                                   |
+| size 다름                             | `overwritten`                                |
+| local이 2초 tolerance를 넘어 더 최신  | `overwritten`                                |
+| 현재 metadata상 동일                  | `skipped`                                    |
+| remote가 2초 tolerance를 넘어 더 최신 | conflict / exit 5                            |
+| effective target이 folder             | conflict / exit 5                            |
+| `--force`                             | metadata 비교 결과와 관계없이 file overwrite |
 
 - `--mkdir`은 누락된 remote parent 또는 명시적 directory destination을 생성한다.
 - `--overwrite`는 제거하고 강제 변경은 `--force` 하나로 통일한다.
@@ -246,14 +246,14 @@ myboxctl download /share/file.zip ./downloads/ --overwrite
 
 local destination 결정:
 
-| 입력/상태 | effective destination |
-| --- | --- |
-| destination 생략 | `./<remote-basename>` |
-| `.` | `./<remote-basename>` |
-| 기존 local directory | `<directory>/<remote-basename>` |
-| 존재하지 않는 path, directory intent 없음 | 정확한 file path |
-| trailing separator + 기존 directory | `<directory>/<remote-basename>` |
-| trailing separator + directory 없음 | 실패; directory를 자동 생성하지 않음 |
+| 입력/상태                                 | effective destination                |
+| ----------------------------------------- | ------------------------------------ |
+| destination 생략                          | `./<remote-basename>`                |
+| `.`                                       | `./<remote-basename>`                |
+| 기존 local directory                      | `<directory>/<remote-basename>`      |
+| 존재하지 않는 path, directory intent 없음 | 정확한 file path                     |
+| trailing separator + 기존 directory       | `<directory>/<remote-basename>`      |
+| trailing separator + directory 없음       | 실패; directory를 자동 생성하지 않음 |
 
 - existing effective file destination은 기본 conflict다.
 - `--overwrite`는 existing regular file만 안전하게 교체한다.
@@ -393,13 +393,13 @@ Hint: Review the remote file or retry with --force if overwriting is intended.
 
 `--json`은 별도의 machine mode로 취급한다.
 
-| 모드 | stdout | stderr |
-| --- | --- | --- |
-| 기본 human | human 최종 성공 | warning/progress + human 최종 오류 |
-| `--json` | 최종 JSON envelope 정확히 1개 | 기본 empty |
-| `--verbose` | 선택한 모드의 최종 결과 | 상세 human event |
-| `--json --verbose` | 최종 JSON envelope 정확히 1개 | event JSON Lines |
-| `--quiet` | human 최종 결과 유지 | human 실행 중 event 억제 |
+| 모드               | stdout                        | stderr                             |
+| ------------------ | ----------------------------- | ---------------------------------- |
+| 기본 human         | human 최종 성공               | warning/progress + human 최종 오류 |
+| `--json`           | 최종 JSON envelope 정확히 1개 | 기본 empty                         |
+| `--verbose`        | 선택한 모드의 최종 결과       | 상세 human event                   |
+| `--json --verbose` | 최종 JSON envelope 정확히 1개 | event JSON Lines                   |
+| `--quiet`          | human 최종 결과 유지          | human 실행 중 event 억제           |
 
 - AI 호출자는 기본적으로 `myboxctl ... --json`만 사용하면 된다.
 - 기본 JSON mode는 warning/progress를 stderr에 쓰지 않는다.
@@ -485,14 +485,14 @@ retryAfterMs: number | null;
 
 `action: string`을 사실상의 공개 enum으로 문서와 TypeScript type에서 고정한다.
 
-| command | actions |
-| --- | --- |
-| `list` | `listed` |
-| `info` | `found` |
-| `mkdir` | `created`, `existing` (`existing`은 `-p`에서만 정상) |
-| `upload` | `uploaded`, `overwritten`, `skipped` |
-| `download` | `downloaded` |
-| `delete` | `deleted`, `already-absent` (`--ignore-missing`에서만) |
+| command    | actions                                                |
+| ---------- | ------------------------------------------------------ |
+| `list`     | `listed`                                               |
+| `info`     | `found`                                                |
+| `mkdir`    | `created`, `existing` (`existing`은 `-p`에서만 정상)   |
+| `upload`   | `uploaded`, `overwritten`, `skipped`                   |
+| `download` | `downloaded`                                           |
+| `delete`   | `deleted`, `already-absent` (`--ignore-missing`에서만) |
 
 missing `info`는 success action `absent`가 아니라 failure envelope/not-found로 표현한다. 새 action 추가가
 에이전트 분기에 영향을 주는 경우 contract change로 취급한다.
@@ -677,42 +677,42 @@ command 이름과 당시 semantics는 억지로 변경하지 않는다.
 
 최소 subprocess acceptance:
 
-| 시나리오 | 기대 결과 |
-| --- | --- |
-| `myboxctl list` | `/` direct children, exit 0 |
-| `myboxctl ls` | `list`와 동일 결과 |
-| `myboxctl list /file` | file 한 row, exit 0 |
-| `myboxctl list /missing` | not-found / exit 4 |
-| `myboxctl list --json` | `command: "list"`, stdout JSON 1개, stderr empty |
-| `myboxctl ls --json` | canonical `command: "list"` |
-| empty list human | 명시적 `No items ...` |
-| `info` found | human + JSON `found` |
-| `info` missing | failure/not-found / exit 4 |
-| `mkdir /a/b` parent missing | not-found, mutation 없음 |
-| `mkdir /a` existing | conflict / exit 5 |
-| `mkdir -p /a/b` | parents 생성 또는 existing 성공 |
-| `upload file.zip` | `/file.zip` effective target |
-| `upload file.zip /` | `/file.zip` effective target |
-| `upload file.zip /store` existing directory | `/store/file.zip` |
-| `upload file.zip /store` missing | exact `/store` file target |
-| `upload file.zip /store/` missing | failure |
-| `upload file.zip /store/ --mkdir` | `/store/file.zip` |
-| `upload` metadata current | skipped |
-| `upload` local newer/size diff | overwritten |
-| `upload` remote newer | conflict/exit 5 |
-| `upload --force` | overwrite |
-| `download /share/file.zip` | `./file.zip` |
-| `download /share/file.zip ./downloads` existing dir | `./downloads/file.zip` |
-| `download /share/file.zip ./renamed.zip` | exact destination |
-| download trailing directory intent but missing dir | local-file failure, directory 생성 안 함 |
-| `delete /missing` | not-found / exit 4 |
-| `delete /missing --ignore-missing` | already-absent / exit 0 |
-| folder delete | folder/subtree trash 의미가 help/result에 명확함 |
-| `myboxctl --json list /` | 정상 machine mode |
-| `myboxctl list / --json` | 위와 동일 |
-| `--json` failure | versioned failure envelope 1개 + stderr empty |
-| `--json --verbose` | stdout final envelope + stderr valid JSONL events |
-| credential-shaped fixture | 모든 output stream redacted |
+| 시나리오                                            | 기대 결과                                         |
+| --------------------------------------------------- | ------------------------------------------------- |
+| `myboxctl list`                                     | `/` direct children, exit 0                       |
+| `myboxctl ls`                                       | `list`와 동일 결과                                |
+| `myboxctl list /file`                               | file 한 row, exit 0                               |
+| `myboxctl list /missing`                            | not-found / exit 4                                |
+| `myboxctl list --json`                              | `command: "list"`, stdout JSON 1개, stderr empty  |
+| `myboxctl ls --json`                                | canonical `command: "list"`                       |
+| empty list human                                    | 명시적 `No items ...`                             |
+| `info` found                                        | human + JSON `found`                              |
+| `info` missing                                      | failure/not-found / exit 4                        |
+| `mkdir /a/b` parent missing                         | not-found, mutation 없음                          |
+| `mkdir /a` existing                                 | conflict / exit 5                                 |
+| `mkdir -p /a/b`                                     | parents 생성 또는 existing 성공                   |
+| `upload file.zip`                                   | `/file.zip` effective target                      |
+| `upload file.zip /`                                 | `/file.zip` effective target                      |
+| `upload file.zip /store` existing directory         | `/store/file.zip`                                 |
+| `upload file.zip /store` missing                    | exact `/store` file target                        |
+| `upload file.zip /store/` missing                   | failure                                           |
+| `upload file.zip /store/ --mkdir`                   | `/store/file.zip`                                 |
+| `upload` metadata current                           | skipped                                           |
+| `upload` local newer/size diff                      | overwritten                                       |
+| `upload` remote newer                               | conflict/exit 5                                   |
+| `upload --force`                                    | overwrite                                         |
+| `download /share/file.zip`                          | `./file.zip`                                      |
+| `download /share/file.zip ./downloads` existing dir | `./downloads/file.zip`                            |
+| `download /share/file.zip ./renamed.zip`            | exact destination                                 |
+| download trailing directory intent but missing dir  | local-file failure, directory 생성 안 함          |
+| `delete /missing`                                   | not-found / exit 4                                |
+| `delete /missing --ignore-missing`                  | already-absent / exit 0                           |
+| folder delete                                       | folder/subtree trash 의미가 help/result에 명확함  |
+| `myboxctl --json list /`                            | 정상 machine mode                                 |
+| `myboxctl list / --json`                            | 위와 동일                                         |
+| `--json` failure                                    | versioned failure envelope 1개 + stderr empty     |
+| `--json --verbose`                                  | stdout final envelope + stderr valid JSONL events |
+| credential-shaped fixture                           | 모든 output stream redacted                       |
 
 추가 unit/feature acceptance:
 

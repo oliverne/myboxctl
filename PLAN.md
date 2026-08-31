@@ -283,7 +283,27 @@ TUI dependency는 추가하지 않는다. TTY에서만 redraw/countdown을 사�
 opt-in skip, 0 fail로 1,875.35초가 걸렸다. 자연 발생 서버 429와 `server-cooldown`은 관찰되지
 않았으므로 검색 bucket과 bounded GET 429 retry 정책을 유지한다.
 
+### Phase 14 — CLI UX & Agent Contract
+
+문서: [`docs/phases/14-cli-ux-and-agent-contract.md`](docs/phases/14-cli-ux-and-agent-contract.md)
+
+Phase 14는 첫 공개 Release 전에 기존 기능을 사람이 이해하기 쉽고 AI 에이전트가 안정적으로 파싱할 수
+있는 public CLI contract로 정리한다. 상태는 `pending`이며 구현은 시작하지 않았다.
+
+- canonical command를 `list`, `info`, `mkdir`, `upload`, `download`, `delete`로 정리
+- upload/download destination과 not-found 동작을 예측 가능한 규칙으로 통일
+- 기본 human 출력을 self-describing table과 문장형 결과로 개선
+- versioned JSON envelope, 명시적 nullability, 단위와 action enum 고정
+- global presentation option과 stdout/stderr 계약 단순화
+- 일반 회귀, release smoke와 필요한 최소 live acceptance 후 공개 Release 경계 재확인
+
+Phase 14는 새 MYBOX API나 동기화 기능을 추가하지 않는다. 구현을 시작할 때만
+`docs/PROGRESS.md`에서 `pending → in_progress`로 변경한다.
+
 ## 6. 전체 MVP 완료 조건
+
+이 절은 Phase 00~08에서 판정한 MVP 완료 기준을 기록한다. 이후 추가된 기능과 첫 public contract의
+완료 조건은 각 후속 phase 문서를 따르며, 현재 공개 Release 전 최종 경계는 Phase 14 완료 조건이다.
 
 다음 조건을 모두 충족해야 MVP를 완료할 수 있다.
 

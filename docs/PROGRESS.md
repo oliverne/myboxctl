@@ -5,13 +5,16 @@
 
 ## 현재 상태
 
-- 현재 phase: `Phase 13 Observability & test latency`
-- 상태: `complete`
+- 현재 phase: `Phase 14 CLI UX & Agent Contract`
+- 상태: `pending`
 - 릴리스 상태: `v0.1.0 draft 검증 완료, 공개 보류`
 - 활성 구현 phase: 없음
-- 다음 담당자: 없음 (PR #11은 2026-08-31 merge 완료; 이후 공개 Release/publish는 별도 승인)
+- 다음 담당자: 없음 (Phase 14 구현은 시작하지 않았으며, 공개 Release/publish는 별도 승인)
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
-- `docs/reference/cli-contract-improvements.md`를 추가했다. CLI `--help`와 `--json` 스키마의 AI-friendly 개선 제안(미적용)을 정리했다. 코드 변경은 없다.
+- `docs/phases/14-cli-ux-and-agent-contract.md`에 CLI command surface, human output과 versioned JSON
+  contract 개선 계획을 정리했다. 상태는 `pending`이며 production code와 현재 CLI contract는 변경하지 않았다.
+- `docs/reference/cli-contract-improvements.md`의 CLI `--help`와 `--json` 개선 제안은 Phase 14 계획의
+  입력으로 반영했다.
 - README 하단의 설치·제약·개발 안내를 간결하게 정리했으며, 상단 58줄과 production code는 변경하지 않았다.
 - Phase 13은 지연 원인 계측, 429 처리 판정과 기본 human/`--json` agent 출력 모드를 다루는 실행
   계획으로 구체화한 뒤 P13-A~D 일반 구현을 완료했다. typed event sink, human/JSONL renderer,
@@ -21,11 +24,11 @@
 - Phase 11 후속 dependency maintenance로 Release workflow의 artifact action을 Node 24 기반
   `upload-artifact@v7`과 `download-artifact@v8`로 갱신했다. PR Release workflow의 5개 native
   smoke는 통과했으며 새 tag 기반 artifact transfer는 아직 실행하지 않았다.
-- 마지막 갱신: 2026-08-31
+- 마지막 갱신: 2026-09-01
 
 ## Phase 상태
 
-| Phase                             | 상태     | 완료 증거                                                                       | 문서                                                                                             |
+| Phase                             | 상태     | 상태 근거                                                                       | 문서                                                                                             |
 | --------------------------------- | -------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | 00 API contract                   | complete | contract test 4회 성공, resolver/upload 결과 및 미확정 항목을 API ledger에 기록 | [`phases/00-api-contract.md`](phases/00-api-contract.md)                                         |
 | 01 Foundation                     | complete | config/error/output/client 및 fake HTTP test 통과, typecheck/lint/build 통과    | [`phases/01-foundation.md`](phases/01-foundation.md)                                             |
@@ -41,6 +44,7 @@
 | 11 Distribution & Release         | complete | v0.1.0 draft Release 최초 실행·재실행과 5개 native smoke 성공                   | [`phases/11-distribution-release.md`](phases/11-distribution-release.md)                         |
 | 12 Cross-platform Unicode names   | complete | CI 90·Release 21, Phase 12 live probe run 33244082095 성공                      | [`phases/12-cross-platform-unicode-filenames.md`](phases/12-cross-platform-unicode-filenames.md) |
 | 13 Observability & test latency   | complete | 212 pass, targeted probe 1 pass, live acceptance 8 pass                         | [`phases/13-observability-and-test-latency.md`](phases/13-observability-and-test-latency.md)     |
+| 14 CLI UX & Agent Contract        | pending  | 실행 계획 수립, production code와 검증 변경 없음                                | [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)               |
 
 ## 초기화 상태
 
@@ -358,6 +362,13 @@ run 33388258127과 Release run 33388258207의 5개 native smoke가 성공했다.
 공식 검색 한도와 일치하는 local bucket을 완화하지 않고, GET 429 한 번 retry, `Retry-After` 우선,
 header가 없을 때 60~61초 fallback 정책을 유지한다. Phase 13 완료 조건을 충족해 `complete`로
 변경했다. PR #11은 2026-08-31에 `main`으로 merge되었으며, public Release/publish는 별도 결정으로 남긴다.
+
+## Phase 14 계획
+
+2026-09-01 첫 공개 Release 전에 command surface, destination semantics, human output과 versioned JSON
+contract를 정리하는 Phase 14 실행 계획을 추가했다. 상태는 `pending`이며 production code, 현재 CLI
+contract와 Release artifact는 변경하지 않았다. 구현을 시작할 때만 활성 phase를 Phase 14
+`in_progress`로 변경한다.
 
 ## 상태 변경 규칙
 

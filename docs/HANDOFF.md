@@ -2,20 +2,22 @@
 
 ## 인수 목적
 
-Phase 13 Observability & Integration Test Latency의 구현, 로컬 회귀 검증, targeted live probe와 full
-live acceptance를 완료했다. PR [#11](https://github.com/oliverne/myboxctl/pull/11)은 2026-08-31에
-`main`으로 merge되었으며(merge commit `623f086`), 원격 브랜치 `phase-13-observability`도 정리했다.
+Phase 00~13의 구현과 검증을 완료했다. 첫 공개 Release 전에 CLI command surface와 출력 계약을 정리하는
+Phase 14 계획을 추가했으며 상태는 `pending`이다. 아직 production code와 현재 CLI contract는 변경하지
+않았다.
 
 ## 현재 상태
 
 - Phase 00~13: `complete`
+- Phase 14: `pending`
 - 활성 구현 phase: 없음
 - 작업 브랜치: 없음 (PR #11은 `main`으로 merge 완료)
 - PR: [#11 feat: add Phase 13 observability and progress events](https://github.com/oliverne/myboxctl/pull/11) — 2026-08-31 merge됨
 - integration stderr 계약 수정 commit: `710cde214f93d7758b7cabe226b6d0d769c28bd4`
 - 로컬 검증: 212 pass, 35 opt-in skip, 0 fail
 - 별도 release contract: 3 pass, 0 fail
-- `docs/reference/cli-contract-improvements.md` 추가: CLI `--help`/`--json` AI-friendly 개선 제안(미적용). 코드/phase 변경 없음.
+- Phase 14 계획: [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)
+- Phase 14 구현·검증: 미시작
 
 5개 live integration test의 오래된 `stderr === ""` assertion을 제거했다. 각 CLI subprocess는
 `--json` stderr가 비어 있거나 모든 non-empty line이 다음 조건을 만족하는지 검증한다.
@@ -76,16 +78,17 @@ Release artifact action은 Node 24 기반 `upload-artifact@v7`과 `download-arti
 Release workflow에서 5개 native smoke가 통과했다. 새 tag 기반 artifact transfer는 별도 검증하지
 않았다.
 
-PR #11 merge는 2026-08-31에 완료했다. 다음 작업에는 draft Release 공개, 저장소 public 전환, package
-publish, registry 반영, credential 변경과 `v0.1.0` tag 이동·삭제가 포함되지 않는다. 각각 별도 승인 후
-실행한다. 추가 MYBOX live test도 다시 사용자 의사를 확인한다.
+PR #11 merge는 2026-08-31에 완료했다. Phase 14 완료 전에는 현재 draft `v0.1.0`을 공개하지 않는다.
+Phase 14 완료 후에도 저장소 public 전환, Release 공개, package publish, registry 반영, credential 변경과
+`v0.1.0` tag 이동·삭제는 각각 별도 승인 후 실행한다. 추가 MYBOX live test도 다시 사용자 의사를 확인한다.
 
 ## 다음 실행 범위
 
-1. PR #11 diff와 모든 check 결과를 검토했고, 2026-08-31에 merge를 완료했다.
-2. merge 후 `main` CI와 Git 상태를 확인했고, 원격 브랜치 `phase-13-observability`를 정리했다.
-3. status 문서(HANDOFF/PROGRESS)의 branch/PR 표현을 merge된 상태로 정리했다.
-4. 다음 product phase는 실제 우선순위를 확인한 뒤 별도 계획으로 시작한다.
+1. Phase 14 구현을 시작할 때 `docs/PROGRESS.md`의 상태를 `pending → in_progress`로 변경한다.
+2. `docs/phases/14-cli-ux-and-agent-contract.md`의 P14-A~E 순서와 완료 조건을 따른다.
+3. production code 변경 전 관련 CLI subprocess test를 실패 상태로 먼저 고정한다.
+4. 일반 회귀와 release smoke를 통과한 뒤 필요한 최소 MYBOX live acceptance만 별도 동의를 받아 실행한다.
+5. Phase 14 완료 전에는 draft Release를 공개하지 않는다.
 
 ## 로컬 시작 명령
 
