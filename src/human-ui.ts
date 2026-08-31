@@ -106,6 +106,9 @@ function shouldRender(event: ObservabilityEvent, options: EventPresentationOptio
   if (options.quiet) {
     return false;
   }
+  if (options.json === true && options.verbose !== true) {
+    return false;
+  }
   if (options.verbose) {
     return true;
   }

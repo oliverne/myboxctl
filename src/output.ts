@@ -7,18 +7,31 @@ import {
 } from "./errors.ts";
 
 export type CommandName =
-  | "stat"
-  | "ls"
-  | "ensure-dir"
+  | "list"
+  | "info"
+  | "mkdir"
   | "upload"
-  | "put"
+  | "download"
   | "delete"
   | (string & {});
 
+export type CommandAction =
+  | "listed"
+  | "found"
+  | "created"
+  | "existing"
+  | "uploaded"
+  | "overwritten"
+  | "skipped"
+  | "downloaded"
+  | "deleted"
+  | "already-absent";
+
 export type SuccessEnvelope<T> = {
+  schemaVersion: 1;
   ok: true;
   command: CommandName;
-  action: string;
+  action: CommandAction;
   data: T;
 };
 
@@ -26,12 +39,13 @@ export type FailureError = {
   kind: ErrorKind;
   message: string;
   retryable: boolean;
-  code?: string;
-  requestId?: string;
-  retryAfterMs?: number;
+  code: string | null;
+  requestId: string | null;
+  retryAfterMs: number | null;
 };
 
 export type FailureEnvelope = {
+  schemaVersion: 1;
   ok: false;
   command: string;
   error: FailureError;
@@ -87,17 +101,29 @@ export function sanitizeForOutput<T>(value: T): T {
   return sanitizeValue(value, new WeakSet<object>()) as T;
 }
 
-export function success<T>(command: CommandName, action: string, data: T): SuccessEnvelope<T> {
-  return { ok: true, command, action, data };
+export function success<T>(
+  command: CommandName,
+  action: CommandAction,
+  data: T,
+): SuccessEnvelope<T> {
+  return { schemaVersion: 1, ok: true, command, action, data };
 }
 
 export function failure(command: string, error: unknown): FailureEnvelope {
   const normalized = normalizeError(error);
   const serialized = normalized.toJSON();
   return {
+    schemaVersion: 1,
     ok: false,
     command,
-    error: serialized,
+    error: {
+      kind: serialized.kind,
+      message: serialized.message,
+      retryable: serialized.retryable,
+      code: serialized.code ?? null,
+      requestId: serialized.requestId ?? null,
+      retryAfterMs: serialized.retryAfterMs ?? null,
+    },
   };
 }
 
@@ -105,7 +131,7 @@ export function renderJson(value: unknown): string {
   return `${JSON.stringify(sanitizeForOutput(value)) ?? "null"}\n`;
 }
 
-export function renderSuccess<T>(command: CommandName, action: string, data: T): string {
+export function renderSuccess<T>(command: CommandName, action: CommandAction, data: T): string {
   return renderJson(success(command, action, data));
 }
 
@@ -121,7 +147,7 @@ export function writeJson(value: unknown): void {
   process.stdout.write(renderJson(value));
 }
 
-export function writeSuccess<T>(command: CommandName, action: string, data: T): void {
+export function writeSuccess<T>(command: CommandName, action: CommandAction, data: T): void {
   writeJson(success(command, action, data));
 }
 

@@ -12,9 +12,10 @@ import {
 
 describe("JSON output", () => {
   test("creates stable success and failure envelopes", () => {
-    expect(success("stat", "found", { resource: null })).toEqual({
+    expect(success("info", "found", { resource: null })).toEqual({
+      schemaVersion: 1,
       ok: true,
-      command: "stat",
+      command: "info",
       action: "found",
       data: { resource: null },
     });
@@ -24,24 +25,26 @@ describe("JSON output", () => {
       requestId: "request-1",
       retryable: false,
     });
-    expect(failure("stat", error)).toEqual({
+    expect(failure("info", error)).toEqual({
+      schemaVersion: 1,
       ok: false,
-      command: "stat",
+      command: "info",
       error: {
         kind: "not-found",
         message: "The remote resource was not found.",
         retryable: false,
         code: "PLAT-404",
         requestId: "request-1",
+        retryAfterMs: null,
       },
     });
   });
 
   test("renders exactly one trailing newline", () => {
-    const output = renderSuccess("stat", "absent", { resource: null });
+    const output = renderSuccess("info", "found", { resource: null });
     expect(output.endsWith("\n")).toBe(true);
     expect(output.slice(0, -1).endsWith("\n")).toBe(false);
-    expect(JSON.parse(output)).toMatchObject({ ok: true, action: "absent" });
+    expect(JSON.parse(output)).toMatchObject({ ok: true, action: "found" });
   });
 
   test("redacts PATs, authorization, signed URLs, and secret-shaped fields", () => {
@@ -84,7 +87,7 @@ describe("JSON output", () => {
   test("exposes a safe retry delay for rate-limit callers", () => {
     const output = JSON.parse(
       renderFailure(
-        "stat",
+        "info",
         new DomainError("rate-limit", "MYBOX rate limit was exceeded.", {
           retryable: true,
           retryAfterMs: 60_000,

@@ -34,16 +34,28 @@ describe("event presentation", () => {
   test("writes warning events as independent JSON Lines", () => {
     const captured = capture(false);
     const presentation = createEventPresentation({
-      command: "stat",
+      command: "info",
       json: true,
+      verbose: true,
       writer: captured.writer,
     });
     presentation.sink.emit(retryEvent());
     expect(JSON.parse(captured.output())).toMatchObject({
       type: "event",
       event: "http.retry-scheduled",
-      command: "stat",
+      command: "info",
     });
+  });
+
+  test("suppresses progress events in default JSON mode", () => {
+    const captured = capture(false);
+    const presentation = createEventPresentation({
+      command: "info",
+      json: true,
+      writer: captured.writer,
+    });
+    presentation.sink.emit(retryEvent());
+    expect(captured.output()).toBe("");
   });
 
   test("quiet suppresses events but not final human failures", () => {
@@ -86,8 +98,8 @@ describe("event presentation", () => {
       event: "upload.stage-started",
       data: { stage: "reservation" },
     };
-    createEventPresentation({ command: "put", writer: normal.writer }).sink.emit(event);
-    createEventPresentation({ command: "put", verbose: true, writer: verbose.writer }).sink.emit(
+    createEventPresentation({ command: "upload", writer: normal.writer }).sink.emit(event);
+    createEventPresentation({ command: "upload", verbose: true, writer: verbose.writer }).sink.emit(
       event,
     );
     expect(normal.output()).toBe("");
@@ -122,7 +134,7 @@ describe("event presentation", () => {
   test("NO_COLOR output stays free of color escape sequences", () => {
     const captured = capture(false);
     const presentation = createEventPresentation({
-      command: "stat",
+      command: "info",
       writer: captured.writer,
       env: { NO_COLOR: "1" },
     });
@@ -137,7 +149,7 @@ describe("event presentation", () => {
     let tick: (() => void) | undefined;
     let cleared = false;
     const presentation = createEventPresentation({
-      command: "stat",
+      command: "info",
       writer: captured.writer,
       timer: {
         now: () => now,
