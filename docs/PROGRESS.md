@@ -9,7 +9,7 @@
 - 상태: `complete`
 - 릴리스 상태: `v0.1.0 draft 검증 완료, 공개 보류`
 - 활성 구현 phase: 없음
-- 다음 담당자: PR #11 검토 및 merge 여부 결정
+- 다음 담당자: 없음 (PR #11은 2026-08-31 merge 완료; 이후 공개 Release/publish는 별도 승인)
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
 - README 하단의 설치·제약·개발 안내를 간결하게 정리했으며, 상단 58줄과 production code는 변경하지 않았다.
 - Phase 13은 지연 원인 계측, 429 처리 판정과 기본 human/`--json` agent 출력 모드를 다루는 실행
@@ -356,7 +356,7 @@ run 33388258127과 Release run 33388258207의 5개 native smoke가 성공했다.
 
 공식 검색 한도와 일치하는 local bucket을 완화하지 않고, GET 429 한 번 retry, `Retry-After` 우선,
 header가 없을 때 60~61초 fallback 정책을 유지한다. Phase 13 완료 조건을 충족해 `complete`로
-변경했다. PR #11 merge와 public Release/publish는 별도 결정으로 남긴다.
+변경했다. PR #11은 2026-08-31에 `main`으로 merge되었으며, public Release/publish는 별도 결정으로 남긴다.
 
 ## 상태 변경 규칙
 

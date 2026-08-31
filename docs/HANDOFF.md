@@ -3,15 +3,15 @@
 ## 인수 목적
 
 Phase 13 Observability & Integration Test Latency의 구현, 로컬 회귀 검증, targeted live probe와 full
-live acceptance를 완료했다. PR [#11](https://github.com/oliverne/myboxctl/pull/11)은 열려 있으며 다음
-작업은 변경과 원격 검증 결과를 검토한 뒤 merge 여부를 결정하는 것이다.
+live acceptance를 완료했다. PR [#11](https://github.com/oliverne/myboxctl/pull/11)은 2026-08-31에
+`main`으로 merge되었으며(merge commit `623f086`), 원격 브랜치 `phase-13-observability`도 정리했다.
 
 ## 현재 상태
 
 - Phase 00~13: `complete`
 - 활성 구현 phase: 없음
-- 작업 브랜치: `phase-13-observability`
-- PR: [#11 feat: add Phase 13 observability and progress events](https://github.com/oliverne/myboxctl/pull/11)
+- 작업 브랜치: 없음 (PR #11은 `main`으로 merge 완료)
+- PR: [#11 feat: add Phase 13 observability and progress events](https://github.com/oliverne/myboxctl/pull/11) — 2026-08-31 merge됨
 - integration stderr 계약 수정 commit: `710cde214f93d7758b7cabe226b6d0d769c28bd4`
 - 로컬 검증: 212 pass, 35 opt-in skip, 0 fail
 - 별도 release contract: 3 pass, 0 fail
@@ -75,25 +75,25 @@ Release artifact action은 Node 24 기반 `upload-artifact@v7`과 `download-arti
 Release workflow에서 5개 native smoke가 통과했다. 새 tag 기반 artifact transfer는 별도 검증하지
 않았다.
 
-다음 작업에는 PR #11 merge, draft Release 공개, 저장소 public 전환, package publish, registry 반영,
-credential 변경과 `v0.1.0` tag 이동·삭제가 포함되지 않는다. 각각 별도 승인 후 실행한다. 추가 MYBOX
-live test도 다시 사용자 의사를 확인한다.
+PR #11 merge는 2026-08-31에 완료했다. 다음 작업에는 draft Release 공개, 저장소 public 전환, package
+publish, registry 반영, credential 변경과 `v0.1.0` tag 이동·삭제가 포함되지 않는다. 각각 별도 승인 후
+실행한다. 추가 MYBOX live test도 다시 사용자 의사를 확인한다.
 
 ## 다음 실행 범위
 
-1. PR #11 diff와 모든 check 결과를 검토한다.
-2. 사용자 승인 후에만 PR #11을 merge한다.
-3. merge했다면 `main` CI와 Git 상태를 확인하고 status 문서의 branch/PR 표현만 정리한다.
+1. PR #11 diff와 모든 check 결과를 검토했고, 2026-08-31에 merge를 완료했다.
+2. merge 후 `main` CI와 Git 상태를 확인했고, 원격 브랜치 `phase-13-observability`를 정리했다.
+3. status 문서(HANDOFF/PROGRESS)의 branch/PR 표현을 merge된 상태로 정리했다.
 4. 다음 product phase는 실제 우선순위를 확인한 뒤 별도 계획으로 시작한다.
 
 ## 로컬 시작 명령
 
 ```bash
 git fetch origin
-git switch phase-13-observability
-git pull --ff-only origin phase-13-observability
+git switch main
+git pull --ff-only origin main
 bun install --frozen-lockfile
 bun run check
 ```
 
-GitHub CLI를 사용한다면 `gh pr checkout 11`로 대체할 수 있다.
+GitHub CLI로는 `gh pr view 11`로 merge 상태를 확인할 수 있다.
