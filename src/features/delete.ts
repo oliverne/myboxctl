@@ -4,7 +4,7 @@ import { type ChildRemotePath, parseRemotePath } from "../remote/path.ts";
 import type { RemoteResolver } from "../remote/resolver.ts";
 
 export type DeleteOptions = {
-  strict?: boolean;
+  ignoreMissing?: boolean;
 };
 
 export type DeleteData = {
@@ -24,7 +24,7 @@ export type DeleteDependencies = {
 };
 
 function absent(path: string, options: DeleteOptions): DeleteResult {
-  if (options.strict) {
+  if (!options.ignoreMissing) {
     throw new DomainError("not-found", `The remote resource was not found: ${path}.`);
   }
   return { action: "already-absent", data: { path } };

@@ -4,14 +4,19 @@ import { Command, CommanderError, Option } from "commander";
 
 import { DomainError } from "./errors.ts";
 import { runDelete } from "./features/delete.ts";
-import { runDownload } from "./features/download.ts";
-import { runEnsureDir } from "./features/ensure-dir.ts";
-import { runLs } from "./features/ls.ts";
-import { runPut } from "./features/put/command.ts";
-import { runStat } from "./features/stat.ts";
-import { runUpload } from "./features/upload.ts";
+import { runDownloadCommand } from "./features/download-command.ts";
+import { runInfo } from "./features/info.ts";
+import { runList } from "./features/list.ts";
+import { runMkdir } from "./features/mkdir.ts";
+import { runUploadCommand } from "./features/upload-command.ts";
 import { createEventPresentation, type EventPresentationOptions } from "./human-ui.ts";
-import { exitCodeForError, redactSecrets, writeFailure, writeSuccess } from "./output.ts";
+import {
+  type CommandAction,
+  exitCodeForError,
+  redactSecrets,
+  writeFailure,
+  writeSuccess,
+} from "./output.ts";
 import { createRuntime, type Runtime } from "./runtime.ts";
 import { VERSION } from "./version.ts";
 
@@ -26,105 +31,212 @@ type OutputOptions = {
   quiet?: boolean;
 };
 
-type UploadOutputOptions = OutputOptions & {
-  overwrite?: boolean;
-  mkdir?: boolean;
-};
-
-type PutOutputOptions = OutputOptions & {
-  force?: boolean;
-  mkdir?: boolean;
-};
-
-type DeleteOutputOptions = OutputOptions & {
-  strict?: boolean;
-};
-
-type DownloadOutputOptions = OutputOptions & { overwrite?: boolean };
+type UploadCommandOptions = OutputOptions & { force?: boolean; mkdir?: boolean };
+type MkdirCommandOptions = OutputOptions & { parents?: boolean };
+type DeleteCommandOptions = OutputOptions & { ignoreMissing?: boolean };
+type DownloadCommandOptions = OutputOptions & { overwrite?: boolean };
 
 function displayValue(value: unknown): string {
   return redactSecrets(String(value));
 }
 
+function formatBytes(value: number | null): string {
+  if (value === null) return "-";
+  if (value < 1_024) return `${value} B`;
+  if (value < 1_024 * 1_024) return `${(value / 1_024).toFixed(1)} KiB`;
+  if (value < 1_024 * 1_024 * 1_024) return `${(value / (1_024 * 1_024)).toFixed(1)} MiB`;
+  return `${(value / (1_024 * 1_024 * 1_024)).toFixed(1)} GiB`;
+}
+
+function formatModifiedAt(value: string | null): string {
+  if (value === null) return "-";
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp)
+    ? `${new Date(timestamp).toISOString().slice(0, 16).replace("T", " ")} UTC`
+    : "-";
+}
+
+function normalizeModifiedAt(value: string | null | undefined): string | null {
+  if (value === undefined || value === null) return null;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : null;
+}
+
+function renderResourceTable(resources: Array<Record<string, unknown>>): string {
+  const lines = ["TYPE    NAME          SIZE      MODIFIED"];
+  for (const resource of resources) {
+    lines.push(
+      `${displayValue(resource.type).padEnd(7)} ${displayValue(resource.name).padEnd(13)} ${formatBytes((resource.sizeBytes as number | null) ?? null).padEnd(9)} ${formatModifiedAt((resource.modifiedAt as string | null) ?? null)}`,
+    );
+  }
+  return `${lines.join("\n")}\n`;
+}
+
 function writeCommandSuccess(
-  command: "stat" | "ls" | "ensure-dir" | "upload" | "put" | "delete" | "download",
-  result: { action: string; data: unknown },
+  command: "list" | "info" | "mkdir" | "upload" | "delete" | "download",
+  result: { action: CommandAction; data: unknown },
   options: OutputOptions,
 ): void {
+  const data = normalizeMachineData(command, result.data);
   if (options.json) {
-    writeSuccess(command, result.action, result.data);
+    writeSuccess(command, result.action, data);
     return;
   }
 
-  if (command === "stat") {
-    const resource = (result.data as { resource: Record<string, unknown> | null }).resource;
-    if (resource === null) {
-      process.stdout.write("absent\n");
+  if (command === "list") {
+    const listData = data as {
+      path: string;
+      resources: Array<Record<string, unknown>>;
+    };
+    if (listData.resources.length === 0) {
+      process.stdout.write(`No items in ${displayValue(listData.path)}.\n`);
       return;
     }
+    const itemLabel = listData.resources.length === 1 ? "item" : "items";
     process.stdout.write(
-      `${displayValue(resource.path)}\t${displayValue(resource.type)}\t${displayValue(resource.size ?? "-")}\t${displayValue(resource.modifiedAt ?? "-")}\n`,
+      `${renderResourceTable(listData.resources)}\n${listData.resources.length} ${itemLabel}\n`,
     );
     return;
   }
 
-  if (command === "ls") {
-    const resources = (result.data as { resources: Array<Record<string, unknown>> }).resources;
-    for (const resource of resources) {
-      process.stdout.write(
-        `${displayValue(resource.type)}\t${displayValue(resource.path)}\t${displayValue(resource.size ?? "-")}\t${displayValue(resource.modifiedAt ?? "-")}\n`,
-      );
-    }
-    return;
-  }
-
-  if (command === "upload" || command === "put") {
-    const data = result.data as {
-      path: string;
-      resourceId: string;
-      size: number;
-      modifiedAt: string;
-      reason?: string;
-    };
+  if (command === "info") {
+    const resource = (data as { resource: Record<string, unknown> }).resource;
     process.stdout.write(
-      `${displayValue(result.action)}\t${displayValue(data.path)}\t${displayValue(data.resourceId)}\t${displayValue(data.size)}\t${displayValue(data.modifiedAt)}${data.reason === undefined ? "" : `\t${displayValue(data.reason)}`}\n`,
+      `Path:      ${displayValue(resource.path)}\nType:      ${displayValue(resource.type)}\nSize:      ${formatBytes((resource.sizeBytes as number | null) ?? null)}${resource.sizeBytes === null ? "" : ` (${resource.sizeBytes} bytes)`}\nModified:  ${formatModifiedAt((resource.modifiedAt as string | null) ?? null)}\n`,
     );
     return;
   }
 
-  if (command === "delete") {
-    const data = result.data as { path: string; resourceId?: string; type?: string };
+  if (command === "mkdir") {
+    const mkdirData = data as { path: string };
     process.stdout.write(
-      `${displayValue(result.action)}\t${displayValue(data.path)}\t${displayValue(data.resourceId ?? "-")}\t${displayValue(data.type ?? "-")}\n`,
+      result.action === "existing"
+        ? `Directory already exists: ${displayValue(mkdirData.path)}\n`
+        : `Created ${displayValue(mkdirData.path)}\n`,
     );
+    return;
+  }
+
+  if (command === "upload") {
+    const uploadData = data as { path: string; sizeBytes: number | null };
+    const verb =
+      result.action === "skipped"
+        ? "Skipped"
+        : result.action === "overwritten"
+          ? "Updated"
+          : "Uploaded";
+    const suffix =
+      result.action === "skipped"
+        ? " (already current)"
+        : ` (${formatBytes(uploadData.sizeBytes)})`;
+    process.stdout.write(`${verb} ${displayValue(uploadData.path)}${suffix}\n`);
     return;
   }
 
   if (command === "download") {
-    const data = result.data as {
+    const downloadData = data as {
       remotePath: string;
       localPath: string;
-      resourceId: string;
-      size: number;
-      modifiedAt: string;
+      sizeBytes: number | null;
     };
     process.stdout.write(
-      `${displayValue(result.action)}\t${displayValue(data.remotePath)}\t${displayValue(data.localPath)}\t${displayValue(data.resourceId)}\t${displayValue(data.size)}\t${displayValue(data.modifiedAt)}\n`,
+      `Downloaded ${displayValue(downloadData.remotePath)} -> ${displayValue(downloadData.localPath)} (${formatBytes(downloadData.sizeBytes)})\n`,
     );
     return;
   }
 
-  const data = result.data as { path: string; resourceId: string | null; createdPaths: string[] };
+  const deleteData = data as { path: string; type: "file" | "folder" | null };
   process.stdout.write(
-    `${displayValue(result.action)}\t${displayValue(data.path)}\t${displayValue(data.resourceId ?? "-")}\t${displayValue(data.createdPaths.join(",") || "-")}\n`,
+    result.action === "already-absent"
+      ? `Already absent: ${displayValue(deleteData.path)}\n`
+      : deleteData.type === "folder"
+        ? `Folder moved to trash: ${displayValue(deleteData.path)}\n`
+        : `Deleted ${displayValue(deleteData.path)}\n`,
   );
 }
 
-function addOutputOptions(command: Command): Command {
+function normalizeMachineData(command: string, value: unknown): unknown {
+  if (command === "upload") {
+    const data = value as {
+      path: string;
+      resourceId?: string | null;
+      size?: number;
+      sizeBytes?: number | null;
+      modifiedAt?: string | null;
+      reason?: string;
+    };
+    return {
+      path: data.path,
+      resourceId: data.resourceId ?? null,
+      sizeBytes: data.sizeBytes ?? data.size ?? null,
+      modifiedAt: normalizeModifiedAt(data.modifiedAt),
+      ...(data.reason === undefined ? {} : { reason: data.reason }),
+    };
+  }
+  if (command === "download") {
+    const data = value as {
+      remotePath: string;
+      localPath: string;
+      resourceId?: string | null;
+      size?: number;
+      sizeBytes?: number | null;
+      modifiedAt?: string | null;
+    };
+    return {
+      remotePath: data.remotePath,
+      localPath: data.localPath,
+      resourceId: data.resourceId ?? null,
+      sizeBytes: data.sizeBytes ?? data.size ?? null,
+      modifiedAt: normalizeModifiedAt(data.modifiedAt),
+    };
+  }
+  if (command === "delete") {
+    const data = value as { path: string; resourceId?: string | null; type?: string | null };
+    return {
+      path: data.path,
+      resourceId: data.resourceId ?? null,
+      type:
+        data.type?.toLowerCase() === "folder"
+          ? "folder"
+          : data.type === undefined || data.type === null
+            ? null
+            : "file",
+    };
+  }
+  return value;
+}
+
+function addPresentationOptions(command: Command): Command {
   return command
     .option("--json", "Print one machine-readable JSON envelope")
-    .addOption(new Option("--verbose", "Print detailed progress events").conflicts("quiet"))
-    .addOption(new Option("--quiet", "Suppress progress events").conflicts("verbose"));
+    .addOption(new Option("--verbose", "Print detailed progress events"))
+    .addOption(new Option("--quiet", "Suppress progress events"));
+}
+
+function addContractHelp(command: Command, text: string): Command {
+  return command.addHelpText("after", `\n${text.trim()}\n`);
+}
+
+function mergedOptions(program: Command, options: OutputOptions): OutputOptions {
+  const root = program.opts<OutputOptions>();
+  const merged = {
+    ...(root.json === undefined && options.json === undefined
+      ? {}
+      : { json: options.json ?? root.json }),
+    ...(root.verbose === undefined && options.verbose === undefined
+      ? {}
+      : { verbose: options.verbose ?? root.verbose }),
+    ...(root.quiet === undefined && options.quiet === undefined
+      ? {}
+      : { quiet: options.quiet ?? root.quiet }),
+  };
+  if (merged.verbose && merged.quiet) {
+    throw new DomainError(
+      "invalid-arguments",
+      "The --verbose and --quiet options cannot be combined.",
+    );
+  }
+  return merged;
 }
 
 function runtimeForCommand(
@@ -132,12 +244,18 @@ function runtimeForCommand(
   command: string,
   options: OutputOptions,
 ): Promise<Runtime> {
-  return runtimeFactory({
-    command,
-    ...(options.json === undefined ? {} : { json: options.json }),
-    ...(options.verbose === undefined ? {} : { verbose: options.verbose }),
-    ...(options.quiet === undefined ? {} : { quiet: options.quiet }),
-  });
+  return runtimeFactory({ command, ...options });
+}
+
+function commandDependencies(runtime: Runtime) {
+  return {
+    client: runtime.client,
+    resolver: runtime.resolver,
+    uploader: runtime.uploader,
+    downloader: runtime.downloader,
+    timeoutMs: runtime.config.timeoutMs,
+    eventSink: runtime.events.sink,
+  };
 }
 
 export function createProgram(runtimeFactory: RuntimeFactory = defaultRuntimeFactory): Command {
@@ -147,197 +265,194 @@ export function createProgram(runtimeFactory: RuntimeFactory = defaultRuntimeFac
     .name("myboxctl")
     .description("Agent-friendly CLI for NAVER MYBOX file operations")
     .version(VERSION);
-
-  addOutputOptions(
-    program
-      .command("stat")
-      .description("Show metadata for an exact remote path")
-      .argument("<remote-path>")
-      .action(async (remotePath: string, options: OutputOptions) => {
-        const runtime = await runtimeForCommand(runtimeFactory, "stat", options);
-        try {
-          const result = await runStat(remotePath, runtime.resolver);
-          runtime.events.finish();
-          writeCommandSuccess("stat", result, options);
-        } finally {
-          runtime.events.finish();
-        }
-      }),
+  addPresentationOptions(program);
+  addContractHelp(
+    program,
+    `Remote paths are absolute and start with /. Use --json for one versioned JSON result on stdout.\nExamples:\n  myboxctl list\n  myboxctl info /reports/report.pdf --json`,
   );
 
-  addOutputOptions(
-    program
-      .command("ls")
-      .description("List direct children of a remote directory")
-      .argument("<remote-directory>")
-      .action(async (remotePath: string, options: OutputOptions) => {
-        const runtime = await runtimeForCommand(runtimeFactory, "ls", options);
-        try {
-          const result = await runLs(remotePath, runtime.resolver);
-          runtime.events.finish();
-          writeCommandSuccess("ls", result, options);
-        } finally {
-          runtime.events.finish();
-        }
-      }),
+  addPresentationOptions(
+    addContractHelp(
+      program
+        .command("list")
+        .alias("ls")
+        .description("List a file or directory (default: /)")
+        .argument("[remote-path]", "Absolute remote path", "/")
+        .action(async (remotePath: string, options: OutputOptions) => {
+          const effective = mergedOptions(program, options);
+          const runtime = await runtimeForCommand(runtimeFactory, "list", effective);
+          try {
+            const result = await runList(remotePath, runtime.resolver);
+            runtime.events.finish();
+            writeCommandSuccess("list", result, effective);
+          } finally {
+            runtime.events.finish();
+          }
+        }),
+      "Lists direct children, or one row when the path is a file. Missing paths fail with exit 4.\nThe default path is /. Alias: ls.",
+    ),
   );
 
-  addOutputOptions(
-    program
-      .command("ensure-dir")
-      .description("Create a remote directory hierarchy if it is missing")
-      .argument("<remote-directory>")
-      .action(async (remotePath: string, options: OutputOptions) => {
-        const runtime = await runtimeForCommand(runtimeFactory, "ensure-dir", options);
-        try {
-          const result = await runEnsureDir(remotePath, runtime.resolver);
-          runtime.events.finish();
-          writeCommandSuccess("ensure-dir", result, options);
-        } finally {
-          runtime.events.finish();
-        }
-      }),
+  addPresentationOptions(
+    addContractHelp(
+      program
+        .command("info")
+        .description("Show file or folder information")
+        .argument("<remote-path>", "Absolute remote path")
+        .action(async (remotePath: string, options: OutputOptions) => {
+          const effective = mergedOptions(program, options);
+          const runtime = await runtimeForCommand(runtimeFactory, "info", effective);
+          try {
+            const result = await runInfo(remotePath, runtime.resolver);
+            runtime.events.finish();
+            writeCommandSuccess("info", result, effective);
+          } finally {
+            runtime.events.finish();
+          }
+        }),
+      "Shows a file or folder. Missing paths fail with exit 4.\nRemote paths must start with /.",
+    ),
   );
 
-  addOutputOptions(
-    program
-      .command("upload")
-      .description("Upload a local file to an exact remote path")
-      .argument("<local-path>")
-      .argument("<remote-path>")
-      .option("--overwrite", "Overwrite an existing remote file")
-      .option("--mkdir", "Create missing remote parent directories")
-      .action(async (localPath: string, remotePath: string, options: UploadOutputOptions) => {
-        const runtime = await runtimeForCommand(runtimeFactory, "upload", options);
-        const interrupt = new AbortController();
-        const onInterrupt = () => interrupt.abort();
-        process.once("SIGINT", onInterrupt);
-        try {
-          const result = await runUpload(
-            localPath,
-            remotePath,
-            {
-              ...(options.overwrite === undefined ? {} : { overwrite: options.overwrite }),
-              ...(options.mkdir === undefined ? {} : { mkdir: options.mkdir }),
-            },
-            {
-              client: runtime.client,
-              resolver: runtime.resolver,
-              uploader: runtime.uploader,
-              timeoutMs: runtime.config.timeoutMs,
-              eventSink: runtime.events.sink,
-              signal: interrupt.signal,
-            },
-          );
-          runtime.events.finish();
-          writeCommandSuccess("upload", result, options);
-        } finally {
-          process.removeListener("SIGINT", onInterrupt);
-          runtime.events.finish();
-        }
-      }),
+  addPresentationOptions(
+    addContractHelp(
+      program
+        .command("mkdir")
+        .description("Create a remote directory")
+        .argument("<remote-directory>", "Absolute remote directory path")
+        .option("-p, --parents", "Create missing parent directories and succeed if existing")
+        .action(async (remotePath: string, options: MkdirCommandOptions) => {
+          const effective = mergedOptions(program, options);
+          const runtime = await runtimeForCommand(runtimeFactory, "mkdir", effective);
+          try {
+            const result = await runMkdir(
+              remotePath,
+              options.parents === undefined ? {} : { parents: options.parents },
+              runtime.resolver,
+            );
+            runtime.events.finish();
+            writeCommandSuccess("mkdir", result, effective);
+          } finally {
+            runtime.events.finish();
+          }
+        }),
+      "Without -p, only one directory is created and its parent must exist.\nWith -p/--parents, missing parents are created and an existing target succeeds.",
+    ),
   );
 
-  addOutputOptions(
-    program
-      .command("put")
-      .description("Upload a local file when metadata requires it")
-      .argument("<local-path>")
-      .argument("<remote-path>")
-      .option("--force", "Overwrite regardless of file metadata")
-      .option("--mkdir", "Create missing remote parent directories")
-      .action(async (localPath: string, remotePath: string, options: PutOutputOptions) => {
-        const runtime = await runtimeForCommand(runtimeFactory, "put", options);
-        const interrupt = new AbortController();
-        const onInterrupt = () => interrupt.abort();
-        process.once("SIGINT", onInterrupt);
-        try {
-          const result = await runPut(
-            localPath,
-            remotePath,
-            {
-              ...(options.force === undefined ? {} : { force: options.force }),
-              ...(options.mkdir === undefined ? {} : { mkdir: options.mkdir }),
-            },
-            {
-              client: runtime.client,
-              resolver: runtime.resolver,
-              uploader: runtime.uploader,
-              timeoutMs: runtime.config.timeoutMs,
-              eventSink: runtime.events.sink,
-              signal: interrupt.signal,
-            },
-          );
-          runtime.events.finish();
-          writeCommandSuccess("put", result, options);
-        } finally {
-          process.removeListener("SIGINT", onInterrupt);
-          runtime.events.finish();
-        }
-      }),
+  addPresentationOptions(
+    addContractHelp(
+      program
+        .command("upload")
+        .description("Upload or update a file when needed")
+        .argument("<local-file>", "Local regular file")
+        .argument("[remote-destination]", "Remote file or directory destination (default: /)")
+        .option("--force", "Overwrite regardless of file metadata")
+        .option("--mkdir", "Create a missing remote directory destination or parent")
+        .action(
+          async (
+            localPath: string,
+            remoteDestination: string | undefined,
+            options: UploadCommandOptions,
+          ) => {
+            const effective = mergedOptions(program, options);
+            const runtime = await runtimeForCommand(runtimeFactory, "upload", effective);
+            const interrupt = new AbortController();
+            const onInterrupt = () => interrupt.abort();
+            process.once("SIGINT", onInterrupt);
+            try {
+              const result = await runUploadCommand(
+                localPath,
+                remoteDestination,
+                {
+                  ...(options.force === undefined ? {} : { force: options.force }),
+                  ...(options.mkdir === undefined ? {} : { mkdir: options.mkdir }),
+                },
+                { ...commandDependencies(runtime), signal: interrupt.signal },
+              );
+              runtime.events.finish();
+              writeCommandSuccess("upload", result, effective);
+            } finally {
+              process.removeListener("SIGINT", onInterrupt);
+              runtime.events.finish();
+            }
+          },
+        ),
+      "Destination defaults to / and uses the local basename. An existing directory also gets the basename.\nA trailing / means directory intent; a missing intended directory needs --mkdir.\nMetadata (size + modified time) is compared: matching files are skipped, newer remote files conflict, and --force overrides.\nUse --json for one result envelope or --json --verbose for JSON Lines progress on stderr.",
+    ),
   );
 
-  addOutputOptions(
-    program
-      .command("download")
-      .description("Download an exact remote file to a local path")
-      .argument("<remote-file>")
-      .argument("<local-path>")
-      .option("--overwrite", "Atomically replace an existing regular local file")
-      .action(async (remotePath: string, localPath: string, options: DownloadOutputOptions) => {
-        const runtime = await runtimeForCommand(runtimeFactory, "download", options);
-        const interrupt = new AbortController();
-        const onInterrupt = () => interrupt.abort();
-        process.once("SIGINT", onInterrupt);
-        try {
-          const result = await runDownload(
-            remotePath,
-            localPath,
-            { ...(options.overwrite === undefined ? {} : { overwrite: options.overwrite }) },
-            {
-              client: runtime.client,
-              resolver: runtime.resolver,
-              downloader: runtime.downloader,
-              timeoutMs: runtime.config.timeoutMs,
-              signal: interrupt.signal,
-            },
-          );
-          runtime.events.finish();
-          writeCommandSuccess("download", result, options);
-        } finally {
-          process.removeListener("SIGINT", onInterrupt);
-          runtime.events.finish();
-        }
-      }),
+  addPresentationOptions(
+    addContractHelp(
+      program
+        .command("download")
+        .description("Download a file (default destination: current directory)")
+        .argument("<remote-file>", "Absolute remote file path")
+        .argument("[local-destination]", "Local file or directory destination")
+        .option("--overwrite", "Atomically replace an existing regular local file")
+        .action(
+          async (
+            remotePath: string,
+            localDestination: string | undefined,
+            options: DownloadCommandOptions,
+          ) => {
+            const effective = mergedOptions(program, options);
+            const runtime = await runtimeForCommand(runtimeFactory, "download", effective);
+            const interrupt = new AbortController();
+            const onInterrupt = () => interrupt.abort();
+            process.once("SIGINT", onInterrupt);
+            try {
+              const result = await runDownloadCommand(
+                remotePath,
+                localDestination,
+                options.overwrite === undefined ? {} : { overwrite: options.overwrite },
+                { ...commandDependencies(runtime), signal: interrupt.signal },
+              );
+              runtime.events.finish();
+              writeCommandSuccess("download", result, effective);
+            } finally {
+              process.removeListener("SIGINT", onInterrupt);
+              runtime.events.finish();
+            }
+          },
+        ),
+      "Destination defaults to ./<remote-basename>. An existing local directory gets the basename.\nA missing destination with trailing / fails; local parent directories are not created.\nExisting regular files require --overwrite.",
+    ),
   );
 
-  addOutputOptions(
-    program
-      .command("delete")
-      .description("Move an exact remote resource to MYBOX trash")
-      .argument("<remote-path>")
-      .option("--strict", "Return not-found when the resource is absent")
-      .action(async (remotePath: string, options: DeleteOutputOptions) => {
-        const runtime = await runtimeForCommand(runtimeFactory, "delete", options);
-        try {
-          const result = await runDelete(
-            remotePath,
-            { ...(options.strict === undefined ? {} : { strict: options.strict }) },
-            { client: runtime.client, resolver: runtime.resolver },
-          );
-          runtime.events.finish();
-          writeCommandSuccess("delete", result, options);
-        } finally {
-          runtime.events.finish();
-        }
-      }),
+  addPresentationOptions(
+    addContractHelp(
+      program
+        .command("delete")
+        .description("Move a file or folder to MYBOX trash")
+        .argument("<remote-path>", "Absolute remote path")
+        .option("--ignore-missing", "Succeed when the remote path is already absent")
+        .action(async (remotePath: string, options: DeleteCommandOptions) => {
+          const effective = mergedOptions(program, options);
+          const runtime = await runtimeForCommand(runtimeFactory, "delete", effective);
+          try {
+            const result = await runDelete(
+              remotePath,
+              options.ignoreMissing === undefined ? {} : { ignoreMissing: options.ignoreMissing },
+              { client: runtime.client, resolver: runtime.resolver },
+            );
+            runtime.events.finish();
+            writeCommandSuccess("delete", result, effective);
+          } finally {
+            runtime.events.finish();
+          }
+        }),
+      "Folders and their contents move together to MYBOX trash. Missing paths fail with exit 4 unless --ignore-missing is used.\nThe root path / cannot be deleted.",
+    ),
   );
 
   return program;
 }
 
 function commandFromArgv(argv: readonly string[]): string {
-  return argv[2] ?? "myboxctl";
+  const candidate = argv.slice(2).find((arg) => !arg.startsWith("-"));
+  if (candidate === "ls") return "list";
+  return candidate ?? "myboxctl";
 }
 
 function wantsJson(argv: readonly string[]): boolean {
@@ -366,6 +481,7 @@ export async function runCli(
     } else {
       createEventPresentation({
         command,
+        json: wantsJson(argv),
         quiet: argv.includes("--quiet"),
         verbose: argv.includes("--verbose"),
       }).writeHumanFailure(cliError);

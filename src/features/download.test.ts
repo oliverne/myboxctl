@@ -8,6 +8,7 @@ import type { MyboxDownloader } from "../mybox/download.ts";
 import { parseRemotePath } from "../remote/path.ts";
 import type { RemoteResolver } from "../remote/resolver.ts";
 import { runDownload } from "./download.ts";
+import { runDownloadCommand } from "./download-command.ts";
 
 const directories: string[] = [];
 
@@ -18,6 +19,65 @@ afterEach(async () => {
 });
 
 describe("download command cleanup", () => {
+  test("resolves the remote file only once for an exact local destination", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "myboxctl-download-resolution-"));
+    directories.push(directory);
+    const destination = join(directory, "result.txt");
+    const path = parseRemotePath("/report.txt");
+    if (path.kind === "root") throw new Error("test path must be a child");
+    const resource = {
+      resourceId: "file-1",
+      name: "report.txt",
+      type: "file",
+      path: "/report.txt",
+      parentPath: "/",
+    };
+    const detail = {
+      ...resource,
+      parentId: "root",
+      size: 3,
+      createdAt: "2026-08-27T11:00:00Z",
+      modifiedAt: "2026-08-27T12:00:00Z",
+      accessedAt: "2026-08-27T12:00:00Z",
+      isFavorite: false,
+      isHidden: false,
+      lastModifiedBy: "tester",
+    };
+    let resolveCalls = 0;
+
+    await runDownloadCommand(
+      "/report.txt",
+      destination,
+      {},
+      {
+        resolver: {
+          resolveCanonical: async () => {
+            resolveCalls += 1;
+            return { kind: "found", path, resource };
+          },
+          detail: async () => detail,
+        } as unknown as RemoteResolver,
+        client: {
+          createDownloadUrl: async () => ({
+            downloadUrl: "https://storage.example.test/file?token=secret",
+            expiresIn: 600,
+          }),
+          getResource: async () => detail,
+        } as unknown as MyboxClient,
+        downloader: {
+          downloadContent: async ({ fileHandle }: { fileHandle: FileHandle }) => {
+            await fileHandle.writeFile("abc");
+            return 3;
+          },
+        } as unknown as MyboxDownloader,
+        timeoutMs: 30_000,
+      },
+    );
+
+    expect(resolveCalls).toBe(1);
+    expect(await readFile(destination, "utf8")).toBe("abc");
+  });
+
   test("removes a partial temp file when its signal is aborted", async () => {
     const directory = await mkdtemp(join(tmpdir(), "myboxctl-download-abort-"));
     directories.push(directory);

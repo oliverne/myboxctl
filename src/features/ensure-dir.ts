@@ -35,7 +35,7 @@ function shouldReconcile(error: unknown): boolean {
   );
 }
 
-async function createOrReconcile(
+export async function createFolderWithReconcile(
   resolver: RemoteResolver,
   path: ChildRemotePath,
   parentId: string | undefined,
@@ -129,7 +129,7 @@ export async function runEnsureDir(
       if (canonicalPath.kind === "root") {
         throw new DomainError("unexpected", "The canonical remote directory path was invalid.");
       }
-      const result = await createOrReconcile(resolver, canonicalPath, parentId);
+      const result = await createFolderWithReconcile(resolver, canonicalPath, parentId);
       parentId = result.resourceId;
       if (result.created) {
         createdPaths.push(canonicalPath.normalized);
@@ -167,7 +167,7 @@ export async function runEnsureDir(
     if (canonicalPath.kind === "root") {
       throw new DomainError("unexpected", "The canonical remote directory path was invalid.");
     }
-    const result = await createOrReconcile(resolver, canonicalPath, parentId);
+    const result = await createFolderWithReconcile(resolver, canonicalPath, parentId);
     parentId = result.resourceId;
     if (result.created) {
       createdPaths.push(canonicalPath.normalized);

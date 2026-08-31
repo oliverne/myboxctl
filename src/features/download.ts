@@ -7,7 +7,7 @@ import {
 import type { MyboxClient } from "../mybox/client.ts";
 import type { MyboxDownloader } from "../mybox/download.ts";
 import { parseRemotePath } from "../remote/path.ts";
-import type { RemoteResolver } from "../remote/resolver.ts";
+import type { FoundResolution, RemoteResolver } from "../remote/resolver.ts";
 
 export type DownloadOptions = { overwrite?: boolean };
 
@@ -30,18 +30,17 @@ export type DownloadResult = {
   };
 };
 
-export async function runDownload(
+export async function resolveDownloadFile(
   remotePath: string,
-  localPath: string,
-  options: DownloadOptions,
-  dependencies: DownloadDependencies,
-): Promise<DownloadResult> {
+  resolver: RemoteResolver,
+  resolved?: FoundResolution,
+): Promise<FoundResolution> {
   const target = parseRemotePath(remotePath);
   if (target.kind === "root") {
     throw new DomainError("invalid-arguments", "The remote root cannot be downloaded as a file.");
   }
 
-  const resolution = await dependencies.resolver.resolveCanonical(target);
+  const resolution = resolved ?? (await resolver.resolveCanonical(target));
   if (resolution.kind === "absent") {
     throw new DomainError("not-found", `The remote file was not found: ${target.normalized}.`);
   }
@@ -51,6 +50,22 @@ export async function runDownload(
       `The remote download path is not a file: ${target.normalized}.`,
     );
   }
+  return resolution;
+}
+
+export async function runDownload(
+  remotePath: string,
+  localPath: string,
+  options: DownloadOptions,
+  dependencies: DownloadDependencies,
+  resolved?: FoundResolution,
+): Promise<DownloadResult> {
+  const target = parseRemotePath(remotePath);
+  if (target.kind === "root") {
+    throw new DomainError("invalid-arguments", "The remote root cannot be downloaded as a file.");
+  }
+
+  const resolution = await resolveDownloadFile(remotePath, dependencies.resolver, resolved);
 
   const before = await dependencies.resolver.detail(resolution);
   if (before.type.toLowerCase() !== "file") {
