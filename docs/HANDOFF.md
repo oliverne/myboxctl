@@ -17,6 +17,8 @@ Phase 00~14의 구현과 로컬 검증을 완료했다. 첫 공개 Release 전�
 - 별도 release contract: `bun run test:release` 4 pass, 0 fail
 - Phase 14 계획: [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)
 - Phase 14 구현·검증: P14-A~E 완료
+- 2026-09-01 최근 소스 리뷰: [`reviews/2026-09-01-phase14-source-review.md`](reviews/2026-09-01-phase14-source-review.md)
+- 리뷰 결과 blocker는 없지만 공개 Release 전 P2 hardening 3건을 권장한다: upload host-native basename, CJK/긴 이름 human table, public resource malformed API fail-closed 검증
 
 canonical command는 `list`/`ls`, `info`, `mkdir`, `upload`, `download`, `delete`다. destination intent와
 `mkdir -p`, delete `--ignore-missing`, human table/sentence renderer, `schemaVersion: 1`,
@@ -93,9 +95,11 @@ Phase 14 완료 후에도 저장소 public 전환, Release 공개, package publi
 
 ## 다음 실행 범위
 
-1. Phase 14 완료 상태를 유지하고, 필요하면 새 destination contract의 최소 MYBOX live acceptance를 별도 동의 후 실행한다.
-2. draft `v0.1.0` 공개, 저장소 public 전환, package publish와 registry 반영은 각각 별도 승인을 받는다.
-3. 추가 CLI contract 변경은 `PLAN.md`, `docs/PROGRESS.md`, `docs/phases/14-cli-ux-and-agent-contract.md`를 함께 갱신한다.
+1. 공개 Release 전에 [`reviews/2026-09-01-phase14-source-review.md`](reviews/2026-09-01-phase14-source-review.md)의 P2 hardening 3건을 우선 처리한다.
+2. hardening 후 `bun run check`, `bun run build`, `bun run test:release`를 실행하고 observable CLI contract 변경이 있을 때만 `docs/reference/cli-contract.md`를 갱신한다.
+3. 필요하면 새 destination contract의 최소 MYBOX live acceptance를 별도 동의 후 실행한다.
+4. draft `v0.1.0` 공개, 저장소 public 전환, package publish와 registry 반영은 각각 별도 승인을 받는다.
+5. 추가 CLI contract 변경은 `PLAN.md`, `docs/PROGRESS.md`, `docs/phases/14-cli-ux-and-agent-contract.md`를 함께 갱신한다.
 
 ## 로컬 시작 명령
 
