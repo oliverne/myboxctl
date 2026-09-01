@@ -120,7 +120,7 @@ file 또는 folder를 MYBOX trash로 이동한다. folder는 subtree 전체가 �
 
 ## Human output
 
-`--json` 없이 실행하면 self-describing한 출력이 나온다. `list`는 `TYPE NAME SIZE MODIFIED` table과
+`--json` 없이 실행하면 self-describing한 출력이 나온다. `list`는 `TYPE SIZE MODIFIED NAME` table과
 빈 결과의 `No items in ...` 문장을 사용하고, `info`는 `Path/Type/Size/Modified` key/value를 사용한다.
 mutation과 download는 `Created`, `Uploaded`, `Updated`, `Skipped`, `Downloaded`, `Deleted`,
 `Folder moved to trash`, `Already absent` 형식의 짧은 문장을 사용한다. 오류는 stderr의 `Error:`와

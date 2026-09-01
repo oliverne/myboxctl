@@ -1,3 +1,4 @@
+import { apiResponseError } from "../errors.ts";
 import type { ResourceDetail, ResourceItem, SearchResourceItem } from "../mybox/contract.ts";
 
 export type PublicResource = {
@@ -9,8 +10,17 @@ export type PublicResource = {
   modifiedAt: string | null;
 };
 
-function resourceType(value: string): "file" | "folder" {
-  return value.toLowerCase() === "file" ? "file" : "folder";
+function resourceType(value: string | undefined): "file" | "folder" {
+  if (value === undefined) {
+    throw apiResponseError("MYBOX resource type was missing from the response.");
+  }
+  if (value.toLowerCase() === "file") {
+    return "file";
+  }
+  if (value.toLowerCase() === "folder") {
+    return "folder";
+  }
+  throw apiResponseError(`MYBOX returned an unknown resource type: ${value}.`);
 }
 
 function normalizedModifiedAt(value: string | undefined): string | null {
@@ -19,7 +29,7 @@ function normalizedModifiedAt(value: string | undefined): string | null {
   }
   const timestamp = Date.parse(value);
   if (!Number.isFinite(timestamp)) {
-    return null;
+    throw apiResponseError(`MYBOX returned an invalid modifiedAt value: ${value}.`);
   }
   return new Date(timestamp).toISOString();
 }
@@ -32,7 +42,7 @@ export function publicResource(
   resource: ResourceDetail | ResourceItem | SearchResourceItem,
   path: string,
 ): PublicResource {
-  const type = resourceType(resource.type ?? "folder");
+  const type = resourceType(resource.type);
   return {
     resourceId: resource.resourceId ?? null,
     path,

@@ -18,7 +18,7 @@ export type UploadCommandResult = {
 };
 
 function localBaseName(localPath: string): string {
-  const value = basename(localPath.replaceAll("\\", "/"));
+  const value = basename(localPath);
   if (value.length === 0 || value === "." || value === "..") {
     throw new DomainError(
       "local-file",

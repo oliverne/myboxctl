@@ -63,10 +63,10 @@ function normalizeModifiedAt(value: string | null | undefined): string | null {
 }
 
 function renderResourceTable(resources: Array<Record<string, unknown>>): string {
-  const lines = ["TYPE    NAME          SIZE      MODIFIED"];
+  const lines = [`${`TYPE`.padEnd(7)} ${`SIZE`.padEnd(9)} ${`MODIFIED`.padEnd(20)} NAME`];
   for (const resource of resources) {
     lines.push(
-      `${displayValue(resource.type).padEnd(7)} ${displayValue(resource.name).padEnd(13)} ${formatBytes((resource.sizeBytes as number | null) ?? null).padEnd(9)} ${formatModifiedAt((resource.modifiedAt as string | null) ?? null)}`,
+      `${displayValue(resource.type).padEnd(7)} ${formatBytes((resource.sizeBytes as number | null) ?? null).padEnd(9)} ${formatModifiedAt((resource.modifiedAt as string | null) ?? null).padEnd(20)} ${displayValue(resource.name)}`,
     );
   }
   return `${lines.join("\n")}\n`;

@@ -258,6 +258,68 @@ describe("read command subprocess contract", () => {
     expect(result.stderr).toBe("");
   });
 
+  test("human list table keeps NAME as the last column for long and CJK names", async () => {
+    const server = await createFakeHttpServer({
+      handler: (request: RecordedRequest) => {
+        if (request.path === "/v1/drive/resources") {
+          return {
+            body: page([
+              {
+                resourceId: "f1",
+                name: "a-very-long-ascii-file-name-that-exceeds-the-original-column-width.txt",
+                type: "file",
+                size: 123456,
+                modifiedAt: "2026-09-01T00:00:00Z",
+              },
+              {
+                resourceId: "f2",
+                name: "아주긴한글파일이름보고서문서.pdf",
+                type: "file",
+                size: 7890,
+              },
+              {
+                resourceId: "f3",
+                name: "Mixed영어한글파일이름_2026.xlsx",
+                type: "file",
+                size: 42,
+                modifiedAt: "2026-09-02T12:34:56Z",
+              },
+              { resourceId: "fd", name: "Reports", type: "folder" },
+            ]),
+          };
+        }
+        return { status: 500, body: { code: "UNEXPECTED", message: "no request expected" } };
+      },
+    });
+    servers.push(server);
+
+    const result = await runCli(["list", "/"], server.baseUrl);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("TYPE    SIZE      MODIFIED             NAME");
+    expect(result.stdout).toContain(
+      "a-very-long-ascii-file-name-that-exceeds-the-original-column-width.txt",
+    );
+    expect(result.stdout).toContain("아주긴한글파일이름보고서문서.pdf");
+    expect(result.stdout).toContain("Mixed영어한글파일이름_2026.xlsx");
+
+    const names = [
+      "a-very-long-ascii-file-name-that-exceeds-the-original-column-width.txt",
+      "아주긴한글파일이름보고서문서.pdf",
+      "Mixed영어한글파일이름_2026.xlsx",
+      "Reports",
+    ];
+    const dataLines = result.stdout
+      .split("\n")
+      .filter((line) => line.startsWith("file ") || line.startsWith("folder "));
+    expect(dataLines).toHaveLength(names.length);
+    for (const name of names) {
+      const row = dataLines.find((line) => line.trimEnd().endsWith(name));
+      expect(row).toBeDefined();
+      expect(/^(file|folder) /.test(row!)).toBe(true);
+    }
+  });
+
   test("info reports an absent path as not-found", async () => {
     const server = await createFakeHttpServer([{ body: {} }, { body: {} }]);
     servers.push(server);

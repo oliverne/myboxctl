@@ -2,7 +2,8 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-
+import type { UploadDependencies } from "../../src/features/upload.ts";
+import { resolveUploadDestination } from "../../src/features/upload-command.ts";
 import { createFakeHttpServer, type FakeHttpServer, type RecordedRequest } from "../http/server.ts";
 
 const servers: FakeHttpServer[] = [];
@@ -66,6 +67,39 @@ async function runCli(
   ]);
   return { exitCode, stdout, stderr };
 }
+
+describe("upload local basename", () => {
+  function stubDependencies(): UploadDependencies {
+    return {
+      client: {} as never,
+      resolver: { resolveCanonical: async () => ({}) } as never,
+      uploader: {} as never,
+      timeoutMs: 1_000,
+    };
+  }
+
+  test("uses host-native basename without normalizing backslashes on POSIX", async () => {
+    if (process.platform === "win32") return;
+    const destination = await resolveUploadDestination(
+      "/tmp/data/report\\2026.txt",
+      undefined,
+      {},
+      stubDependencies(),
+    );
+    expect(destination).toBe("/report\\2026.txt");
+  });
+
+  test("keeps a Windows-style path literal on POSIX", async () => {
+    if (process.platform === "win32") return;
+    const destination = await resolveUploadDestination(
+      "C:\\Users\\tester\\data\\file name.txt",
+      undefined,
+      {},
+      stubDependencies(),
+    );
+    expect(destination).toBe("/C:\\Users\\tester\\data\\file name.txt");
+  });
+});
 
 describe("upload command subprocess contract", () => {
   test("uploads a local file and emits one JSON envelope", async () => {

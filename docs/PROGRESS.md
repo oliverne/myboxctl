@@ -382,6 +382,29 @@ regression으로 고정했다. README, architecture overview와 stable CLI contr
 artifact/help/invalid-argument/list smoke 4건도 통과했다. live MYBOX acceptance는 새 API를 추가하지 않는
 CLI contract 변경이라 opt-in 정책에 따라 실행하지 않았고, 공개 Release는 별도 승인 전까지 보류한다.
 
+## Phase 14 P2 hardening (공개 Release 전)
+
+2026-09-01 소스 리뷰의 P2 권고 3건을 Phase 14 contract를 유지하며 처리했다.
+
+- `upload` local basename은 `node:path`의 host-native `basename(localPath)`을 그대로 사용한다. local
+  path의 `\`→`/` 치환·임의 정규화를 제거했다. POSIX에서 `report\2026.txt`처럼 실제 backslash가 포함된
+  파일명은 basename 전체가 remote filename이 된다.
+- human `list` table 열 순서를 `TYPE NAME SIZE MODIFIED`에서 `TYPE SIZE MODIFIED NAME`으로 바꿨다.
+  NAME을 마지막 열로 두어 긴 ASCII·한글·혼합 이름이 앞 열 정렬을 깨지 않도록 했다. 새 display-width
+  의존성은 추가하지 않았다. JSON envelope, resource shape, 정렬 순서는 변경하지 않았다.
+- public resource 정규화는 fail-closed로 바뀌었다. `type`이 `file`/`folder`가 아니거나 public 변환에
+  도달한 누락 값, `modifiedAt` 값이 존재하지만 유효하지 않은 날짜면 `apiResponseError`(code
+  `API_RESPONSE_INVALID`, kind `api-unavailable`)로 실패한다. 부재 `modifiedAt`은 `null`이다. 이전의
+  추정 기본값(unknown→folder, invalid date→null)을 제거했다. 검증은 public 변환 경계
+  (`public-resource.ts`)에서 수행하며, MYBOX Zod schema는 다른 consumer를 깨지 않도록 완화된 채로 두었다.
+- `docs/reference/cli-contract.md` Human output 설명을 실제 출력(`TYPE SIZE MODIFIED NAME`)과 맞췄다.
+- canonical command, `schemaVersion: 1`, destination semantics, overwrite 정책은 변경하지 않았다.
+- 실제 MYBOX integration test는 실행하지 않았다(별도 승인 필요, 인수인계 범위 외).
+
+검증: `bun run check` 234 pass, 35 opt-in skip, 0 fail; `bun run build` 통과;
+`bun run test:release` 4 pass. 신규 회귀 테스트: POSIX literal-backslash basename, 긴/CJK/혼합 이름
+human table, unknown/missing type·invalid/absent modifiedAt 거부 모두 통과.
+
 ## 상태 변경 규칙
 
 - phase를 시작할 때만 `pending → in_progress`로 변경한다.

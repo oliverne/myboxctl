@@ -5,7 +5,9 @@ import { DomainError } from "../../src/errors.ts";
 import { runInfo } from "../../src/features/info.ts";
 import { runList } from "../../src/features/list.ts";
 import { runMkdir } from "../../src/features/mkdir.ts";
+import { publicResource } from "../../src/features/public-resource.ts";
 import type { EventPresentationOptions } from "../../src/human-ui.ts";
+import type { ResourceItem, SearchResourceItem } from "../../src/mybox/contract.ts";
 import { failure, success } from "../../src/output.ts";
 import { parseRemoteDestination } from "../../src/remote/destination.ts";
 
@@ -217,5 +219,63 @@ describe("Phase 14 CLI contract", () => {
     expect(seen).toHaveLength(2);
     expect(seen[0]).toMatchObject({ command: "list", json: true });
     expect(seen[1]).toMatchObject({ command: "list", json: true });
+  });
+});
+
+describe("public resource contract hardening", () => {
+  function item(overrides: Partial<ResourceItem> = {}): ResourceItem {
+    return {
+      resourceId: "r-1",
+      parentId: "p-1",
+      name: "name.txt",
+      type: "file",
+      size: 0,
+      createdAt: "2026-01-01T00:00:00Z",
+      modifiedAt: "2026-01-01T00:00:00Z",
+      accessedAt: "2026-01-01T00:00:00Z",
+      isFavorite: false,
+      isHidden: false,
+      lastModifiedBy: "tester",
+      ...overrides,
+    };
+  }
+
+  function expectApiResponseInvalid(action: () => unknown): void {
+    let error: unknown;
+    try {
+      action();
+    } catch (caught) {
+      error = caught;
+    }
+    expect(error).toBeInstanceOf(DomainError);
+    const domainError = error as DomainError;
+    expect(domainError.kind).toBe("api-unavailable");
+    expect(domainError.code).toBe("API_RESPONSE_INVALID");
+  }
+
+  test("rejects an unknown resource type", () => {
+    expectApiResponseInvalid(() => publicResource(item({ type: "symlink" }), "/name.txt"));
+  });
+
+  test("rejects a missing resource type that reaches public conversion", () => {
+    expectApiResponseInvalid(() =>
+      publicResource({ resourceId: "r-1", name: "name.txt" } as SearchResourceItem, "/name.txt"),
+    );
+  });
+
+  test("rejects an invalid modifiedAt value", () => {
+    expectApiResponseInvalid(() =>
+      publicResource(item({ modifiedAt: "not-a-real-date" }), "/name.txt"),
+    );
+  });
+
+  test("treats an absent modifiedAt as null without guessing a type", () => {
+    const resource = publicResource(
+      { resourceId: "r-1", name: "name.txt", type: "file" } as SearchResourceItem,
+      "/name.txt",
+    );
+    expect(resource.type).toBe("file");
+    expect(resource.modifiedAt).toBeNull();
+    expect(resource.sizeBytes).toBeNull();
   });
 });
