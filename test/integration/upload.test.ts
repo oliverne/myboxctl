@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from "bun:test";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -137,7 +137,7 @@ describeIntegration("MYBOX upload acceptance", () => {
     }
   });
 
-  test("uploads an empty Unicode file and overwrites it only when requested", async () => {
+  test("uploads an empty Unicode file, overwrites on size difference, and conflicts only when remote is newer", async () => {
     const first = await runCli(["upload", localPath, filePath, "--mkdir", "--json"]);
     expect(first.exitCode).toBe(0);
     expect(parseOutput(first.stdout)).toMatchObject({
@@ -147,11 +147,26 @@ describeIntegration("MYBOX upload acceptance", () => {
     });
 
     await writeFile(localPath, "updated");
+    const changed = await runCli(["upload", localPath, filePath, "--json"]);
+    expect(changed.exitCode).toBe(0);
+    expect(parseOutput(changed.stdout)).toMatchObject({
+      ok: true,
+      action: "overwritten",
+      data: { path: filePath, sizeBytes: 7, reason: "size-different" },
+    });
+
+    const newerLocalPath = join(localDirectory, "newer.txt");
+    await writeFile(newerLocalPath, "newer");
+    const future = new Date(Date.now() + 60_000);
+    await utimes(newerLocalPath, future, future);
+    const makeRemoteNewer = await runCli(["upload", newerLocalPath, filePath, "--force", "--json"]);
+    expect(makeRemoteNewer.exitCode).toBe(0);
+
     const conflict = await runCli(["upload", localPath, filePath, "--json"]);
     expect(conflict.exitCode).toBe(5);
     expect(parseOutput(conflict.stdout)).toMatchObject({
       ok: false,
-      error: { kind: "conflict" },
+      error: { kind: "conflict", code: "REMOTE_NEWER" },
     });
 
     const overwrite = await runCli(["upload", localPath, filePath, "--force", "--json"]);
@@ -159,7 +174,7 @@ describeIntegration("MYBOX upload acceptance", () => {
     expect(parseOutput(overwrite.stdout)).toMatchObject({
       ok: true,
       action: "overwritten",
-      data: { path: filePath, sizeBytes: 7 },
+      data: { path: filePath, sizeBytes: 7, reason: "forced" },
     });
   });
 });

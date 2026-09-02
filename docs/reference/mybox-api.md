@@ -403,11 +403,26 @@ sliding window 또는 endpoint별 상세 동작은 확인하지 못했다.
 | API-08 alternate `modifiedTime` literal | 비차단 자연 관찰 | 동일 instant의 다른 offset 표기가 필요할 때 확인   |
 | API-10 live `Retry-After` 형식          | 릴리스 비차단    | 자연 발생 시 sanitized 형식만 기록                 |
 | API-11 423 해제 특성                    | 릴리스 비차단    | 자연 발생하거나 실제 command가 요구할 때 별도 조사 |
+| API-12 search `q` 특수문자(`# % +`) 동작 | 릴리스 비차단    | live probe 또는 자연 관찰로 확인                   |
 
 Phase 04는 API-05의 완료된 100MB bounded-memory 전송까지 확인해 완료됐다. API-06 non-zero
 checkpoint와 API-08 alternate literal은 현재 서버가 제공하지 않거나 production에 필요하지 않으므로
 자연 관찰 항목으로 둔다. API-10은 fixture와 보수적 fallback으로 동작을 고정하며 API-11도 423을
 고의로 유발하지 않는다.
+
+### 2026-09-02 upload 통합 테스트 정정과 특수문자 검색 이슈
+
+- `test/integration/upload.test.ts`는 Phase 14에서 `put`이 `upload`로 통합된 뒤 적용된 메타데이터
+  정책(size-different → 자동 `overwritten`, conflict는 remote-newer일 때만)을 반영하지 않아 stale
+  상태였다. 기존 원격 파일이 크기만 다를 때 `--force` 없이도 자동 덮어쓰기되므로 충돌(exit 5)이
+  아닌 `overwritten`(exit 0)을 반환한다. 테스트 단언을 병합된 의미에 맞게 정정했다. 같은 명령을
+  다루는 `test/integration/put.test.ts`가 metadata policy flow의 권위 있는 acceptance다.
+- 특수문자 파일명(`한글 # %+.txt`)의 exact 충돌/덮어쓰기 감지는
+  `searchFiles({ q, parentPath })`의 `q` 매칭에 의존한다. transport 계층(`client.ts:url()`)은
+  `searchParams.set`으로 `# % +`를 퍼센트 인코딩하므로 전송은 안전하나, 서버 검색이 이 문자들을
+  literal로 취급하는지는 미확인이다. 검색이 매칭되지 않으면 `resolveForMutation`이 `absent`를
+  반환해 `uploaded`(remote-absent)로 잘못 판정할 수 있다. 이 동작은 자연 관찰 또는 전용 probe
+  전까지 미확정으로 둔다(API-12).
 
 `test:contract` 전체 재실행은 endpoint/schema/upload protocol 변경 또는 API ledger와 모순되는
 관찰이 있을 때만 수행한다. 한두 항목의 미확정 계약은 해당 항목 전용 opt-in probe로 검증한다.

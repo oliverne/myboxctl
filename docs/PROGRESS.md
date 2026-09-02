@@ -7,9 +7,9 @@
 
 - 현재 phase: `Phase 14 CLI UX & Agent Contract`
 - 상태: `complete`
-- 릴리스 상태: `v0.1.0 draft 검증 완료, 공개 보류`
+- 릴리스 상태: `v0.1.0 draft 공개 보류, 첫 공개 목표 v0.2.0`
 - 활성 구현 phase: 없음
-- 다음 담당자: 없음 (공개 Release/publish는 별도 승인)
+- 다음 담당자: 사용자 (`v0.2.0` 공개 배포 체크리스트 실행)
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
 - Phase 14 command surface, destination semantics, human renderer와 versioned machine envelope 구현을
   완료했다. `list`, `info`, `mkdir`, `upload`, `download`, `delete`와 `ls` alias를 제공하며, 기존
@@ -31,7 +31,16 @@
 - 로컬 검증: `bun run check` 227 pass, 35 opt-in skip, 0 fail; `bun run build` 통과;
   `bun run test:release` 4 pass.
 - 실제 MYBOX live acceptance는 opt-in 환경에서 별도 실행하지 않았다.
-- 마지막 갱신: 2026-09-01
+- 사용자가 실행할 첫 공개 `v0.2.0`의 acceptance, 기존 draft 정리, tag/Release, npm,
+  Homebrew와 설치 smoke 순서를 `docs/operations/release-v0.2.0-checklist.md`에 정리했다. 현재 실행 중인
+  live acceptance 결과는 아직 확인되지 않았다.
+- `test/integration/upload.test.ts`를 정정했다. Phase 14에서 `put`이 `upload`로 통합된 뒤
+  적용된 메타데이터 정책(size-different → 자동 `overwritten`, conflict는 remote-newer만)을
+  반영하지 않은 stale 단언(기존 파일이 크기만 다를 때 `--force` 없이도 충돌이 아닌 덮어쓰기)을
+  병합된 의미에 맞췄다. 권위 있는 acceptance는 `test/integration/put.test.ts`다. 특수문자 파일명
+  검색 동작은 `docs/reference/mybox-api.md`의 API-12로 미확정 이슈로 기록했다.
+- `bun run check` 236 pass, 35 opt-in skip, 0 fail; `bun run build` 통과.
+- 마지막 갱신: 2026-09-02
 
 ## Phase 상태
 

@@ -3,6 +3,9 @@
 Phase 11의 배포는 하나의 tag와 standalone binary set을 기준으로 한다. GitHub Release, npm,
 Homebrew, Linux installer와 Scoop이 서로 다른 build를 만들지 않는다.
 
+첫 공개 `v0.2.0`의 사용자 실행 순서와 중단 조건은
+[`v0.2.0 첫 공개 배포 체크리스트`](release-v0.2.0-checklist.md)를 따른다.
+
 ## 공개 전 조건
 
 - `main`의 일반 CI와 Phase 11 release smoke가 통과해야 한다.
@@ -28,8 +31,8 @@ Homebrew, Linux installer와 Scoop이 서로 다른 build를 만들지 않는다
 8. 새 환경에서 Homebrew, npm, Linux installer와 Scoop 설치를 각각 확인한다.
 
 ```bash
-git tag -a v0.1.0 -m "myboxctl v0.1.0"
-git push origin v0.1.0
+git tag -a v0.2.0 -m "myboxctl v0.2.0"
+git push origin v0.2.0
 ```
 
 Release workflow는 draft를 자동으로 공개하지 않는다. 동일 tag의 workflow를 다시 실행하면 기존 draft

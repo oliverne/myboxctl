@@ -4,6 +4,8 @@
 
 Phase 00~14의 구현과 로컬 검증을 완료했다. 첫 공개 Release 전에 CLI command surface와 출력 계약을
 정리하는 Phase 14를 반영했으며 상태는 `complete`이다. 공개 Release/publish는 별도 승인 대상이다.
+첫 공개 목표 version은 `v0.2.0`이며 사용자 실행 절차는
+[`operations/release-v0.2.0-checklist.md`](operations/release-v0.2.0-checklist.md)에 정리했다.
 
 ## 현재 상태
 
@@ -40,6 +42,17 @@ unit regression으로 고정했다.
 
 최종 stdout은 계속 JSON envelope 하나이며 terminal failure가 stderr에 중복되면 event parser가
 실패한다. 빈 stderr가 계약인 경우는 기존 `--quiet` subprocess 회귀 test가 별도로 유지한다.
+
+### 2026-09-02 upload 통합 테스트 정정
+
+- `test/integration/upload.test.ts`는 Phase 14에서 `put`이 `upload`로 통합된 뒤 메타데이터 정책을
+  반영하지 않아 stale 상태였다. 기존 원격 파일이 크기만 다를 때 `--force` 없이도 자동 덮어쓰기
+  (size-different → `overwritten`, exit 0)되므로 충돌(exit 5) 단언은 잘못됐다. 단언을 병합된 의미에
+  맞게 정정했고, 같은 명령의 권위 있는 acceptance는 `test/integration/put.test.ts`다.
+- 특수문자 파일명(`한글 # %+.txt`)의 exact 충돌/덮어쓰기 감지는 `searchFiles({ q, parentPath })`의
+  `q` 매칭에 의존하며, 서버가 `# % +`를 literal로 취급하는지는 미확인이다. transport 계층은
+  `searchParams.set`으로 퍼센트 인코딩하므로 전송은 안전하다. 이 동작은 자연 관찰 또는 전용 probe
+  전까지 미확정(API-12)으로 두고 `docs/reference/mybox-api.md`에 기록했다.
 
 ## 원격 검증
 
@@ -95,11 +108,14 @@ Phase 14 완료 후에도 저장소 public 전환, Release 공개, package publi
 
 ## 다음 실행 범위
 
-1. (완료) [`reviews/2026-09-01-phase14-source-review.md`](reviews/2026-09-01-phase14-source-review.md)의 P2 hardening 3건을 처리했다. 변경: `upload` host-native basename, human table `TYPE SIZE MODIFIED NAME`, public resource fail-closed(`API_RESPONSE_INVALID`). 검증은 `bun run check` 234 pass/35 skip/0 fail, `bun run build`/`bun run test:release` 4 pass. 실제 MYBOX integration은 실행하지 않았음(별도 승인 필요).
-2. hardening 후 `bun run check`, `bun run build`, `bun run test:release`를 실행하고 observable CLI contract 변경이 있을 때만 `docs/reference/cli-contract.md`를 갱신한다.
-3. 필요하면 새 destination contract의 최소 MYBOX live acceptance를 별도 동의 후 실행한다.
-4. draft `v0.1.0` 공개, 저장소 public 전환, package publish와 registry 반영은 각각 별도 승인을 받는다.
-5. 추가 CLI contract 변경은 `PLAN.md`, `docs/PROGRESS.md`, `docs/phases/14-cli-ux-and-agent-contract.md`를 함께 갱신한다.
+1. 사용자가 시작한 `MYBOX_INTEGRATION=1 bun test test/integration`의 최종 결과와 cleanup을 확인한다.
+2. [`operations/release-v0.2.0-checklist.md`](operations/release-v0.2.0-checklist.md)에 따라 기존 미공개
+   `v0.1.0` draft/tag를 정리한다.
+3. 현재 `main`에 `v0.2.0` annotated tag를 생성·push하고 Release workflow의 5개 native smoke와 새
+   draft asset 9개를 확인한다.
+4. 저장소 public 전환과 GitHub Release 공개 후 npm, Homebrew, Linux installer와 Scoop을 순서대로
+   게시·검증한다. 각 외부 변경과 credential 설정은 사용자가 직접 수행하거나 별도 승인 후 진행한다.
+5. 배포 결과를 `README.md`, `docs/PROGRESS.md`, `docs/HANDOFF.md`에 사실 기준으로 반영한다.
 
 ## 로컬 시작 명령
 
