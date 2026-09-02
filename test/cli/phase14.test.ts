@@ -276,9 +276,9 @@ describe("public resource contract hardening", () => {
   });
 
   test("accepts RFC 3339 modifiedAt values with UTC or an explicit offset", () => {
-    expect(publicResource(item({ modifiedAt: "2026-01-01T00:00:00Z" }), "/name.txt").modifiedAt).toBe(
-      "2026-01-01T00:00:00.000Z",
-    );
+    expect(
+      publicResource(item({ modifiedAt: "2026-01-01T00:00:00Z" }), "/name.txt").modifiedAt,
+    ).toBe("2026-01-01T00:00:00.000Z");
     expect(
       publicResource(item({ modifiedAt: "2026-01-01T09:00:00+09:00" }), "/name.txt").modifiedAt,
     ).toBe("2026-01-01T00:00:00.000Z");

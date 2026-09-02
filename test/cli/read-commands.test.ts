@@ -315,8 +315,10 @@ describe("read command subprocess contract", () => {
     expect(dataLines).toHaveLength(names.length);
     for (const name of names) {
       const row = dataLines.find((line) => line.trimEnd().endsWith(name));
-      expect(row).toBeDefined();
-      expect(/^(file|folder) /.test(row!)).toBe(true);
+      if (row === undefined) {
+        throw new Error(`missing list row for ${name}`);
+      }
+      expect(/^(file|folder) /.test(row)).toBe(true);
     }
   });
 
