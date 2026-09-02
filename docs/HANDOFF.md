@@ -18,7 +18,7 @@ Phase 00~14의 구현과 로컬 검증을 완료했다. 첫 공개 Release 전�
 - Phase 14 계획: [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)
 - Phase 14 구현·검증: P14-A~E 완료
 - 2026-09-01 최근 소스 리뷰: [`reviews/2026-09-01-phase14-source-review.md`](reviews/2026-09-01-phase14-source-review.md)
-- 리뷰 결과 blocker는 없으며 공개 Release 전 P2 hardening 3건을 권장했다. 2026-09-01 실행에서 3건을 모두 처리했다: upload host-native basename, CJK/긴 이름 human table 열 순서(`TYPE SIZE MODIFIED NAME`), public resource malformed API fail-closed 검증. 검증: `bun run check` 234 pass/35 skip/0 fail, `bun run build` 통과, `bun run test:release` 4 pass.
+- 리뷰 결과 blocker는 없으며 공개 Release 전 P2 hardening 3건을 권장했다. 2026-09-01 실행에서 3건을 모두 처리했다: upload host-native basename, CJK/긴 이름 human table 열 순서(`TYPE SIZE MODIFIED NAME`), public resource malformed API fail-closed 검증. 초기 검증: `bun run check` 234 pass/35 skip/0 fail, `bun run build` 통과, `bun run test:release` 4 pass. 후속 `modifiedAt` RFC 3339 검증 강화와 test lint 보정 후 CI run `33576388192`는 236 pass/35 skip/0 fail로 성공했다(최종 commit `7e474bdd310d8455d432964a6ff4a43d1356c74e`).
 
 canonical command는 `list`/`ls`, `info`, `mkdir`, `upload`, `download`, `delete`다. destination intent와
 `mkdir -p`, delete `--ignore-missing`, human table/sentence renderer, `schemaVersion: 1`,

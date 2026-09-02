@@ -393,7 +393,7 @@ CLI contract 변경이라 opt-in 정책에 따라 실행하지 않았고, 공개
   NAME을 마지막 열로 두어 긴 ASCII·한글·혼합 이름이 앞 열 정렬을 깨지 않도록 했다. 새 display-width
   의존성은 추가하지 않았다. JSON envelope, resource shape, 정렬 순서는 변경하지 않았다.
 - public resource 정규화는 fail-closed로 바뀌었다. `type`이 `file`/`folder`가 아니거나 public 변환에
-  도달한 누락 값, `modifiedAt` 값이 존재하지만 유효하지 않은 날짜면 `apiResponseError`(code
+  도달한 누락 값, `modifiedAt` 값이 존재하지만 RFC 3339 형식이 아니면 `apiResponseError`(code
   `API_RESPONSE_INVALID`, kind `api-unavailable`)로 실패한다. 부재 `modifiedAt`은 `null`이다. 이전의
   추정 기본값(unknown→folder, invalid date→null)을 제거했다. 검증은 public 변환 경계
   (`public-resource.ts`)에서 수행하며, MYBOX Zod schema는 다른 consumer를 깨지 않도록 완화된 채로 두었다.
@@ -401,9 +401,11 @@ CLI contract 변경이라 opt-in 정책에 따라 실행하지 않았고, 공개
 - canonical command, `schemaVersion: 1`, destination semantics, overwrite 정책은 변경하지 않았다.
 - 실제 MYBOX integration test는 실행하지 않았다(별도 승인 필요, 인수인계 범위 외).
 
-검증: `bun run check` 234 pass, 35 opt-in skip, 0 fail; `bun run build` 통과;
-`bun run test:release` 4 pass. 신규 회귀 테스트: POSIX literal-backslash basename, 긴/CJK/혼합 이름
-human table, unknown/missing type·invalid/absent modifiedAt 거부 모두 통과.
+초기 검증: `bun run check` 234 pass, 35 opt-in skip, 0 fail; `bun run build` 통과;
+`bun run test:release` 4 pass. 후속 리뷰에서 `Date.parse()`의 느슨한 입력 허용을 발견해
+`z.iso.datetime({ offset: true })` 기반 RFC 3339 검증을 추가했다. 모호한 날짜, date-only와 timezone-less
+값은 거부하고 UTC/명시적 offset은 허용한다. 최종 commit `7e474bd`의 CI run `33576388192`는
+236 pass, 35 opt-in skip, 0 fail로 성공했다.
 
 ## 상태 변경 규칙
 
