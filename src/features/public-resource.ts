@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 import { apiResponseError } from "../errors.ts";
 import type { ResourceDetail, ResourceItem, SearchResourceItem } from "../mybox/contract.ts";
 
@@ -9,6 +11,8 @@ export type PublicResource = {
   sizeBytes: number | null;
   modifiedAt: string | null;
 };
+
+const rfc3339DateTimeSchema = z.iso.datetime({ offset: true });
 
 function resourceType(value: string | undefined): "file" | "folder" {
   if (value === undefined) {
@@ -26,6 +30,9 @@ function resourceType(value: string | undefined): "file" | "folder" {
 function normalizedModifiedAt(value: string | undefined): string | null {
   if (value === undefined) {
     return null;
+  }
+  if (!rfc3339DateTimeSchema.safeParse(value).success) {
+    throw apiResponseError(`MYBOX returned an invalid modifiedAt value: ${value}.`);
   }
   const timestamp = Date.parse(value);
   if (!Number.isFinite(timestamp)) {

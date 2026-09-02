@@ -269,6 +269,21 @@ describe("public resource contract hardening", () => {
     );
   });
 
+  test("rejects ambiguous or timezone-less modifiedAt values", () => {
+    for (const modifiedAt of ["0", "01/02/2026", "2026-09-01", "2026-01-01T00:00:00"]) {
+      expectApiResponseInvalid(() => publicResource(item({ modifiedAt }), "/name.txt"));
+    }
+  });
+
+  test("accepts RFC 3339 modifiedAt values with UTC or an explicit offset", () => {
+    expect(publicResource(item({ modifiedAt: "2026-01-01T00:00:00Z" }), "/name.txt").modifiedAt).toBe(
+      "2026-01-01T00:00:00.000Z",
+    );
+    expect(
+      publicResource(item({ modifiedAt: "2026-01-01T09:00:00+09:00" }), "/name.txt").modifiedAt,
+    ).toBe("2026-01-01T00:00:00.000Z");
+  });
+
   test("treats an absent modifiedAt as null without guessing a type", () => {
     const resource = publicResource(
       { resourceId: "r-1", name: "name.txt", type: "file" } as SearchResourceItem,
