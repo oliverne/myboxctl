@@ -57,33 +57,33 @@ myboxctl delete /agents/output/old-report.md --json
 - 잘못된 기존 구조를 유지하기 위한 compatibility shim, deprecated alias, dual behavior는 기본적으로
   추가하지 않는다. 테스트도 기존 동작 보존이 아니라 올바른 공식 계약을 검증하도록 수정한다.
 
-상세 근거와 의존성 방향은 [`docs/architecture/overview.md`](docs/architecture/overview.md),
-안정성 정책은 [`docs/architecture/reliability.md`](docs/architecture/reliability.md)를 따른다.
+상세 근거와 의존성 방향은 [`architecture/overview.md`](architecture/overview.md),
+안정성 정책은 [`architecture/reliability.md`](architecture/reliability.md)를 따른다.
 공식 API 전체 inventory와 현재 구현 coverage는
-[`docs/reference/official-api-audit.md`](docs/reference/official-api-audit.md)를 따른다.
+[`reference/official-api-audit.md`](reference/official-api-audit.md)를 따른다.
 
 ## 4. 문서 구조와 상태 관리
 
 | 문서                     | 역할                                    | 갱신 시점               |
 | ------------------------ | --------------------------------------- | ----------------------- |
 | `PLAN.md`                | 범위, phase 순서, 프로젝트 완료 정의    | 범위나 phase가 바뀔 때  |
-| `docs/PROGRESS.md`       | phase/task 상태의 단일 기준             | 작업 시작/완료/차단 시  |
-| `docs/HANDOFF.md`        | 다음 에이전트가 즉시 이어받을 현재 문맥 | 모든 작업 종료 전       |
-| `docs/phases/*.md`       | 각 phase의 실행 가능한 상세 계획        | 해당 phase 계획 변경 시 |
-| `docs/architecture/*.md` | 설계 원칙과 트레이드오프                | 설계 결정 변경 시       |
-| `docs/reference/*.md`    | CLI/API 등 안정적인 계약과 coverage     | 관찰/계약 변경 시       |
+| `PROGRESS.md`       | phase/task 상태의 단일 기준             | 작업 시작/완료/차단 시  |
+| `HANDOFF.md`        | 다음 에이전트가 즉시 이어받을 현재 문맥 | 모든 작업 종료 전       |
+| `phases/*.md`       | 각 phase의 실행 가능한 상세 계획        | 해당 phase 계획 변경 시 |
+| `architecture/*.md` | 설계 원칙과 트레이드오프                | 설계 결정 변경 시       |
+| `reference/*.md`    | CLI/API 등 안정적인 계약과 coverage     | 관찰/계약 변경 시       |
 
 상태 값은 `pending`, `in_progress`, `blocked`, `complete`만 사용한다. 원칙적으로 동시에 하나의
 phase만 `in_progress`일 수 있다. 단, Phase 07의 마지막 live acceptance를 breaking contract correction
 이후로 이관한 전환 기간에는 Phase 07과 Phase 08을 함께 `in_progress`로 둘 수 있으며, 예외 사유와
-통합 종료 조건을 `docs/PROGRESS.md`에 기록한다. phase 완료는 코드 작성 여부가 아니라 해당 phase
+통합 종료 조건을 `PROGRESS.md`에 기록한다. phase 완료는 코드 작성 여부가 아니라 해당 phase
 문서의 검증 및 handoff 조건으로 판정한다.
 
 ## 5. Phase 로드맵
 
 ### Phase 00 — MYBOX API 계약 검증
 
-문서: [`docs/phases/00-api-contract.md`](docs/phases/00-api-contract.md)
+문서: [`phases/00-api-contract.md`](phases/00-api-contract.md)
 
 구현을 좌우하는 미확인 계약을 실제 전용 테스트 경로에서 검증한다.
 
@@ -101,7 +101,7 @@ contract probe를 다시 실행한다. 후속 phase의 미확정 항목은 해�
 
 ### Phase 01 — 기반과 CLI 계약
 
-문서: [`docs/phases/01-foundation.md`](docs/phases/01-foundation.md)
+문서: [`phases/01-foundation.md`](phases/01-foundation.md)
 
 - config 로딩과 PAT 보호
 - 공통 오류 분류
@@ -112,7 +112,7 @@ contract probe를 다시 실행한다. 후속 phase의 미확정 항목은 해�
 
 ### Phase 02 — `stat`/`ls` 읽기 vertical slice
 
-문서: [`docs/phases/02-read-commands.md`](docs/phases/02-read-commands.md)
+문서: [`phases/02-read-commands.md`](phases/02-read-commands.md)
 
 - 원격 경로 normalize와 exact resolve
 - cursor pagination
@@ -121,7 +121,7 @@ contract probe를 다시 실행한다. 후속 phase의 미확정 항목은 해�
 
 ### Phase 03 — `ensure-dir`
 
-문서: [`docs/phases/03-ensure-dir.md`](docs/phases/03-ensure-dir.md)
+문서: [`phases/03-ensure-dir.md`](phases/03-ensure-dir.md)
 
 - 계층적 폴더 생성
 - 이미 존재하는 폴더의 idempotent 성공
@@ -131,7 +131,7 @@ contract probe를 다시 실행한다. 후속 phase의 미확정 항목은 해�
 
 ### Phase 04 — `upload`
 
-문서: [`docs/phases/04-upload.md`](docs/phases/04-upload.md)
+문서: [`phases/04-upload.md`](phases/04-upload.md)
 
 - file handle 기반 안정적인 stat/stream
 - 100MB streaming, 실제 interruption resume와 `modifiedTime` 규칙의 targeted preflight probe
@@ -143,7 +143,7 @@ contract probe를 다시 실행한다. 후속 phase의 미확정 항목은 해�
 
 ### Phase 05 — `put`
 
-문서: [`docs/phases/05-put.md`](docs/phases/05-put.md)
+문서: [`phases/05-put.md`](phases/05-put.md)
 
 - 순수 decision 함수
 - remote absent, same, local newer, remote newer, size mismatch
@@ -153,7 +153,7 @@ contract probe를 다시 실행한다. 후속 phase의 미확정 항목은 해�
 
 ### Phase 06 — `delete`
 
-문서: [`docs/phases/06-delete.md`](docs/phases/06-delete.md)
+문서: [`phases/06-delete.md`](phases/06-delete.md)
 
 - 휴지통 이동
 - 없는 경로의 `already-absent`
@@ -163,7 +163,7 @@ contract probe를 다시 실행한다. 후속 phase의 미확정 항목은 해�
 
 ### Phase 07 — 안정화와 배포 준비
 
-문서: [`docs/phases/07-hardening.md`](docs/phases/07-hardening.md)
+문서: [`phases/07-hardening.md`](phases/07-hardening.md)
 
 - Unicode/한글/특수문자/빈 파일/대용량 파일
 - timeout, 429, API 장애, SIGINT
@@ -176,7 +176,7 @@ contract probe를 다시 실행한다. 후속 phase의 미확정 항목은 해�
 
 ### Phase 08 — Official API alignment
 
-문서: [`docs/phases/08-official-api-alignment.md`](docs/phases/08-official-api-alignment.md)
+문서: [`phases/08-official-api-alignment.md`](phases/08-official-api-alignment.md)
 
 2026-08-24 공식 Open API 전수 조사 결과 중 **현재 CLI의 안정성과 계약 정합성에 직접 영향을 주는
 항목만** 반영한다.
@@ -195,7 +195,7 @@ Phase 08은 MYBOX API 전체 기능 추가 phase가 아니다. 다운로드, ren
 
 ### Phase 09 — `download`
 
-문서: [`docs/phases/09-download.md`](docs/phases/09-download.md)
+문서: [`phases/09-download.md`](phases/09-download.md)
 
 Phase 00~08 MVP 완료 후 선택한 첫 후속 vertical slice다.
 
@@ -213,7 +213,7 @@ Phase 09는 구현과 실제 MYBOX acceptance를 완료했다. Phase 00~08의 �
 
 ### Phase 10 — Cross-implementation hardening
 
-문서: [`docs/phases/10-cross-implementation-hardening.md`](docs/phases/10-cross-implementation-hardening.md)
+문서: [`phases/10-cross-implementation-hardening.md`](phases/10-cross-implementation-hardening.md)
 
 PHP/Flysystem 구현체 교차 감사에서 확인한 후보 중 현재 CLI의 안전성과 신뢰성에 직접 필요한 항목만
 자체 targeted probe로 검증한다.
@@ -226,7 +226,7 @@ PHP/Flysystem 구현체 교차 감사에서 확인한 후보 중 현재 CLI의 �
 
 ### Phase 11 — Distribution & Release
 
-문서: [`docs/phases/11-distribution-release.md`](docs/phases/11-distribution-release.md)
+문서: [`phases/11-distribution-release.md`](phases/11-distribution-release.md)
 
 Phase 00~10에서 완성한 CLI를 clone/Bun 설치 없이 사용할 수 있도록 동일한 standalone binary를 여러
 배포 경로로 전달한다.
@@ -242,7 +242,7 @@ Phase 11은 CLI 기능/API 범위를 늘리지 않는다. Windows arm64, Linux m
 
 ### Phase 12 — Cross-platform Unicode filename compatibility
 
-문서: [`docs/phases/12-cross-platform-unicode-filenames.md`](docs/phases/12-cross-platform-unicode-filenames.md)
+문서: [`phases/12-cross-platform-unicode-filenames.md`](phases/12-cross-platform-unicode-filenames.md)
 
 macOS, Windows와 WSL2 사이에서 같은 사용자 표시 파일명이 NFC/NFD 차이로 서로 다른 원격 resource가
 되는 문제를 첫 공개 릴리스 전에 방지한다.
@@ -259,11 +259,11 @@ Phase 12는 case folding, 로컬 파일 rename, 기존 resource 자동 migration
 
 ### Phase 13 — Observability & Integration Test Latency
 
-문서: [`docs/phases/13-observability-and-test-latency.md`](docs/phases/13-observability-and-test-latency.md)
+문서: [`phases/13-observability-and-test-latency.md`](phases/13-observability-and-test-latency.md)
 
-상세 분석: [`docs/reference/test-latency-investigation.md`](docs/reference/test-latency-investigation.md)
+상세 분석: [`reference/test-latency-investigation.md`](reference/test-latency-investigation.md)
 
-Human UI 조사: [`docs/reference/human-cli-ui-investigation.md`](docs/reference/human-cli-ui-investigation.md)
+Human UI 조사: [`reference/human-cli-ui-investigation.md`](reference/human-cli-ui-investigation.md)
 
 실제 MYBOX PAT로 통합 테스트를 돌리던 중, 개별 API 호출은 0.2~0.4초로 빠른데 `ensure-dir`/
 `delete` acceptance가 수 분씩 걸리는 지연이 발견됐다. Phase 13 계측 결과 긴 대기는 서버 429가
@@ -284,7 +284,7 @@ opt-in skip, 0 fail로 1,875.35초가 걸렸다. 자연 발생 서버 429와 `se
 
 ### Phase 14 — CLI UX & Agent Contract
 
-문서: [`docs/phases/14-cli-ux-and-agent-contract.md`](docs/phases/14-cli-ux-and-agent-contract.md)
+문서: [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)
 
 Phase 14는 첫 공개 Release 전에 기존 기능을 사람이 이해하기 쉽고 AI 에이전트가 안정적으로 파싱할 수
 있는 public CLI contract로 정리한다. 상태는 `complete`이며 아래 구현·검증을 완료했다.
@@ -297,7 +297,7 @@ Phase 14는 첫 공개 Release 전에 기존 기능을 사람이 이해하기 �
 - 일반 회귀, release smoke와 필요한 최소 live acceptance 후 공개 Release 경계 재확인
 
 Phase 14는 새 MYBOX API나 동기화 기능을 추가하지 않는다. 구현 결과와 검증 사실은
-`docs/PROGRESS.md`와 `docs/HANDOFF.md`에 기록한다. 실제 MYBOX live acceptance는 opt-in이라 이번
+`PROGRESS.md`와 `HANDOFF.md`에 기록한다. 실제 MYBOX live acceptance는 opt-in이라 이번
 로컬 검증에서는 실행하지 않았다.
 
 ## 6. 전체 MVP 완료 조건
@@ -335,7 +335,7 @@ probe 결과는 API ledger와 handoff에 이미 남아 있어야 한다.
 - 정상적인 대용량 업로드에서 메모리가 파일 크기에 비례해 증가하지 않는다.
 - PAT, Authorization header, upload/download URL이 출력과 로그에 나타나지 않는다.
 - 원격 mutation은 unique integration-test prefix 밖에서 실행되지 않는다.
-- Phase 00~08이 모두 `complete`이고 `docs/HANDOFF.md`에 미완료 MVP 구현 작업이 없다.
+- Phase 00~08이 모두 `complete`이고 `HANDOFF.md`에 미완료 MVP 구현 작업이 없다.
 
 ## 7. 이후 후보
 
@@ -351,6 +351,6 @@ MVP 완료 후 실제 요구가 확인된 경우에만 검토한다.
 
 휴지통 영구 삭제, 휴지통 전체 비우기, 계정 수준의 휴지통 보존 설정은 특히 파괴적이거나 전역적인
 작업이므로 단순 편의 기능으로 추가하지 않는다. 공식 API 전체 후보와 검토 조건은
-[`docs/reference/official-api-audit.md`](docs/reference/official-api-audit.md)에 기록한다.
+[`reference/official-api-audit.md`](reference/official-api-audit.md)에 기록한다.
 
 watch가 추가되더라도 로컬 삭제는 원격 삭제로 전파하지 않는다.

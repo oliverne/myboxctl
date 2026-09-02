@@ -7,7 +7,7 @@
 
 다음 순서로 읽는다.
 
-1. [`../PLAN.md`](../PLAN.md)
+1. [`PLAN.md`](PLAN.md)
 2. [`PROGRESS.md`](PROGRESS.md)
 3. [`HANDOFF.md`](HANDOFF.md)
 4. `PROGRESS.md`에서 `in_progress`로 표시된 phase 문서

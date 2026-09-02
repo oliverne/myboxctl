@@ -15,9 +15,6 @@ myboxctl download /agents/output/report.md ./report.md --json
 myboxctl delete /agents/output/old-report.md --json
 ```
 
-현재 구현 및 검증 상태는 [`docs/PROGRESS.md`](docs/PROGRESS.md),
-[`docs/HANDOFF.md`](docs/HANDOFF.md)에서 확인할 수 있습니다.
-
 ## 왜 만들었나요?
 
 요즘 AI 에이전트는 CLI를 잘 다룹니다. 제가 Hermes Agent에서 쓰려고 만들었어요.
@@ -85,35 +82,20 @@ MYBOX Open API에는 다음 제약이 있습니다.
 
 ## 설치
 
-현재 첫 공개 Release 전이라 아래 경로는 아직 활성화되지 않았습니다. 공개 후에는 standalone
-executable을 사용하므로 실행에 Bun이나 Node.js가 필요하지 않습니다.
-
-```bash
-# macOS / Linux
-brew install oliverne/tap/myboxctl
-
-# Linux
-curl -fsSL https://github.com/oliverne/myboxctl/releases/latest/download/install.sh | sh
-
-# npm
-npm install --global @oliverne/myboxctl
-```
-
-npm 설치에는 Node.js가 필요하지만 `myboxctl` 실행에는 필요하지 않습니다.
-
-```powershell
-# Windows
-scoop install https://github.com/oliverne/myboxctl/releases/latest/download/myboxctl.json
-```
+- TBD
 
 직접 설치하거나 checksum을 확인하려면 [GitHub Releases](https://github.com/oliverne/myboxctl/releases)를
 사용하세요.
 
-## 여러 운영체제에서의 파일명
+## macOS에서 파일명을 사용할 때
 
-원격 파일·폴더의 새 이름은 NFC로 저장합니다. 기존 NFD resource도 조회할 수 있지만, 같은 parent에
-동등한 이름이 여러 개 있으면 변경 작업은 `UNICODE_NAME_COLLISION`으로 중단됩니다. 로컬 경로는
-정규화하지 않고 사용자가 입력한 그대로 사용합니다.
+- macOS에서 만든 한글이나 악센트가 있는 파일명을 업로드할 때, 파일명 자체를 따로 바꿀 필요는
+  없습니다. `myboxctl`이 원격에 저장되는 이름을 자동으로 처리합니다.
+- 기존에 다른 방식으로 저장된 원격 파일·폴더도 이름이 같다면 `myboxctl`이 찾아줍니다.
+- 단, 같은 원격 폴더에 화면상 같은 이름의 항목이 여러 개 있으면 어느 항목인지 구분할 수 없습니다.
+  이 경우 변경 작업이 `UNICODE_NAME_COLLISION` 오류로 중단됩니다.
+- 로컬 파일 경로와 파일명은 사용자가 입력한 그대로 유지되고, 원격에 저장되는 이름만 자동으로
+  처리됩니다.
 
 ## 소스에서 개발하기
 
@@ -131,10 +113,13 @@ PAT는 `MYBOX_PAT` 환경 변수나 credentials 파일로 전달할 수 있습�
 
 ## 업로드 주의사항
 
-`upload`는 content hash 대신 파일 크기와 수정 시각을 비교합니다. 크기가 같고 수정 시각 차이가
-2초 이내면 내용이 달라도 `skipped`가 될 수 있습니다. 원격 파일이 더 최신이면 기본적으로 conflict를
-반환하므로, 덮어쓰려면 `--force`를 사용하세요. destination을 생략하거나 `/`로 지정하면 local
-basename을 root에 사용하고, 기존 directory에는 basename을 붙입니다.
+- `upload`는 파일 내용 전체를 비교하지 않고 파일 크기와 수정 시각을 비교합니다.
+- 파일 크기가 같고 수정 시각 차이가 2초 이내면, 실제 내용이 달라도 업로드를 건너뛸 수 있습니다.
+  이때 결과는 `skipped`입니다.
+- 파일 크기가 다르거나 로컬 파일이 더 최신이면 자동으로 덮어씁니다. 반대로 원격 파일이 2초 이상 더
+  최신이면 안전을 위해 `conflict`를 반환합니다. 이 경우 `--force`를 사용하면 강제로 덮어쓸 수 있습니다.
+- destination을 생략하거나 `/`로 지정하면 로컬 파일 이름을 그대로 사용해 루트에 업로드합니다. 기존
+  디렉터리를 destination으로 지정하면 그 디렉터리 안에 로컬 파일 이름으로 업로드합니다.
 
 ## 테스트
 
@@ -153,16 +138,6 @@ MYBOX_PAT=... bun run test:integration
 ```
 
 MYBOX API 동작 확인 테스트(`test:contract`, `test:upload-probe`, `test:download-probe`)는 필요한 경우에만 별도로 실행합니다.
-
-## 더 보기
-
-프로젝트 문서는 [`PLAN.md`](PLAN.md), [`docs/PROGRESS.md`](docs/PROGRESS.md),
-[`docs/HANDOFF.md`](docs/HANDOFF.md)에서 확인할 수 있습니다. CLI 명세와
-[`docs/reference/cli-contract.md`](docs/reference/cli-contract.md), Ubuntu 운영 방법은
-[`docs/operations/ubuntu-24.04.md`](docs/operations/ubuntu-24.04.md), 기여 방법은
-[`CONTRIBUTING.md`](CONTRIBUTING.md)을 참고하세요.
-
-버그 리포트, 문서 개선, 테스트 케이스, 코드 기여를 환영합니다.
 
 ## License
 

@@ -27,7 +27,7 @@
 
 ## Workflow
 
-1. Read `PLAN.md`, `docs/PROGRESS.md`, `docs/HANDOFF.md`, and the active phase document.
+1. Read `docs/PLAN.md`, `docs/PROGRESS.md`, `docs/HANDOFF.md`, and the active phase document.
 2. Work only on the phase marked `in_progress` unless the user explicitly changes scope.
 3. For behavior changes, write a failing test first when practical.
 4. Run the verification commands required by the active phase.
