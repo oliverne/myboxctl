@@ -42,8 +42,6 @@ bun install --frozen-lockfile
 
 ```bash
 bun run check
-bun run build
-bun run test:release
 ```
 
 일반 unit/HTTP/CLI 테스트는 실제 MYBOX 계정 없이 실행됩니다.

@@ -90,7 +90,7 @@ export type CreateUploadInput = BaseCreateUploadInput &
 
 const defaultDependencies: ClientDependencies = {
   fetch: globalThis.fetch,
-  sleep: (ms) => Bun.sleep(ms),
+  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   random: () => Math.random(),
   now: () => Date.now(),
   rateLimiter: noOpRateLimiter,

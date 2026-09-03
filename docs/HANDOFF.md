@@ -15,7 +15,7 @@ Phase 00~14의 구현과 로컬 검증을 완료했다. 첫 공개 Release 전�
 - 작업 브랜치: 없음 (PR #11은 `main`으로 merge 완료)
 - PR: [#11 feat: add Phase 13 observability and progress events](https://github.com/oliverne/myboxctl/pull/11) — 2026-08-31 merge됨
 - integration stderr 계약 수정 commit: `710cde214f93d7758b7cabe226b6d0d769c28bd4`
-- 로컬 검증: `bun run check` 236 pass, 35 opt-in skip, 0 fail; `bun run build` 통과
+- 로컬 검증: `bun run check` 229 pass, 35 opt-in skip, 0 fail; `bun run build` 통과
 - 별도 release contract: `bun run test:release` 4 pass, 0 fail
 - Phase 14 계획: [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)
 - Phase 14 구현·검증: P14-A~E 완료
@@ -80,6 +80,21 @@ suite가 cleanup까지 검증한다.
 - upload 통합 `setDefaultTimeout(900_000)` 상향 뒤 `--force` 업로드가 SIGTERM(143) 없이 완료된다.
 - `runPut`→`runUpload` resolution 전달 리팩터가 라이브 upload/put acceptance를 그대로 통과한다.
 
+### 2026-09-03 배포 전략 변경 (standalone 폐기 → npm-only)
+
+macOS Gatekeeper 차단 문제와 미사용 판단으로 standalone 실행파일 배포를 폐기하고 npm(Node 기반)
+단독 배포로 전환했다. 상세 사실은 `PROGRESS.md`의 동명 섹션에 있다.
+
+- 삭제: `scripts/build-release.ts`, `render-packaging.ts`, `verify-release.ts`, `release-config.ts`(+test),
+  `test/cli/release-contract.test.ts`, `.github/workflows/release.yml`, `.github/workflows/publish-homebrew.yml`,
+  `docs/operations/release.md`, `docs/operations/release-v0.2.0-checklist.md`. `package.json`에서
+  `build:release`/`verify:release`/`test:release` 제거.
+- `src`의 Bun 런타임 API 4곳을 Node 동등 코드로 교체, `build.ts` target `bun`→`node`, npm 패키지 재작성
+  (Node 번들 + `bin/myboxctl.js` 런처, `engines.node >= 20`). Homebrew/Scoop/install.sh 경로 폐기.
+- `v0.2.0` draft Release 삭제 완료. `v0.2.0` tag는 npm publish용 보존(게시 시 새 commit으로 이동 필요).
+- 로컬 검증: `bun run check` 229 pass / 35 skip / 0 fail; `node release/npm/bin/myboxctl.js --version`
+  → `0.2.0` 출력·exit 0.
+
 ## 원격 검증
 
 - PR CI run [`33388258127`](https://github.com/oliverne/myboxctl/actions/runs/33388258127): 성공
@@ -117,16 +132,12 @@ bucket을 완화하지 않고 GET 429 한 번 retry, `Retry-After` 우선, heade
 
 ## 저장소와 Release 경계
 
-- 저장소: `oliverne/myboxctl` (private)
+- 저장소: `oliverne/myboxctl` (public)
 - 기본 브랜치: `main`
-- `v0.1.0` tag 대상: `4e895b745d7822b6b2e74fc80939642d27c542e5`
-- draft Release ID: `379266317`
-- 공개 Release: 없음
-- npm publish, Homebrew tap 반영, Scoop registry 등록: 미실행
-
-Release artifact action은 Node 24 기반 `upload-artifact@v7`과 `download-artifact@v8`이며 PR #11의
-Release workflow에서 5개 native smoke가 통과했다. 새 tag 기반 artifact transfer는 별도 검증하지
-않았다.
+- `v0.1.0` tag/Release: 삭제됨 (2026-09-03)
+- `v0.2.0` tag: 존재(commit `ffb5bd1`가 리팩터 이전; npm 게시 전 새 commit으로 이동 예정). GitHub Release: 없음
+- 배포 방식: npm 단독(`@oliverne/myboxctl`), standalone 실행파일/Homebrew/Scoop/install.sh 폐기
+- npm publish: `NPM_TOKEN` 설정 후 `publish-npm.yml -f tag=v0.2.0` 실행(미실행). Homebrew tap/Scoop registry: 폐기
 
 PR #11 merge는 2026-08-31에 완료했다. Phase 14 완료 전에는 현재 draft `v0.1.0`을 공개하지 않는다.
 Phase 14 완료 후에도 저장소 public 전환, Release 공개, package publish, registry 반영, credential 변경과

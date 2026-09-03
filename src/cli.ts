@@ -460,7 +460,7 @@ function wantsJson(argv: readonly string[]): boolean {
 }
 
 export async function runCli(
-  argv: readonly string[] = Bun.argv,
+  argv: readonly string[] = process.argv,
   runtimeFactory: RuntimeFactory = defaultRuntimeFactory,
 ): Promise<number> {
   try {
@@ -490,6 +490,6 @@ export async function runCli(
   }
 }
 
-if (import.meta.main) {
+if (typeof Bun !== "undefined" && Bun.main) {
   process.exitCode = await runCli();
 }

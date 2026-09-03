@@ -1,10 +1,10 @@
-name: Publish npm packages
+name: Publish npm
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Published release tag, for example v0.1.0
+        description: Published release tag, for example v0.2.0
         required: true
         type: string
 
@@ -32,33 +32,17 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Require a published release
-        shell: bash
+      - name: Build Node bundle
         env:
-          GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag }}
-        run: |
-          test "$(gh release view "$TAG" --json isDraft --jq .isDraft)" = "false"
-          bun -e 'import { validateReleaseVersion } from "./scripts/release-config.ts"; validateReleaseVersion(process.env.TAG.slice(1));'
+        run: bun run build -- --version "${TAG#v}"
 
-      - name: Download released archives
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.tag }}
-        run: |
-          mkdir release
-          gh release download "$TAG" --dir release --pattern "myboxctl-v*"
-          gh release download "$TAG" --dir release --pattern "SHA256SUMS"
-
-      - name: Prepare platform packages
-        shell: bash
+      - name: Prepare npm package
         env:
           TAG: ${{ inputs.tag }}
         run: bun run prepare:npm -- --version "${TAG#v}"
 
       - name: Configure npm authentication
-        shell: bash
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
@@ -66,7 +50,7 @@ jobs:
           printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN" > "$RUNNER_TEMP/myboxctl.npmrc"
           chmod 600 "$RUNNER_TEMP/myboxctl.npmrc"
 
-      - name: Publish platform packages and launcher
+      - name: Publish
         env:
           NPM_CONFIG_USERCONFIG: ${{ runner.temp }}/myboxctl.npmrc
-        run: bun run publish:npm release/npm
+        run: bun run publish:npm

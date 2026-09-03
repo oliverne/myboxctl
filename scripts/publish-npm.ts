@@ -1,21 +1,13 @@
-import { readdir } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { spawnSync } from "node:child_process";
+import { resolve } from "node:path";
 
-const root = resolve(process.argv[2] ?? "release/npm");
-const directories = (await readdir(root, { withFileTypes: true }))
-  .filter((entry) => entry.isDirectory() && entry.name !== "oliverne-myboxctl")
-  .map((entry) => join(root, entry.name))
-  .toSorted();
-directories.push(join(root, "oliverne-myboxctl"));
+function option(name: string): string | undefined {
+  const index = process.argv.indexOf(name);
+  return index < 0 ? undefined : process.argv[index + 1];
+}
 
-for (const directory of directories) {
-  const child = Bun.spawn(["bun", "publish", "--access", "public"], {
-    cwd: directory,
-    stdout: "inherit",
-    stderr: "inherit",
-  });
-  const exitCode = await child.exited;
-  if (exitCode !== 0) {
-    throw new Error(`npm publish failed for ${directory}.`);
-  }
+const dir = resolve(option("--dir") ?? "release/npm");
+const result = spawnSync("npm", ["publish", "--access", "public", dir], { stdio: "inherit" });
+if (result.status !== 0) {
+  process.exit(result.status ?? 1);
 }

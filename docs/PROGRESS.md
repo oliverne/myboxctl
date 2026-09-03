@@ -7,9 +7,9 @@
 
 - 현재 phase: `Phase 14 CLI UX & Agent Contract`
 - 상태: `complete`
-- 릴리스 상태: `v0.1.0 draft 공개 보류, 첫 공개 목표 v0.2.0`
+- 릴리스 상태: 첫 공개 목표 `v0.2.0`(tag 존재, GitHub Release는 미생성). standalone 실행파일 배포 폐기, npm(Node 기반) 단독 배포로 전환. `v0.1.0` draft Release/ tag는 삭제됨.
 - 활성 구현 phase: 없음
-- 다음 담당자: 사용자 (`v0.2.0` 공개 배포 체크리스트 실행)
+- 다음 담당자: 사용자 (npm 배포 준비/공개: `NPM_TOKEN` 설정 후 `publish-npm.yml -f tag=v0.2.0` 실행)
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
 - Phase 14 command surface, destination semantics, human renderer와 versioned machine envelope 구현을
   완료했다. `list`, `info`, `mkdir`, `upload`, `download`, `delete`와 `ls` alias를 제공하며, 기존
@@ -439,6 +439,32 @@ CLI contract 변경이라 opt-in 정책에 따라 실행하지 않았고, 공개
 - 이전에 미검증으로 두었던 두 항목을 이번 실행으로 검증했다. (1) upload 통합 timeout 900_000 상향 뒤
   `--force` 업로드가 SIGTERM(143) 없이 완료된다. (2) `runPut`→`runUpload` resolution 전달 리팩터가
   라이브 upload/put acceptance를 그대로 통과한다.
+
+## 2026-09-03 배포 전략 변경 (standalone 폐기 → npm-only)
+
+macOS Gatekeeper가 미서명 standalone 실행파일(.tar.gz/.zip) 다운로드를 차단하는 문제와
+"아무도 사용하지 않음" 판단에 따라 배포 전략을 바꿨다.
+
+- GitHub Release 기반 standalone 실행파일 배포 폐기: `scripts/build-release.ts`, `render-packaging.ts`,
+  `verify-release.ts`, `release-config.ts`(+test), `test/cli/release-contract.test.ts`,
+  `.github/workflows/release.yml`, `.github/workflows/publish-homebrew.yml`, `docs/operations/release.md`,
+  `docs/operations/release-v0.2.0-checklist.md` 삭제. `package.json`에서 `build:release`, `verify:release`,
+  `test:release` 스크립트 제거.
+- npm 배포를 Node.js 기반으로 재작성: `src`의 Bun 전용 런타임 API 4곳(`Bun.sleep` 3곳, `Bun.argv` 1곳)을
+  Node 동등 코드로 교체(`process.argv`, `setTimeout` 기반 sleep). `scripts/build.ts`는 `Bun.build` target을
+  `bun`→`node`(format `esm`)로 바꾸고, CJS 의존(commander)을 위해 `createRequire` 기반 `__require`를
+  banner로 주입. `import.meta.main` 자기실행은 `typeof Bun !== "undefined" && Bun.main`으로 바꿔 Node에서
+  이중 실행을 막았다.
+- 새 npm 패키지(`@oliverne/myboxctl`): Node 번들(`dist/cli.js`) + `bin/myboxctl.js` 런처(`node` 실행).
+  `engines.node >= 20`. 사용자 환경에 Bun 불필요. Homebrew/Scoop/install.sh 경로는 폐기.
+- `scripts/prepare-npm.ts`·`publish-npm.ts`·`.github/workflows/publish-npm.yml` 재작성: 소스를 받아
+  `bun run build` 후 npm 패키지 준비·`npm publish`(기존 "Require a published release"·"Release에서
+  바이너리 다운로드" 단계 제거).
+- 검증: `bun run check` 통과(229 pass / 35 skip / 0 fail). 로컬에서 `bun run build -- --version 0.2.0` →
+  `bun run prepare:npm -- --version 0.2.0` → `node release/npm/bin/myboxctl.js --version`가 `0.2.0`을
+  stdout 한 줄로 출력하고 exit 0. `npm pack --dry-run`으로 4개 파일 패키징 확인.
+- `v0.2.0` GitHub Release(드래프트)는 삭제 완료. `v0.2.0` git tag는 npm publish용으로 보존. 단, tag는
+  현재 리팩터 이전 commit을 가리키므로 게시 전 새 commit으로 이동 필요(공개 Release 없으므로 이동 가능).
 
 ## 상태 변경 규칙
 

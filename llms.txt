@@ -4,7 +4,7 @@
 
 ## Read first
 
-- 실행 파일: `myboxctl`; 런타임 요구사항: Bun `>=1.4.0`.
+- 실행 파일: `myboxctl`; 런타임 요구사항: Node.js `>=20` (npm 배포, Bun 불필요).
 - 공개 명령은 `list`/`ls`, `info`, `mkdir`, `upload`, `download`, `delete` 여섯 개다.
 - 원격 경로는 `/`로 시작하는 absolute path만 허용한다. `.`, `..`, glob, remote cwd, stdin/stdout `-`는 지원하지 않는다.
 - `put`, `stat`, `ensure-dir`는 public command가 아니다. `upload --overwrite`도 사용하지 말고 `upload --force`를 사용한다.
@@ -202,8 +202,6 @@ type Resource = {
 ```bash
 bun install --frozen-lockfile
 bun run check
-bun run build
-bun run test:release
 ```
 
 실제 MYBOX를 mutation하는 테스트는 명시적으로 opt-in한다.

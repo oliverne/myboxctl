@@ -3,33 +3,27 @@
 이 문서는 Ubuntu Server 24.04에서 `myboxctl`을 단발성 CLI subprocess로 운영하는 절차다. MVP의
 범위에는 daemon, watch mode, systemd service가 포함되지 않는다.
 
-## standalone 설치
+## 설치 (npm)
 
-공개 Release 이후에는 Bun과 source checkout 없이 설치할 수 있다.
+공개 배포는 npm으로만 제공한다. 실행에는 Node.js 20 이상이 필요하며 Bun은 필요하지 않다.
 
 ```bash
-curl -fsSL https://github.com/oliverne/myboxctl/releases/latest/download/install.sh | sh
-export PATH="$HOME/.local/bin:$PATH"
+npm install -g @oliverne/myboxctl
 myboxctl --version
 ```
 
-installer는 Release archive와 `SHA256SUMS`를 모두 내려받고 SHA-256이 일치할 때만 설치한다. 특정
-버전으로 고정하거나 사용자 설치 경로를 지정할 수 있다.
-
-```bash
-curl -fsSL https://github.com/oliverne/myboxctl/releases/download/v0.1.0/install.sh |
-  MYBOXCTL_VERSION=0.1.0 MYBOXCTL_INSTALL_DIR="$HOME/.local/bin" sh
-```
+특정 버전을 고정하려면 `@oliverne/myboxctl@<version>`을 사용한다.
 
 ## 소스 빌드 전제
 
 - Ubuntu Server 24.04와 `bash` 또는 호환 셸
-- Bun 1.4 이상 (`package.json`의 `packageManager`는 `bun@1.4.0`)
-- `git`과 빌드에 필요한 일반적인 컴파일 도구
+- 실행 런타임: Node.js 20 이상 (npm으로 설치한 바이너리 기준)
+- 소스 빌드/개발: Bun 1.4 이상 (`package.json`의 `packageManager`는 `bun@1.4.0`)
+- `git`과 빌드에 필요한 일반적인 도구
 - MYBOX PAT. PAT는 명령 인자, 소스, 로그, systemd unit에 넣지 않는다.
 
-Bun 설치 방법은 배포 환경의 표준 패키지 관리 정책을 따른다. 공식 설치 스크립트를 사용하는 경우
-설치 후 반드시 버전을 확인한다.
+Bun은 소스 빌드/테스트에만 필요하다. 공식 설치 스크립트를 사용하는 경우 설치 후 반드시 버전을
+확인한다.
 
 ```bash
 curl -fsSL https://bun.com/install | bash
@@ -53,7 +47,7 @@ git clone <repository-url> "$MYBOXCTL_ROOT/worktree"
 cd "$MYBOXCTL_ROOT/worktree"
 bun install --frozen-lockfile
 bun run build
-bun run test:release
+bun run check
 
 install -m 755 dist/cli.js "$MYBOXCTL_ROOT/releases/$MYBOXCTL_RELEASE/cli.js"
 mkdir -p "$HOME/.local/bin"
@@ -62,12 +56,8 @@ export PATH="$HOME/.local/bin:$PATH"
 myboxctl --version
 ```
 
-`dist/cli.js`는 shebang을 보존한 실행 가능한 Bun artifact를 기본 경로로 사용한다. 실행 권한이
-없는 환경에서는 다음처럼 Bun을 명시해도 된다.
-
-```bash
-bun "$MYBOXCTL_ROOT/releases/$MYBOXCTL_RELEASE/cli.js" --version
-```
+`dist/cli.js`는 Node용 ESM 번들이다. 배포된 npm 패키지는 이 번들을 `node`로 실행하는 런처를
+제공하므로 사용자 환경에 Bun은 필요하지 않다.
 
 빌드 검증은 다음과 같다.
 
@@ -184,31 +174,10 @@ identity로 한 번만 recovery하며, `put`과 `delete`도 문서화된 reconci
 
 ## 업그레이드와 rollback
 
-1. 새 버전을 기존 release 디렉터리와 다른 경로에 checkout한다.
-2. `bun install --frozen-lockfile`, `bun run build`, `bun run test:release`를 실행한다.
-3. 새 artifact를 새 release 디렉터리에 복사하고 `--version`을 확인한다.
-4. `~/.local/bin/myboxctl` symlink를 새 release로 교체한다.
-5. 기존 release 디렉터리는 검증이 끝날 때까지 보존한다.
+1. `npm install -g @oliverne/myboxctl@<version>`로 새 버전을 설치한다.
+2. `myboxctl --version`로 설치된 버전을 확인한다.
+3. 이전 버전으로 되돌리려면 `npm install -g @oliverne/myboxctl@<previous>`를 사용한다.
 
-예시는 다음과 같다.
+소스에서 빌드하는 유지보수자는 frozen install과 `bun run check`, `bun run build`로 검증한다.
 
-```bash
-export NEW_RELEASE="0.0.1"
-cd "$MYBOXCTL_ROOT/worktree"
-git fetch --tags
-git checkout "$NEW_RELEASE"
-bun install --frozen-lockfile
-bun run build
-bun run test:release
-install -m 755 dist/cli.js "$MYBOXCTL_ROOT/releases/$NEW_RELEASE/cli.js"
-ln -sfn "$MYBOXCTL_ROOT/releases/$NEW_RELEASE/cli.js" "$HOME/.local/bin/myboxctl"
-myboxctl --version
-```
-
-새 release에서 문제가 발견되면 이전 버전의 경로로 symlink를 되돌린다. 실행 중인 daemon을
-재시작하는 절차는 없으며, 다음 subprocess 호출부터 새 symlink 대상이 사용된다.
-
-```bash
-ln -sfn "$MYBOXCTL_ROOT/releases/$PREVIOUS_RELEASE/cli.js" "$HOME/.local/bin/myboxctl"
-myboxctl --version
-```
+새 버전에서 문제가 발견되면 3단계의 이전 버전 설치로 되돌린다.

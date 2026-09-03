@@ -25,7 +25,14 @@ AI 에이전트가 MYBOX에 파일을 올리고, 확인하고, 내려받고, 필
 
 ## 설치
 
-공개 설치 패키지는 아직 준비 중입니다. 소스에서 사용하려면 Bun 1.4 이상이 필요합니다.
+공개 배포는 npm으로만 제공하며 실행에는 Node.js 20 이상이 필요합니다(Bun 불필요).
+
+```bash
+npm install -g @oliverne/myboxctl
+myboxctl --version
+```
+
+소스에서 빌드·개발하려면 Bun 1.4 이상이 필요합니다.
 
 ```bash
 bun install --frozen-lockfile

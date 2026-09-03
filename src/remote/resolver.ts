@@ -50,7 +50,7 @@ export type FoundResolution = {
 export type PathResolution = RootResolution | AbsentResolution | FoundResolution;
 
 const defaultDependencies: ResolverDependencies = {
-  sleep: (ms) => Bun.sleep(ms),
+  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 };
 
 function conflict(message: string): DomainError {

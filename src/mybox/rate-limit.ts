@@ -68,7 +68,7 @@ export type SharedRateLimiterPolicy = {
 
 const defaultDependencies: SharedRateLimiterDependencies = {
   now: () => Date.now(),
-  sleep: (ms) => Bun.sleep(ms),
+  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   random: () => Math.random(),
   eventSink: noOpEventSink,
 };
