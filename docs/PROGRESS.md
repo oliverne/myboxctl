@@ -9,7 +9,7 @@
 - 상태: `complete`
 - 릴리스 상태: 첫 공개 목표 `v0.2.0`(tag 존재, GitHub Release는 미생성). standalone 실행파일 배포 폐기, npm(Node 기반) 단독 배포로 전환. `v0.1.0` draft Release/ tag는 삭제됨.
 - 활성 구현 phase: 없음
-- 다음 담당자: 사용자 (npm 배포 준비/공개: `NPM_TOKEN` 설정 후 `publish-npm.yml -f tag=v0.2.0` 실행)
+- 다음 담당자: 사용자 (npm 배포 준비/공개: `NPM_TOKEN` 설정 후 `publish-npm.yml -f tag=v0.2.1` 실행)
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
 - Phase 14 command surface, destination semantics, human renderer와 versioned machine envelope 구현을
   완료했다. `list`, `info`, `mkdir`, `upload`, `download`, `delete`와 `ls` alias를 제공하며, 기존
@@ -463,8 +463,8 @@ macOS Gatekeeper가 미서명 standalone 실행파일(.tar.gz/.zip) 다운로드
 - 검증: `bun run check` 통과(229 pass / 35 skip / 0 fail). 로컬에서 `bun run build -- --version 0.2.0` →
   `bun run prepare:npm -- --version 0.2.0` → `node release/npm/bin/myboxctl.js --version`가 `0.2.0`을
   stdout 한 줄로 출력하고 exit 0. `npm pack --dry-run`으로 4개 파일 패키징 확인.
-- `v0.2.0` GitHub Release(드래프트)는 삭제 완료. `v0.2.0` git tag는 npm publish용으로 보존. 단, tag는
-  현재 리팩터 이전 commit을 가리키므로 게시 전 새 commit으로 이동 필요(공개 Release 없으므로 이동 가능).
+- `v0.2.0` GitHub Release(드래프트)는 삭제 완료. 게시 버전은 `v0.2.1`로 지정: `v0.2.1` tag를 리팩터 commit에
+  생성하고 push. 기존 `v0.2.0` tag는 리팩터 이전 commit(`ffb5bd1`)을 가리키는 이력 마커로 잔류.
 
 ## 상태 변경 규칙
 

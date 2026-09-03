@@ -135,9 +135,9 @@ bucket을 완화하지 않고 GET 429 한 번 retry, `Retry-After` 우선, heade
 - 저장소: `oliverne/myboxctl` (public)
 - 기본 브랜치: `main`
 - `v0.1.0` tag/Release: 삭제됨 (2026-09-03)
-- `v0.2.0` tag: 존재(commit `ffb5bd1`가 리팩터 이전; npm 게시 전 새 commit으로 이동 예정). GitHub Release: 없음
+- `v0.2.1` tag: 리팩터 commit에 생성 예정(게시 버전). `v0.2.0` tag는 리팩터 이전 commit(`ffb5bd1`) 이력 마커로 잔류. GitHub Release: 없음
 - 배포 방식: npm 단독(`@oliverne/myboxctl`), standalone 실행파일/Homebrew/Scoop/install.sh 폐기
-- npm publish: `NPM_TOKEN` 설정 후 `publish-npm.yml -f tag=v0.2.0` 실행(미실행). Homebrew tap/Scoop registry: 폐기
+- npm publish: `NPM_TOKEN` 설정 후 `publish-npm.yml -f tag=v0.2.1` 실행(미실행). Homebrew tap/Scoop registry: 폐기
 
 PR #11 merge는 2026-08-31에 완료했다. Phase 14 완료 전에는 현재 draft `v0.1.0`을 공개하지 않는다.
 Phase 14 완료 후에도 저장소 public 전환, Release 공개, package publish, registry 반영, credential 변경과
