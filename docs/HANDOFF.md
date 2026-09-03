@@ -15,7 +15,7 @@ Phase 00~14의 구현과 로컬 검증을 완료했다. 첫 공개 Release 전�
 - 작업 브랜치: 없음 (PR #11은 `main`으로 merge 완료)
 - PR: [#11 feat: add Phase 13 observability and progress events](https://github.com/oliverne/myboxctl/pull/11) — 2026-08-31 merge됨
 - integration stderr 계약 수정 commit: `710cde214f93d7758b7cabe226b6d0d769c28bd4`
-- 로컬 검증: `bun run check` 227 pass, 35 opt-in skip, 0 fail; `bun run build` 통과
+- 로컬 검증: `bun run check` 236 pass, 35 opt-in skip, 0 fail; `bun run build` 통과
 - 별도 release contract: `bun run test:release` 4 pass, 0 fail
 - Phase 14 계획: [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)
 - Phase 14 구현·검증: P14-A~E 완료
@@ -67,6 +67,18 @@ unit regression으로 고정했다.
   `q` 매칭에 의존하며, 서버가 `# % +`를 literal로 취급하는지는 미확인이다. transport 계층은
   `searchParams.set`으로 퍼센트 인코딩하므로 전송은 안전하다. 이 동작은 자연 관찰 또는 전용 probe
   전까지 미확정(API-12)으로 두고 `docs/reference/mybox-api.md`에 기록했다.
+
+### 2026-09-03 v0.2.0 live acceptance
+
+사용자가 로컬에서 `MYBOX_INTEGRATION=1 bun test test/integration`을 실행해 8 pass, 17 opt-in skip,
+0 fail, 2,284.88초로 통과했다. 통과 8건: download/upload/put/ensure-dir/delete acceptance, final MVP
+flow(격리 자원 2회), upload probe interruption 분류 2건. skip 17건은 `live_acceptance=true` 또는
+`phase*` 플래그 기반 opt-in probe로 plain 실행에서는 의도적으로 건너뛴다. unique integration child는
+suite가 cleanup까지 검증한다.
+
+이 실행으로 2026-09-02 정정에서 미검증으로 두었던 두 항목을 확인했다.
+- upload 통합 `setDefaultTimeout(900_000)` 상향 뒤 `--force` 업로드가 SIGTERM(143) 없이 완료된다.
+- `runPut`→`runUpload` resolution 전달 리팩터가 라이브 upload/put acceptance를 그대로 통과한다.
 
 ## 원격 검증
 

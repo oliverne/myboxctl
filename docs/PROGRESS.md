@@ -32,7 +32,7 @@
   smoke는 통과했으며 새 tag 기반 artifact transfer는 아직 실행하지 않았다.
 - 로컬 검증: `bun run check` 227 pass, 35 opt-in skip, 0 fail; `bun run build` 통과;
   `bun run test:release` 4 pass.
-- 실제 MYBOX live acceptance는 opt-in 환경에서 별도 실행하지 않았다.
+- 실제 MYBOX live acceptance(`MYBOX_INTEGRATION=1 bun test test/integration`)를 2026-09-03에 로컬에서 실행해 8 pass, 17 opt-in skip, 0 fail, 2,284.88초(약 38분)로 통과했다. unique prefix cleanup도 검증하는 suite다. upload 통합 timeout 900s 상향과 upload 중복 resolution 제거 리팩터의 라이브 동작을 이번 실행으로 확인했다.
 - 사용자가 실행할 첫 공개 `v0.2.0`의 acceptance, 기존 draft 정리, tag/Release, npm,
   Homebrew와 설치 smoke 순서를 `docs/operations/release-v0.2.0-checklist.md`에 정리했다. 현재 실행 중인
   live acceptance 결과는 아직 확인되지 않았다.
@@ -423,6 +423,22 @@ CLI contract 변경이라 opt-in 정책에 따라 실행하지 않았고, 공개
 사람용 README를 제품 소개, 지원 명령, 설치 상태, 주의사항과 개발 명령만 남기는 짧은 문서로
 재작성했다. 명령별 사용법과 AI subprocess 계약은 루트의 `llms.txt`로 분리하고, 상세 versioned
 계약·API 대조표 링크를 유지했다. 이번 변경은 문서에만 해당하며 실제 MYBOX live test는 실행하지 않는다.
+
+## 2026-09-03 v0.2.0 live acceptance
+
+사용자가 로컬에서 `MYBOX_INTEGRATION=1 bun test test/integration`을 실행했다. 결과는 8 pass,
+17 opt-in skip, 0 fail이며 wall time은 2,284.88초(약 38분)였다. 12개 파일, 112 expect() 호출.
+
+- 통과 8건: download/upload/put/ensure-dir/delete acceptance, final MVP flow(격리 자원 2회),
+  upload probe interruption 분류 2건.
+- skip 17건은 `live_acceptance=true`나 `phase*` 플래그 기반 opt-in probe(api-contract,
+  cross-platform Unicode, observability, upload/download contract, cross-implementation hardening)로
+  plain 실행에서는 의도적으로 건너뛴다.
+- unique integration child는 suite가 cleanup까지 검증한다. 원격 잔여를 직접 확인하는 별도 API 호출은
+  하지 않았다.
+- 이전에 미검증으로 두었던 두 항목을 이번 실행으로 검증했다. (1) upload 통합 timeout 900_000 상향 뒤
+  `--force` 업로드가 SIGTERM(143) 없이 완료된다. (2) `runPut`→`runUpload` resolution 전달 리팩터가
+  라이브 upload/put acceptance를 그대로 통과한다.
 
 ## 상태 변경 규칙
 
