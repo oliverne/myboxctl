@@ -143,6 +143,7 @@ export async function runPut(
       ...(options.mkdir === undefined ? {} : { mkdir: options.mkdir }),
     },
     dependencies,
+    resolution,
   );
   return {
     action: uploaded.action,

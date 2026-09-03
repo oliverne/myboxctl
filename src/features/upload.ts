@@ -7,7 +7,7 @@ import type { UploadContentResponse } from "../mybox/contract.ts";
 import type { MyboxUploader } from "../mybox/upload.ts";
 import { type EventSink, noOpEventSink } from "../observability.ts";
 import { type ChildRemotePath, canonicalRemotePath, parseRemotePath } from "../remote/path.ts";
-import type { FoundResolution, RemoteResolver } from "../remote/resolver.ts";
+import type { FoundResolution, PathResolution, RemoteResolver } from "../remote/resolver.ts";
 import { runEnsureDir } from "./ensure-dir.ts";
 
 export type UploadOptions = {
@@ -190,6 +190,7 @@ export async function runUpload(
   remotePath: string,
   options: UploadOptions,
   dependencies: UploadDependencies,
+  targetResolution?: PathResolution,
 ): Promise<UploadResult> {
   const eventSink = dependencies.eventSink ?? noOpEventSink;
   const now = dependencies.now ?? (() => Date.now());
@@ -227,7 +228,7 @@ export async function runUpload(
   try {
     await assertWithinStorageLimit(local.stats.size, dependencies.client);
     const parentId = await resolveParentId(target, options, dependencies.resolver);
-    const existing = await dependencies.resolver.resolveForMutation(target);
+    const existing = targetResolution ?? (await dependencies.resolver.resolveForMutation(target));
     if (existing.kind === "root") {
       throw new DomainError("unexpected", "The upload target resolution was invalid.");
     }
