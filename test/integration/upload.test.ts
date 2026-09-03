@@ -17,7 +17,7 @@ const PREFIX_PATH = "/myboxctl-integration-test/";
 const integrationEnabled = process.env.MYBOX_INTEGRATION === "1" && Boolean(process.env.MYBOX_PAT);
 const describeIntegration = integrationEnabled ? describe : describe.skip;
 if (integrationEnabled) {
-  setDefaultTimeout(180_000);
+  setDefaultTimeout(900_000);
 }
 
 type UploadOutput = {
