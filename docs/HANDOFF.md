@@ -27,6 +27,10 @@ canonical command는 `list`/`ls`, `info`, `mkdir`, `upload`, `download`, `delete
 `sizeBytes`와 explicit nullable fields, normalized type/time, JSON stdout/stderr와 global presentation
 option 위치를 구현했다. 기존 legacy command와 제거된 option은 public CLI에서 제거했다.
 
+2026-09-03 README를 사람용 요약 문서로 줄였고, 명령·옵션·JSON/exit code 계약은 루트 `llms.txt`로
+분리했다. CLI source와 public contract는 변경하지 않았으며, 이번 문서 변경에서는 실제 MYBOX live
+test를 실행하지 않는다.
+
 Phase 14 review 후 기본 `mkdir`도 생성 응답 유실 가능 오류 뒤에 exact path를 polling해 reconcile하고
 mutation POST를 반복하지 않는다. `download` command는 검증한 최초 canonical resolution을 local
 destination 계산과 실제 download 실행에 전달하므로 command당 원격 path search는 1회다. 두 동작은
@@ -49,6 +53,16 @@ unit regression으로 고정했다.
   반영하지 않아 stale 상태였다. 기존 원격 파일이 크기만 다를 때 `--force` 없이도 자동 덮어쓰기
   (size-different → `overwritten`, exit 0)되므로 충돌(exit 5) 단언은 잘못됐다. 단언을 병합된 의미에
   맞게 정정했고, 같은 명령의 권위 있는 acceptance는 `test/integration/put.test.ts`다.
+- 정정 때 업로드를 3회→5회로 늘렸으나 `setDefaultTimeout`은 180_000으로 두어, 10회/분 공유 검색
+  quota 대기(버스트 뒤 ~60초 데드 구간 반복) 때문에 3번째 `--force` 업로드가 180초 타임아웃으로
+  SIGTERM(143) 종료됐다. 동급 acceptance인 `put.test.ts`(8회 업로드, 900_000)와 맞춰 900_000으로
+  올렸다. 라이브 재실행은 아직 확인하지 않아 미검증(unverified)으로 둔다.
+- 업로드 경로의 중복 검색을 줄이는 리팩터를 적용했다. `runPut`이 구한 `resolveForMutation(target)`
+  결과를 선택적 파라미터로 `runUpload`에 넘겨, `runUpload`가 동일 대상을 다시 `resolveForMutation`
+  하는 중복을 제거했다(`src/features/put/command.ts`, `src/features/upload.ts`). `runUpload` 시그니처는
+  5번째 인자를 선택적으로 추가해 기존 호출/테스트는 그대로 통과한다. 로컬 `bun run check`는 236 pass,
+  35 skip, 0 fail. 라이브 검색 호출 수 감소는 아직 확인하지 않아 미검증이다. `resolveUploadDestination`의
+  `resolveCanonical`과 `runPut`의 `resolveForMutation`이 같은 대상을 푸는 나머지 중복은 별도 범위다.
 - 특수문자 파일명(`한글 # %+.txt`)의 exact 충돌/덮어쓰기 감지는 `searchFiles({ q, parentPath })`의
   `q` 매칭에 의존하며, 서버가 `# % +`를 literal로 취급하는지는 미확인이다. transport 계층은
   `searchParams.set`으로 퍼센트 인코딩하므로 전송은 안전하다. 이 동작은 자연 관찰 또는 전용 probe

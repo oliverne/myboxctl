@@ -17,6 +17,8 @@
 - `docs/reference/cli-contract-improvements.md`의 CLI `--help`와 `--json` 개선 제안은 Phase 14 계획의
   입력으로 반영했다.
 - README와 stable CLI contract를 현재 command surface와 JSON/output semantics에 맞춰 갱신했다.
+- 2026-09-03 README를 사람용 요약 문서로 줄이고, 명령·옵션·JSON/exit code 계약을 AI용 `llms.txt`로
+  분리했다. CLI source와 public contract는 변경하지 않았다.
 - Phase 14 review 후 기본 `mkdir`도 retryable/409/invalid-response 생성 실패를 exact path polling으로
   reconcile하며 POST를 반복하지 않도록 기존 ensure-dir 정책을 공유했다. `download` command는 최초
   canonical resolution을 destination 계산과 전송 실행에 재사용해 원격 검색을 1회만 수행한다.
@@ -40,7 +42,7 @@
   병합된 의미에 맞췄다. 권위 있는 acceptance는 `test/integration/put.test.ts`다. 특수문자 파일명
   검색 동작은 `docs/reference/mybox-api.md`의 API-12로 미확정 이슈로 기록했다.
 - `bun run check` 236 pass, 35 opt-in skip, 0 fail; `bun run build` 통과.
-- 마지막 갱신: 2026-09-02
+- 마지막 갱신: 2026-09-03
 
 ## Phase 상태
 
@@ -415,6 +417,12 @@ CLI contract 변경이라 opt-in 정책에 따라 실행하지 않았고, 공개
 `z.iso.datetime({ offset: true })` 기반 RFC 3339 검증을 추가했다. 모호한 날짜, date-only와 timezone-less
 값은 거부하고 UTC/명시적 offset은 허용한다. 최종 commit `7e474bd`의 CI run `33576388192`는
 236 pass, 35 opt-in skip, 0 fail로 성공했다.
+
+## 2026-09-03 문서 정리
+
+사람용 README를 제품 소개, 지원 명령, 설치 상태, 주의사항과 개발 명령만 남기는 짧은 문서로
+재작성했다. 명령별 사용법과 AI subprocess 계약은 루트의 `llms.txt`로 분리하고, 상세 versioned
+계약·API 대조표 링크를 유지했다. 이번 변경은 문서에만 해당하며 실제 MYBOX live test는 실행하지 않는다.
 
 ## 상태 변경 규칙
 
