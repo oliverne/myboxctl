@@ -1,6 +1,14 @@
 {
   "files": {
-    "includes": ["**", "!!**/*.md", "!!dist", "!!release", "!!node_modules", "!!coverage"]
+    "includes": [
+      "**",
+      "!!**/*.md",
+      "!!dist",
+      "!!release",
+      "!!node_modules",
+      "!!coverage",
+      "!!.vscode"
+    ]
   },
   "formatter": {
     "enabled": true,
