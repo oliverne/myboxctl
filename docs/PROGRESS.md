@@ -7,7 +7,7 @@
 
 - 현재 phase: `Phase 14 CLI UX & Agent Contract`
 - 상태: `complete`
-- 릴리스 상태: 첫 공개 목표 `v0.2.0`(tag 존재, GitHub Release는 미생성). standalone 실행파일 배포 폐기, npm(Node 기반) 단독 배포로 전환. `v0.1.0` draft Release/ tag는 삭제됨.
+- 릴리스 상태: 첫 공개 목표 `v0.2.1`(tag 존재, GitHub Release는 미생성). standalone 실행파일 배포 폐기, npm(Node 기반) 단독 배포로 전환. `v0.2.0` tag는 이력 마커로 유지하고 `v0.1.0` draft Release/tag는 삭제함.
 - 활성 구현 phase: 없음
 - 다음 담당자: 사용자 (npm 배포 준비/공개: `NPM_TOKEN` 설정 후 `publish-npm.yml -f tag=v0.2.1` 실행)
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
@@ -30,19 +30,14 @@
 - Phase 11 후속 dependency maintenance로 Release workflow의 artifact action을 Node 24 기반
   `upload-artifact@v7`과 `download-artifact@v8`로 갱신했다. PR Release workflow의 5개 native
   smoke는 통과했으며 새 tag 기반 artifact transfer는 아직 실행하지 않았다.
-- 로컬 검증: `bun run check` 227 pass, 35 opt-in skip, 0 fail; `bun run build` 통과;
-  `bun run test:release` 4 pass.
+- 로컬 검증: `bun run check` 231 pass, 35 opt-in skip, 0 fail; `bun run build` 통과.
 - 실제 MYBOX live acceptance(`MYBOX_INTEGRATION=1 bun test test/integration`)를 2026-09-03에 로컬에서 실행해 8 pass, 17 opt-in skip, 0 fail, 2,284.88초(약 38분)로 통과했다. unique prefix cleanup도 검증하는 suite다. upload 통합 timeout 900s 상향과 upload 중복 resolution 제거 리팩터의 라이브 동작을 이번 실행으로 확인했다.
-- 사용자가 실행할 첫 공개 `v0.2.0`의 acceptance, 기존 draft 정리, tag/Release, npm,
-  Homebrew와 설치 smoke 순서를 `docs/operations/release-v0.2.0-checklist.md`에 정리했다. 현재 실행 중인
-  live acceptance 결과는 아직 확인되지 않았다.
 - `test/integration/upload.test.ts`를 정정했다. Phase 14에서 `put`이 `upload`로 통합된 뒤
   적용된 메타데이터 정책(size-different → 자동 `overwritten`, conflict는 remote-newer만)을
   반영하지 않은 stale 단언(기존 파일이 크기만 다를 때 `--force` 없이도 충돌이 아닌 덮어쓰기)을
   병합된 의미에 맞췄다. 권위 있는 acceptance는 `test/integration/put.test.ts`다. 특수문자 파일명
   검색 동작은 `docs/reference/mybox-api.md`의 API-12로 미확정 이슈로 기록했다.
-- `bun run check` 236 pass, 35 opt-in skip, 0 fail; `bun run build` 통과.
-- 마지막 갱신: 2026-09-03
+- 마지막 갱신: 2026-09-04
 
 ## Phase 상태
 
@@ -465,6 +460,17 @@ macOS Gatekeeper가 미서명 standalone 실행파일(.tar.gz/.zip) 다운로드
   stdout 한 줄로 출력하고 exit 0. `npm pack --dry-run`으로 4개 파일 패키징 확인.
 - `v0.2.0` GitHub Release(드래프트)는 삭제 완료. 게시 버전은 `v0.2.1`로 지정: `v0.2.1` tag를 리팩터 commit에
   생성하고 push. 기존 `v0.2.0` tag는 리팩터 이전 commit(`ffb5bd1`)을 가리키는 이력 마커로 잔류.
+
+## 2026-09-04 npm package 리뷰 수정
+
+- 생성 launcher의 `process.exit(code)`를 `process.exitCode = code`로 바꿔 Node가 pipe의 pending
+  stdout/stderr write를 flush한 뒤 종료하게 했다.
+- 가짜 Node bundle이 stdout/stderr에 각각 2 MiB를 쓰고 exit 7을 반환하는 child-process 회귀 테스트를
+  추가했다. 수정 전에는 stdout이 잘려 실패했고 수정 후 전체 byte와 exit code를 보존한다.
+- 생성 package manifest의 `files`에 `README.md`를 추가하고 루트 README를 package로 복사한다.
+- 검증: 대상 test 2 pass, `bun run check` 231 pass / 35 opt-in skip / 0 fail, 별도 `bun run build`
+  통과. v0.2.1 package launcher의 `--version`은 `0.2.1`/exit 0이며 `npm pack --dry-run`은 README를
+  포함한 5개 파일을 확인했다. MYBOX live test와 npm publish는 실행하지 않았다.
 
 ## 상태 변경 규칙
 

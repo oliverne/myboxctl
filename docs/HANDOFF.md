@@ -4,8 +4,7 @@
 
 Phase 00~14의 구현과 로컬 검증을 완료했다. 첫 공개 Release 전에 CLI command surface와 출력 계약을
 정리하는 Phase 14를 반영했으며 상태는 `complete`이다. 공개 Release/publish는 별도 승인 대상이다.
-첫 공개 목표 version은 `v0.2.0`이며 사용자 실행 절차는
-[`operations/release-v0.2.0-checklist.md`](operations/release-v0.2.0-checklist.md)에 정리했다.
+첫 공개 목표 version은 `v0.2.1`이며 npm publish는 별도 사용자 실행 또는 승인이 필요하다.
 
 ## 현재 상태
 
@@ -15,8 +14,7 @@ Phase 00~14의 구현과 로컬 검증을 완료했다. 첫 공개 Release 전�
 - 작업 브랜치: 없음 (PR #11은 `main`으로 merge 완료)
 - PR: [#11 feat: add Phase 13 observability and progress events](https://github.com/oliverne/myboxctl/pull/11) — 2026-08-31 merge됨
 - integration stderr 계약 수정 commit: `710cde214f93d7758b7cabe226b6d0d769c28bd4`
-- 로컬 검증: `bun run check` 229 pass, 35 opt-in skip, 0 fail; `bun run build` 통과
-- 별도 release contract: `bun run test:release` 4 pass, 0 fail
+- 로컬 검증: `bun run check` 231 pass, 35 opt-in skip, 0 fail; `bun run build` 통과
 - Phase 14 계획: [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)
 - Phase 14 구현·검증: P14-A~E 완료
 - 2026-09-01 최근 소스 리뷰: [`reviews/2026-09-01-phase14-source-review.md`](reviews/2026-09-01-phase14-source-review.md)
@@ -77,6 +75,7 @@ flow(격리 자원 2회), upload probe interruption 분류 2건. skip 17건은 `
 suite가 cleanup까지 검증한다.
 
 이 실행으로 2026-09-02 정정에서 미검증으로 두었던 두 항목을 확인했다.
+
 - upload 통합 `setDefaultTimeout(900_000)` 상향 뒤 `--force` 업로드가 SIGTERM(143) 없이 완료된다.
 - `runPut`→`runUpload` resolution 전달 리팩터가 라이브 upload/put acceptance를 그대로 통과한다.
 
@@ -94,6 +93,16 @@ macOS Gatekeeper 차단 문제와 미사용 판단으로 standalone 실행파일
 - `v0.2.0` draft Release 삭제 완료. `v0.2.0` tag는 npm publish용 보존(게시 시 새 commit으로 이동 필요).
 - 로컬 검증: `bun run check` 229 pass / 35 skip / 0 fail; `node release/npm/bin/myboxctl.js --version`
   → `0.2.0` 출력·exit 0.
+
+### 2026-09-04 npm package 리뷰 수정
+
+- npm launcher를 `process.exitCode = code ?? 0`으로 바꿔 pending stdout/stderr write를 보존한다.
+- 실제 Node child process와 pipe를 사용해 stdout/stderr 각각 2 MiB 및 exit 7을 검증하는 회귀 테스트를
+  추가했다. 수정 전 truncation을 재현했고 수정 후 통과한다.
+- npm package에 루트 `README.md`를 복사하고 manifest `files`에도 포함했다.
+- 검증: 대상 test 2 pass, `bun run check` 231 pass / 35 opt-in skip / 0 fail, 별도 `bun run build`
+  통과. v0.2.1 package launcher `--version`은 `0.2.1`/exit 0, `npm pack --dry-run`은 README를 포함한
+  5개 파일을 확인했다. MYBOX live test와 npm publish는 실행하지 않았다.
 
 ## 원격 검증
 
@@ -145,14 +154,10 @@ Phase 14 완료 후에도 저장소 public 전환, Release 공개, package publi
 
 ## 다음 실행 범위
 
-1. 사용자가 시작한 `MYBOX_INTEGRATION=1 bun test test/integration`의 최종 결과와 cleanup을 확인한다.
-2. [`operations/release-v0.2.0-checklist.md`](operations/release-v0.2.0-checklist.md)에 따라 기존 미공개
-   `v0.1.0` draft/tag를 정리한다.
-3. 현재 `main`에 `v0.2.0` annotated tag를 생성·push하고 Release workflow의 5개 native smoke와 새
-   draft asset 9개를 확인한다.
-4. 저장소 public 전환과 GitHub Release 공개 후 npm, Homebrew, Linux installer와 Scoop을 순서대로
-   게시·검증한다. 각 외부 변경과 credential 설정은 사용자가 직접 수행하거나 별도 승인 후 진행한다.
-5. 배포 결과를 `README.md`, `docs/PROGRESS.md`, `docs/HANDOFF.md`에 사실 기준으로 반영한다.
+1. `NPM_TOKEN`을 설정한 뒤 `publish-npm.yml -f tag=v0.2.1`을 실행한다. credential 설정과 publish는
+   사용자가 직접 수행하거나 별도 승인 후 진행한다.
+2. npm registry에서 설치, `--version`, `--help`와 pipe 출력을 smoke test한다.
+3. 배포 결과를 `README.md`, `docs/PROGRESS.md`, `docs/HANDOFF.md`에 사실 기준으로 반영한다.
 
 ## 로컬 시작 명령
 
