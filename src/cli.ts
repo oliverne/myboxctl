@@ -465,8 +465,14 @@ export async function runCli(
   argv: readonly string[] = process.argv,
   runtimeFactory: RuntimeFactory = defaultRuntimeFactory,
 ): Promise<number> {
+  const program = createProgram(runtimeFactory);
+  if (argv.length === 2) {
+    program.outputHelp();
+    return 0;
+  }
+
   try {
-    await createProgram(runtimeFactory).parseAsync([...argv]);
+    await program.parseAsync([...argv]);
     return 0;
   } catch (error) {
     if (error instanceof CommanderError && error.exitCode === 0) {

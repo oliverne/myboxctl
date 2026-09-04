@@ -73,6 +73,19 @@ afterEach(() => {
 });
 
 describe("read command subprocess contract", () => {
+  test("prints root help and exits successfully when no arguments are given", async () => {
+    const server = await createFakeHttpServer();
+    servers.push(server);
+
+    const result = await runCli([], server.baseUrl);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Usage: myboxctl");
+    expect(result.stdout).toContain("Commands:");
+    expect(result.stderr).toBe("");
+    expect(server.requests).toHaveLength(0);
+  });
+
   test.each([
     [["info", "--json"], "info"],
     [["unknown", "--json"], "unknown"],

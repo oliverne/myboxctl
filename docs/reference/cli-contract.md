@@ -5,6 +5,8 @@
 
 ## 공통 규칙
 
+- 인자 없이 실행하면 root help를 stdout에 출력하고 exit 0으로 종료한다. 이 경로는 설정이나 PAT를
+  읽거나 MYBOX API를 호출하지 않는다.
 - 원격 경로는 `/`로 시작하는 absolute path다. `.`/`..`, glob, remote cwd는 지원하지 않는다.
 - 새 원격 이름은 NFC로 저장하고, Unicode-equivalent mutation 충돌은 임의 선택하지 않고 실패한다.
 - 로컬 경로는 사용자가 입력한 spelling 그대로 사용한다.
