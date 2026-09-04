@@ -3,9 +3,9 @@
 ## 인수 목적
 
 Phase 00~14의 구현과 로컬 검증을 완료했다. 첫 공개 Release 전에 CLI command surface와 출력 계약을
-정리하는 Phase 14를 반영했으며 상태는 `complete`이다. 공개 Release/publish는 별도 승인 대상이다.
-첫 공개 후보 version은 `v0.2.2`이며 npm credential 설정, tag 생성과 publish는 별도 사용자 실행 또는
-승인이 필요하다. 실행 절차는 [`operations/npm-release.md`](operations/npm-release.md)에 있다.
+정리하는 Phase 14를 반영했으며 상태는 `complete`이다. npm `@oliverne/myboxctl@0.2.2` 게시를 완료했다.
+인자 없는 실행의 root help 수정은 commit `fd36b3d`와 `v0.2.3` tag로 push했다. npm publish는 아직
+실행하지 않았다. 실행 절차는 [`operations/npm-release.md`](operations/npm-release.md)에 있다.
 
 ## 현재 상태
 
@@ -15,8 +15,8 @@ Phase 00~14의 구현과 로컬 검증을 완료했다. 첫 공개 Release 전�
 - 작업 브랜치: 없음 (PR #11은 `main`으로 merge 완료)
 - PR: [#11 feat: add Phase 13 observability and progress events](https://github.com/oliverne/myboxctl/pull/11) — 2026-08-31 merge됨
 - integration stderr 계약 수정 commit: `710cde214f93d7758b7cabe226b6d0d769c28bd4`
-- 로컬 검증: `bun run check` 233 pass, 35 opt-in skip, 0 fail; 별도 `bun run build`와 v0.2.2 npm
-  package `--version`/`--help`/`npm pack --dry-run` 검증 통과(영문·국문 README 포함 6개 파일)
+- 로컬 검증: `bun run check` 234 pass, 35 opt-in skip, 0 fail; 별도 `bun run build`와 v0.2.3 npm
+  package의 no-args help/`--version`/`npm pack --dry-run` 검증 통과(6개 파일)
 - Phase 14 계획: [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)
 - Phase 14 구현·검증: P14-A~E 완료
 - 2026-09-01 최근 소스 리뷰: [`reviews/2026-09-01-phase14-source-review.md`](reviews/2026-09-01-phase14-source-review.md)
@@ -128,6 +128,17 @@ macOS Gatekeeper 차단 문제와 미사용 판단으로 standalone 실행파일
   검증한다.
 - 두 README는 각각 98줄, 97줄이다. Prettier, local link 검사와 v0.2.2 package dry-run이 통과했다.
 
+### 2026-09-04 root no-args help 수정
+
+- 게시된 `v0.2.2`에서 `myboxctl`을 인자 없이 실행하면 stderr에 `Error: (outputHelp)`가 나오고 exit 2로
+  종료되는 문제를 재현했다.
+- 인자가 없으면 runtime/config/PAT를 초기화하지 않고 root help를 stdout에 출력한 뒤 exit 0으로
+  종료하도록 수정했다. subprocess 회귀 테스트는 help 내용, 빈 stderr와 MYBOX API 미호출을 검증한다.
+- `bun run check`는 234 pass, 35 opt-in skip, 0 fail이고 별도 build도 통과했다. v0.2.3 npm launcher의
+  no-args help/`--version`과 6개 파일 package dry-run도 통과했다.
+- 이 변경은 commit `fd36b3d`와 `v0.2.3` tag로 push했고 main CI run `33885020537`이 성공했다. npm
+  publish와 MYBOX live test는 실행하지 않았다.
+
 ## 원격 검증
 
 - PR CI run [`33388258127`](https://github.com/oliverne/myboxctl/actions/runs/33388258127): 성공
@@ -168,25 +179,22 @@ bucket을 완화하지 않고 GET 429 한 번 retry, `Retry-After` 우선, heade
 - 저장소: `oliverne/myboxctl` (public)
 - 기본 브랜치: `main`
 - `v0.1.0` tag/Release: 삭제됨 (2026-09-03)
-- `v0.2.2` tag: 미생성(첫 publish 후보). `v0.2.0`과 `v0.2.1` tag는 이전 commit을 가리키는 이력
-  마커로 잔류. GitHub Release: 없음
+- `v0.2.2` tag: 생성·push 완료. `v0.2.0`과 `v0.2.1` tag는 이전 commit을 가리키는 이력 마커로
+  잔류. GitHub Release: 없음
+- `v0.2.3` tag: root help 수정 commit `fd36b3d`를 가리키며 생성·push 완료. npm 미게시
 - 배포 방식: npm 단독(`@oliverne/myboxctl`), standalone 실행파일/Homebrew/Scoop/install.sh 폐기
-- npm publish: 변경 commit/push와 원격 CI 성공 후 `NPM_TOKEN` 설정, `v0.2.2` tag 생성,
-  `publish-npm.yml -f tag=v0.2.2` 실행(미실행). Homebrew tap/Scoop registry: 폐기
+- npm publish: `@oliverne/myboxctl@0.2.2` 게시 완료, npm `latest`도 `0.2.2`. root help 수정
+  `v0.2.3`은 아직 게시하지 않았다. Homebrew tap/Scoop registry: 폐기
 
-PR #11 merge는 2026-08-31에 완료했다. Phase 14 완료 전에는 현재 draft `v0.1.0`을 공개하지 않는다.
-Phase 14 완료 후에도 저장소 public 전환, Release 공개, package publish, registry 반영, credential 변경과
-`v0.1.0` tag 이동·삭제는 각각 별도 승인 후 실행한다. 추가 MYBOX live test도 다시 사용자 의사를 확인한다.
+PR #11 merge는 2026-08-31에 완료했다. 추가 package publish, tag 생성, credential 변경은 각각 별도
+승인 후 실행한다. 추가 MYBOX live test도 다시 사용자 의사를 확인한다.
 
 ## 다음 실행 범위
 
-1. 현재 변경을 commit/push하고 main CI 성공을 확인한다.
-2. [`operations/npm-release.md`](operations/npm-release.md)에 따라 최초 publish용 `NPM_TOKEN`을 설정하고
-   `v0.2.2` annotated tag를 생성·push한다. credential 설정과 tag/publish는 사용자가 직접 수행하거나
-   별도 승인 후 진행한다.
-3. `publish-npm.yml -f tag=v0.2.2`를 실행하고 npm registry 설치, `--version`, `--help`와 pipe 출력을
-   smoke test한다.
-4. 배포 결과를 `README.md`, `docs/PROGRESS.md`, `docs/HANDOFF.md`에 사실 기준으로 반영한다.
+1. 배포가 승인되면 [`operations/npm-release.md`](operations/npm-release.md)에 따라
+   `publish-npm.yml -f tag=v0.2.3`을 실행한다.
+2. npm registry 설치, 인자 없는 실행, `--version`, `--help`와 pipe 출력을 smoke test한다.
+3. 배포 결과를 `docs/PROGRESS.md`와 `docs/HANDOFF.md`에 사실 기준으로 반영한다.
 
 ## 로컬 시작 명령
 

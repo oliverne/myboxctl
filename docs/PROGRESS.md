@@ -7,12 +7,12 @@
 
 - 현재 phase: `Phase 14 CLI UX & Agent Contract`
 - 상태: `complete`
-- 릴리스 상태: 첫 공개 후보 `v0.2.2`(tag 미생성, npm 미게시). standalone 실행파일 배포 폐기,
-  npm(Node 기반) 단독 배포로 전환. `v0.2.0`과 `v0.2.1` tag는 이력 마커로 유지하고 `v0.1.0`
-  draft Release/tag는 삭제함.
+- 릴리스 상태: npm `latest`는 `v0.2.2`. root help 수정 commit `fd36b3d`와 `v0.2.3` tag를 push했고
+  npm에는 아직 게시하지 않았다. standalone 실행파일 배포는 폐기했고 npm(Node 기반) 단독 배포를
+  사용한다. `v0.1.0` draft Release/tag는 삭제했다.
 - 활성 구현 phase: 없음
-- 다음 담당자: 구현 변경 commit/push와 원격 CI 성공 확인 후 사용자 (`NPM_TOKEN` 설정, `v0.2.2`
-  tag 생성, `publish-npm.yml -f tag=v0.2.2` 실행)
+- 다음 담당자: `publish-npm.yml -f tag=v0.2.3`을 실행하고 registry smoke를 확인한다. npm publish는
+  별도 승인 대상이다.
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
 - Phase 14 command surface, destination semantics, human renderer와 versioned machine envelope 구현을
   완료했다. `list`, `info`, `mkdir`, `upload`, `download`, `delete`와 `ls` alias를 제공하며, 기존
@@ -34,8 +34,8 @@
 - Phase 11 후속 dependency maintenance로 Release workflow의 artifact action을 Node 24 기반
   `upload-artifact@v7`과 `download-artifact@v8`로 갱신했다. PR Release workflow의 5개 native
   smoke는 통과했으며 새 tag 기반 artifact transfer는 아직 실행하지 않았다.
-- 로컬 검증: `bun run check` 233 pass, 35 opt-in skip, 0 fail; 별도 `bun run build`와 v0.2.2 npm
-  package `--version`/`--help`/`npm pack --dry-run` 검증 통과.
+- 로컬 검증: `bun run check` 234 pass, 35 opt-in skip, 0 fail; 별도 `bun run build`와 v0.2.3 npm
+  package의 no-args help/`--version`/`npm pack --dry-run` 검증 통과.
 - 실제 MYBOX live acceptance(`MYBOX_INTEGRATION=1 bun test test/integration`)를 2026-09-03에 로컬에서 실행해 8 pass, 17 opt-in skip, 0 fail, 2,284.88초(약 38분)로 통과했다. unique prefix cleanup도 검증하는 suite다. upload 통합 timeout 900s 상향과 upload 중복 resolution 제거 리팩터의 라이브 동작을 이번 실행으로 확인했다.
 - `test/integration/upload.test.ts`를 정정했다. Phase 14에서 `put`이 `upload`로 통합된 뒤
   적용된 메타데이터 정책(size-different → 자동 `overwritten`, conflict는 remote-newer만)을
@@ -504,6 +504,18 @@ macOS Gatekeeper가 미서명 standalone 실행파일(.tar.gz/.zip) 다운로드
 - npm package가 두 README를 모두 포함하도록 `scripts/prepare-npm.ts`와 회귀 test를 갱신했다.
 - 두 README는 각각 98줄, 97줄이다. `bun run check` 233 pass / 35 opt-in skip / 0 fail, Prettier,
   local link 검사와 v0.2.2 npm package dry-run(두 README를 포함한 6개 파일)이 통과했다.
+
+## 2026-09-04 root no-args help 수정
+
+- `myboxctl`을 인자 없이 실행하면 Commander의 `commander.help`가 일반 argument 오류로 변환되어
+  stderr에 `Error: (outputHelp)`를 출력하고 exit 2로 종료되던 문제를 재현했다.
+- 인자가 없으면 runtime/config/PAT를 만들지 않고 root help를 stdout에 출력한 뒤 exit 0으로
+  종료하도록 수정하고, subprocess 회귀 테스트로 API 미호출까지 고정했다.
+- `bun run check`는 234 pass, 35 opt-in skip, 0 fail이고 별도 `bun run build`도 통과했다. v0.2.3 npm
+  package의 no-args 실행은 stdout help/빈 stderr/exit 0이며 `--version`과 6개 파일 package dry-run도
+  통과했다. 네트워크를 사용하지 않는 경로이므로 MYBOX live test는 실행하지 않았다.
+- `v0.2.2`는 이미 npm에 게시되어 변경할 수 없으므로 이 수정은 commit `fd36b3d`와 `v0.2.3` tag로
+  push했다. main CI run `33885020537`도 성공했다. npm publish는 실행하지 않았다.
 
 ## 상태 변경 규칙
 
