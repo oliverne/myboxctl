@@ -4,12 +4,16 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Published release tag, for example v0.2.0
+        description: Published release tag, for example v0.2.2
         required: true
         type: string
 
 permissions:
   contents: read
+
+concurrency:
+  group: publish-npm-${{ inputs.tag }}
+  cancel-in-progress: false
 
 jobs:
   publish:
@@ -32,6 +36,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Check
+        run: bun run check
+
       - name: Build Node bundle
         env:
           TAG: ${{ inputs.tag }}
@@ -41,6 +48,14 @@ jobs:
         env:
           TAG: ${{ inputs.tag }}
         run: bun run prepare:npm -- --version "${TAG#v}"
+
+      - name: Verify npm package
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          test "$(node release/npm/bin/myboxctl.js --version)" = "${TAG#v}"
+          node release/npm/bin/myboxctl.js --help >/dev/null
+          npm pack --dry-run ./release/npm
 
       - name: Configure npm authentication
         env:

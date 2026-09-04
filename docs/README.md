@@ -38,10 +38,8 @@
 
 - [`operations/ubuntu-24.04.md`](operations/ubuntu-24.04.md): Ubuntu Server 24.04 설치, credentials,
   AI 에이전트 subprocess 호출, 업그레이드·rollback
-- [`operations/release.md`](operations/release.md): standalone build, draft Release, npm과 Homebrew
-  publish 순서 및 rollback
-- [`operations/release-v0.2.0-checklist.md`](operations/release-v0.2.0-checklist.md): 첫 공개
-  `v0.2.0`을 위한 사용자 실행 순서, 검증 기준과 중단 조건
+- [`operations/npm-release.md`](operations/npm-release.md): npm token 생성, tag, publish workflow,
+  registry smoke와 최초 배포 후 OIDC 전환
 
 ## 유지 규칙
 

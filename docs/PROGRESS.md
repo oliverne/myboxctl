@@ -7,9 +7,12 @@
 
 - 현재 phase: `Phase 14 CLI UX & Agent Contract`
 - 상태: `complete`
-- 릴리스 상태: 첫 공개 목표 `v0.2.1`(tag 존재, GitHub Release는 미생성). standalone 실행파일 배포 폐기, npm(Node 기반) 단독 배포로 전환. `v0.2.0` tag는 이력 마커로 유지하고 `v0.1.0` draft Release/tag는 삭제함.
+- 릴리스 상태: 첫 공개 후보 `v0.2.2`(tag 미생성, npm 미게시). standalone 실행파일 배포 폐기,
+  npm(Node 기반) 단독 배포로 전환. `v0.2.0`과 `v0.2.1` tag는 이력 마커로 유지하고 `v0.1.0`
+  draft Release/tag는 삭제함.
 - 활성 구현 phase: 없음
-- 다음 담당자: 사용자 (npm 배포 준비/공개: `NPM_TOKEN` 설정 후 `publish-npm.yml -f tag=v0.2.1` 실행)
+- 다음 담당자: 구현 변경 commit/push와 원격 CI 성공 확인 후 사용자 (`NPM_TOKEN` 설정, `v0.2.2`
+  tag 생성, `publish-npm.yml -f tag=v0.2.2` 실행)
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
 - Phase 14 command surface, destination semantics, human renderer와 versioned machine envelope 구현을
   완료했다. `list`, `info`, `mkdir`, `upload`, `download`, `delete`와 `ls` alias를 제공하며, 기존
@@ -17,8 +20,9 @@
 - `docs/reference/cli-contract-improvements.md`의 CLI `--help`와 `--json` 개선 제안은 Phase 14 계획의
   입력으로 반영했다.
 - README와 stable CLI contract를 현재 command surface와 JSON/output semantics에 맞춰 갱신했다.
-- 2026-09-03 README를 사람용 요약 문서로 줄이고, 명령·옵션·JSON/exit code 계약을 AI용 `llms.txt`로
-  분리했다. CLI source와 public contract는 변경하지 않았다.
+- 2026-09-04 공개 기본 `README.md`를 영문으로 전환하고 `README.ko.md`를 추가했다. 두 문서는 서로
+  링크하며 설치, 명령, 핵심 안전 규칙과 자동화 계약만 간결하게 담는다. 상세 계약은
+  `docs/reference/cli-contract.md`를 기준으로 한다.
 - Phase 14 review 후 기본 `mkdir`도 retryable/409/invalid-response 생성 실패를 exact path polling으로
   reconcile하며 POST를 반복하지 않도록 기존 ensure-dir 정책을 공유했다. `download` command는 최초
   canonical resolution을 destination 계산과 전송 실행에 재사용해 원격 검색을 1회만 수행한다.
@@ -30,7 +34,8 @@
 - Phase 11 후속 dependency maintenance로 Release workflow의 artifact action을 Node 24 기반
   `upload-artifact@v7`과 `download-artifact@v8`로 갱신했다. PR Release workflow의 5개 native
   smoke는 통과했으며 새 tag 기반 artifact transfer는 아직 실행하지 않았다.
-- 로컬 검증: `bun run check` 231 pass, 35 opt-in skip, 0 fail; `bun run build` 통과.
+- 로컬 검증: `bun run check` 233 pass, 35 opt-in skip, 0 fail; 별도 `bun run build`와 v0.2.2 npm
+  package `--version`/`--help`/`npm pack --dry-run` 검증 통과.
 - 실제 MYBOX live acceptance(`MYBOX_INTEGRATION=1 bun test test/integration`)를 2026-09-03에 로컬에서 실행해 8 pass, 17 opt-in skip, 0 fail, 2,284.88초(약 38분)로 통과했다. unique prefix cleanup도 검증하는 suite다. upload 통합 timeout 900s 상향과 upload 중복 resolution 제거 리팩터의 라이브 동작을 이번 실행으로 확인했다.
 - `test/integration/upload.test.ts`를 정정했다. Phase 14에서 `put`이 `upload`로 통합된 뒤
   적용된 메타데이터 정책(size-different → 자동 `overwritten`, conflict는 remote-newer만)을
@@ -416,8 +421,8 @@ CLI contract 변경이라 opt-in 정책에 따라 실행하지 않았고, 공개
 ## 2026-09-03 문서 정리
 
 사람용 README를 제품 소개, 지원 명령, 설치 상태, 주의사항과 개발 명령만 남기는 짧은 문서로
-재작성했다. 명령별 사용법과 AI subprocess 계약은 루트의 `llms.txt`로 분리하고, 상세 versioned
-계약·API 대조표 링크를 유지했다. 이번 변경은 문서에만 해당하며 실제 MYBOX live test는 실행하지 않는다.
+재작성했다. 당시 명령별 사용법과 AI subprocess 계약은 별도 AI 문서로 분리했다. 2026-09-04에는
+별도 AI 문서를 삭제하고 필수 계약만 영문·국문 README에 다시 통합했다.
 
 ## 2026-09-03 v0.2.0 live acceptance
 
@@ -471,6 +476,34 @@ macOS Gatekeeper가 미서명 standalone 실행파일(.tar.gz/.zip) 다운로드
 - 검증: 대상 test 2 pass, `bun run check` 231 pass / 35 opt-in skip / 0 fail, 별도 `bun run build`
   통과. v0.2.1 package launcher의 `--version`은 `0.2.1`/exit 0이며 `npm pack --dry-run`은 README를
   포함한 5개 파일을 확인했다. MYBOX live test와 npm publish는 실행하지 않았다.
+
+## 2026-09-04 npm publish 차단점 수정
+
+- `typeof Bun !== "undefined" && Bun.main`이 `bun test`에서 `src/cli.ts`를 import할 때도 참이 되어
+  테스트 자체는 모두 통과한 뒤 host process의 exit code가 2가 되는 문제를 재현했다.
+- source entry와 현재 process entry의 file URL을 비교해 직접 실행일 때만 `runCli()`를 호출하도록
+  고쳤다. import는 host exit code를 바꾸지 않고, 직접 source 실행은 유지하며, Node launcher가 bundle을
+  import해도 CLI를 정확히 한 번만 실행한다.
+- `src/cli.test.ts`와 실제 Node bundle/package를 생성하는 `test/cli/npm-package.test.ts`에 회귀 검증을
+  추가했다.
+- `publish-npm.yml`은 동일 tag 중복 실행을 막고, publish 전에 `bun run check`, package `--version`,
+  `--help`, `npm pack --dry-run`을 실행한다.
+- 삭제된 release 문서 링크를 `docs/operations/npm-release.md`로 교체하고 npm token 생성, tag, workflow,
+  registry smoke와 최초 publish 후 OIDC 전환 절차를 기록했다.
+- 검증: `bun run check` 233 pass / 35 opt-in skip / 0 fail. 별도 `bun run build -- --version 0.2.2`,
+  `bun run prepare:npm -- --version 0.2.2`, Node launcher `--version`/`--help`,
+  `npm pack --dry-run ./release/npm`이 통과했고 package 6개 파일을 확인했다. 실제 publish, tag 생성,
+  credential 변경, MYBOX live test는 실행하지 않았다.
+
+## 2026-09-04 영문·국문 README 통합
+
+- 공개 GitHub/npm 기본 문서를 영문 `README.md`로 전환하고 한국어 `README.ko.md`를 추가해 상호
+  링크했다.
+- 별도 AI 요약 문서는 삭제했다. 공개 command, 인증, upload/download/delete 안전 규칙, JSON stream과
+  exit code 요약만 두 README에 통합하고 정확한 세부 계약은 `docs/reference/cli-contract.md`로 연결했다.
+- npm package가 두 README를 모두 포함하도록 `scripts/prepare-npm.ts`와 회귀 test를 갱신했다.
+- 두 README는 각각 98줄, 97줄이다. `bun run check` 233 pass / 35 opt-in skip / 0 fail, Prettier,
+  local link 검사와 v0.2.2 npm package dry-run(두 README를 포함한 6개 파일)이 통과했다.
 
 ## 상태 변경 규칙
 

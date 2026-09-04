@@ -1,5 +1,7 @@
 #!/usr/bin/env bun
 
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { Command, CommanderError, Option } from "commander";
 
 import { DomainError } from "./errors.ts";
@@ -490,6 +492,7 @@ export async function runCli(
   }
 }
 
-if (typeof Bun !== "undefined" && Bun.main) {
+const entryPath = process.argv[1];
+if (entryPath !== undefined && pathToFileURL(resolve(entryPath)).href === import.meta.url) {
   process.exitCode = await runCli();
 }

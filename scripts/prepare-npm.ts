@@ -36,7 +36,7 @@ const PACKAGE = {
   type: "module",
   bin: { myboxctl: "bin/myboxctl.js" },
   engines: { node: ">=20" },
-  files: ["bin", "dist", "LICENSE", "README.md"],
+  files: ["bin", "dist", "LICENSE", "README.md", "README.ko.md"],
   license: "MIT",
   repository: { type: "git", url: "git+https://github.com/oliverne/myboxctl.git" },
 };
@@ -48,6 +48,7 @@ await writeFile(join(binDir, "myboxctl.js"), LAUNCHER);
 await chmod(join(binDir, "myboxctl.js"), 0o755);
 await copyFile("LICENSE", join(outDir, "LICENSE"));
 await copyFile("README.md", join(outDir, "README.md"));
+await copyFile("README.ko.md", join(outDir, "README.ko.md"));
 await writeFile(join(outDir, "package.json"), `${JSON.stringify(PACKAGE, null, 2)}\n`);
 
 console.log(`Prepared npm package at ${outDir} (v${version})`);

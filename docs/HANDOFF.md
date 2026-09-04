@@ -4,7 +4,8 @@
 
 Phase 00~14의 구현과 로컬 검증을 완료했다. 첫 공개 Release 전에 CLI command surface와 출력 계약을
 정리하는 Phase 14를 반영했으며 상태는 `complete`이다. 공개 Release/publish는 별도 승인 대상이다.
-첫 공개 목표 version은 `v0.2.1`이며 npm publish는 별도 사용자 실행 또는 승인이 필요하다.
+첫 공개 후보 version은 `v0.2.2`이며 npm credential 설정, tag 생성과 publish는 별도 사용자 실행 또는
+승인이 필요하다. 실행 절차는 [`operations/npm-release.md`](operations/npm-release.md)에 있다.
 
 ## 현재 상태
 
@@ -14,7 +15,8 @@ Phase 00~14의 구현과 로컬 검증을 완료했다. 첫 공개 Release 전�
 - 작업 브랜치: 없음 (PR #11은 `main`으로 merge 완료)
 - PR: [#11 feat: add Phase 13 observability and progress events](https://github.com/oliverne/myboxctl/pull/11) — 2026-08-31 merge됨
 - integration stderr 계약 수정 commit: `710cde214f93d7758b7cabe226b6d0d769c28bd4`
-- 로컬 검증: `bun run check` 231 pass, 35 opt-in skip, 0 fail; `bun run build` 통과
+- 로컬 검증: `bun run check` 233 pass, 35 opt-in skip, 0 fail; 별도 `bun run build`와 v0.2.2 npm
+  package `--version`/`--help`/`npm pack --dry-run` 검증 통과(영문·국문 README 포함 6개 파일)
 - Phase 14 계획: [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)
 - Phase 14 구현·검증: P14-A~E 완료
 - 2026-09-01 최근 소스 리뷰: [`reviews/2026-09-01-phase14-source-review.md`](reviews/2026-09-01-phase14-source-review.md)
@@ -25,9 +27,9 @@ canonical command는 `list`/`ls`, `info`, `mkdir`, `upload`, `download`, `delete
 `sizeBytes`와 explicit nullable fields, normalized type/time, JSON stdout/stderr와 global presentation
 option 위치를 구현했다. 기존 legacy command와 제거된 option은 public CLI에서 제거했다.
 
-2026-09-03 README를 사람용 요약 문서로 줄였고, 명령·옵션·JSON/exit code 계약은 루트 `llms.txt`로
-분리했다. CLI source와 public contract는 변경하지 않았으며, 이번 문서 변경에서는 실제 MYBOX live
-test를 실행하지 않는다.
+2026-09-04 공개 기본 `README.md`를 영문으로 전환하고 `README.ko.md`를 추가했다. 별도 AI 요약 문서는
+삭제하고 공개 command, 인증, 핵심 안전 규칙과 자동화 계약만 두 README에 통합했다. 두 문서는 서로
+링크하며 상세 계약은 `docs/reference/cli-contract.md`를 기준으로 한다.
 
 Phase 14 review 후 기본 `mkdir`도 생성 응답 유실 가능 오류 뒤에 exact path를 polling해 reconcile하고
 mutation POST를 반복하지 않는다. `download` command는 검증한 최초 canonical resolution을 local
@@ -104,6 +106,28 @@ macOS Gatekeeper 차단 문제와 미사용 판단으로 standalone 실행파일
   통과. v0.2.1 package launcher `--version`은 `0.2.1`/exit 0, `npm pack --dry-run`은 README를 포함한
   5개 파일을 확인했다. MYBOX live test와 npm publish는 실행하지 않았다.
 
+### 2026-09-04 npm publish 차단점 수정
+
+- `bun test`가 `src/cli.ts`를 import할 때 `Bun.main` 조건으로 CLI까지 실행해 233개 test가 통과해도
+  process exit 2가 되는 문제를 수정했다. 직접 실행 여부를 process entry와 module URL로 판정한다.
+- import가 host exit code를 바꾸지 않는 회귀 test와 실제 Node bundle을 npm launcher로 실행했을 때
+  `--version`이 정확히 한 번 출력되는 회귀 test를 추가했다.
+- `publish-npm.yml`에 동일 tag concurrency, 일반 check, package version/help/pack 검증을 추가했다.
+- 첫 publish 후보는 `v0.2.2`다. 이미 push된 `v0.2.1`은 이 수정 전 commit을 가리키므로 publish에
+  사용하지 않고 이력으로 유지한다.
+- [`operations/npm-release.md`](operations/npm-release.md)에 최초 publish용 granular token 생성,
+  GitHub secret 등록, tag/workflow, registry smoke와 이후 OIDC 전환 순서를 기록했다.
+
+### 2026-09-04 영문·국문 README 통합
+
+- 공개 GitHub/npm 기본 문서는 영문 `README.md`, 한국어 문서는 `README.ko.md`다. 두 문서는 상단과
+  문서 목록에서 서로 링크한다.
+- 별도 AI 요약 문서는 삭제했다. 필요한 command/인증/안전/JSON/exit code 요약만 README에 통합하고
+  상세 계약은 `docs/reference/cli-contract.md`로 연결했다.
+- npm package manifest와 준비 script가 두 README를 모두 포함하며, 실제 package 복사를 회귀 test로
+  검증한다.
+- 두 README는 각각 98줄, 97줄이다. Prettier, local link 검사와 v0.2.2 package dry-run이 통과했다.
+
 ## 원격 검증
 
 - PR CI run [`33388258127`](https://github.com/oliverne/myboxctl/actions/runs/33388258127): 성공
@@ -144,9 +168,11 @@ bucket을 완화하지 않고 GET 429 한 번 retry, `Retry-After` 우선, heade
 - 저장소: `oliverne/myboxctl` (public)
 - 기본 브랜치: `main`
 - `v0.1.0` tag/Release: 삭제됨 (2026-09-03)
-- `v0.2.1` tag: 리팩터 commit에 생성 예정(게시 버전). `v0.2.0` tag는 리팩터 이전 commit(`ffb5bd1`) 이력 마커로 잔류. GitHub Release: 없음
+- `v0.2.2` tag: 미생성(첫 publish 후보). `v0.2.0`과 `v0.2.1` tag는 이전 commit을 가리키는 이력
+  마커로 잔류. GitHub Release: 없음
 - 배포 방식: npm 단독(`@oliverne/myboxctl`), standalone 실행파일/Homebrew/Scoop/install.sh 폐기
-- npm publish: `NPM_TOKEN` 설정 후 `publish-npm.yml -f tag=v0.2.1` 실행(미실행). Homebrew tap/Scoop registry: 폐기
+- npm publish: 변경 commit/push와 원격 CI 성공 후 `NPM_TOKEN` 설정, `v0.2.2` tag 생성,
+  `publish-npm.yml -f tag=v0.2.2` 실행(미실행). Homebrew tap/Scoop registry: 폐기
 
 PR #11 merge는 2026-08-31에 완료했다. Phase 14 완료 전에는 현재 draft `v0.1.0`을 공개하지 않는다.
 Phase 14 완료 후에도 저장소 public 전환, Release 공개, package publish, registry 반영, credential 변경과
@@ -154,10 +180,13 @@ Phase 14 완료 후에도 저장소 public 전환, Release 공개, package publi
 
 ## 다음 실행 범위
 
-1. `NPM_TOKEN`을 설정한 뒤 `publish-npm.yml -f tag=v0.2.1`을 실행한다. credential 설정과 publish는
-   사용자가 직접 수행하거나 별도 승인 후 진행한다.
-2. npm registry에서 설치, `--version`, `--help`와 pipe 출력을 smoke test한다.
-3. 배포 결과를 `README.md`, `docs/PROGRESS.md`, `docs/HANDOFF.md`에 사실 기준으로 반영한다.
+1. 현재 변경을 commit/push하고 main CI 성공을 확인한다.
+2. [`operations/npm-release.md`](operations/npm-release.md)에 따라 최초 publish용 `NPM_TOKEN`을 설정하고
+   `v0.2.2` annotated tag를 생성·push한다. credential 설정과 tag/publish는 사용자가 직접 수행하거나
+   별도 승인 후 진행한다.
+3. `publish-npm.yml -f tag=v0.2.2`를 실행하고 npm registry 설치, `--version`, `--help`와 pipe 출력을
+   smoke test한다.
+4. 배포 결과를 `README.md`, `docs/PROGRESS.md`, `docs/HANDOFF.md`에 사실 기준으로 반영한다.
 
 ## 로컬 시작 명령
 
