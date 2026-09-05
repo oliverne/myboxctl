@@ -174,6 +174,12 @@ macOS Gatekeeper 차단 문제와 미사용 판단으로 standalone 실행파일
 - 검증은 `bun run check` 233 pass/35 opt-in skip/0 fail, 별도 `bun run build`와
   `git diff --check` 통과다.
 
+### 2026-09-05 PowerShell API 토큰 관리 가이드
+
+- `docs/operations/powershell-api-secrets.md`를 추가해 PowerShell SecretStore 기반 토큰 관리와
+  AI agent 자동 로드 방법을 문서화했다.
+- 문서에는 실제 secret 값을 포함하지 않았고, 코드 변경과 MYBOX live test는 실행하지 않았다.
+
 ## 원격 검증
 
 - PR CI run [`33388258127`](https://github.com/oliverne/myboxctl/actions/runs/33388258127): 성공

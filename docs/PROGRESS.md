@@ -548,6 +548,12 @@ macOS Gatekeeper가 미서명 standalone 실행파일(.tar.gz/.zip) 다운로드
 - 문서 변경 후 `bun run check`는 233 pass/35 opt-in skip/0 fail, 별도 `bun run build`와
   `git diff --check`가 통과했다. MYBOX live test는 실행하지 않았다.
 
+## 2026-09-05 PowerShell API 토큰 관리 가이드
+
+- `docs/operations/powershell-api-secrets.md`에 PowerShell SecretManagement/SecretStore 설치,
+  secure prompt 저장, 세션 unlock, AI agent용 무프롬프트 자동 로드와 보안 트레이드오프를 정리했다.
+- 실제 토큰 값은 문서에 기록하지 않았으며, 코드와 MYBOX live test는 변경하거나 실행하지 않았다.
+
 ## 상태 변경 규칙
 
 - phase를 시작할 때만 `pending → in_progress`로 변경한다.
