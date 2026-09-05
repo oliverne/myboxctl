@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { createEventPresentation, type EventWriter } from "./human-ui.ts";
 import type { ObservabilityEventInput } from "./observability.ts";
+import { DomainError } from "./errors.ts";
 
 function capture(isTTY: boolean, columns = 80) {
   let output = "";
@@ -179,5 +180,28 @@ describe("event presentation", () => {
     expect(cleared).toBe(true);
     expect(captured.output()).toContain("Waiting for search: 2s remaining");
     expect(captured.output()).toEndWith("Rate limit wait completed for search.\n");
+  });
+
+  test("renders partial transfer details in a human failure", () => {
+    const captured = capture(false);
+    const presentation = createEventPresentation({ command: "upload", writer: captured.writer });
+    presentation.writeHumanFailure(
+      new DomainError("api-unavailable", "The transfer stopped.", {
+        partialTransfer: {
+          direction: "upload",
+          remoteRootPath: "/remote/tree",
+          localRootPath: "/tmp/tree",
+          rootCreated: true,
+          filesCompleted: 1,
+          foldersCompleted: 2,
+          supportingFoldersCreated: 0,
+          bytesCompleted: 3,
+          mutationMayHaveOccurred: true,
+        },
+      }),
+    );
+    expect(captured.output()).toContain(
+      "Partial transfer: 1 files, 2 folders, 3B completed; mutation may have occurred.",
+    );
   });
 });

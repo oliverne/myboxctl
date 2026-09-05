@@ -16,8 +16,9 @@ Phase 00~14의 구현과 로컬 검증을 완료했고 Phase 15 recursive folder
 - 작업 브랜치: 없음 (PR #11은 `main`으로 merge 완료)
 - PR: [#11 feat: add Phase 13 observability and progress events](https://github.com/oliverne/myboxctl/pull/11) — 2026-08-31 merge됨
 - integration stderr 계약 수정 commit: `710cde214f93d7758b7cabe226b6d0d769c28bd4`
-- 로컬 검증: Phase 15 구현 기준 `bun run check` 248 pass, 37 opt-in skip, 0 fail. 별도
-  `bun run build` 결과는 아래 Phase 15 기록에 남긴다.
+- 로컬 검증: Phase 15 구현 기준 `bun run check` 248 pass, 37 opt-in skip, 0 fail에서 세부 failure-path
+  회귀 추가 후 255 pass, 37 opt-in skip, 0 fail로 갱신됐다. 별도 `bun run build` 결과는 아래 Phase 15 기록에
+  남긴다.
 - Phase 14 계획: [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)
 - Phase 14 구현·검증: P14-A~E 완료
 - 2026-09-01 최근 소스 리뷰: [`reviews/2026-09-01-phase14-source-review.md`](reviews/2026-09-01-phase14-source-review.md)
@@ -243,6 +244,23 @@ macOS Gatekeeper 차단 문제와 미사용 판단으로 standalone 실행파일
 - `MYBOX_INTEGRATION=1 bun test test/integration/recursive-transfer.test.ts`를 승인 후 실행했다.
 - 전용 integration prefix 아래 unique child에서 nested/empty/Unicode/0-byte tree upload/download, 구조·byte
   검증과 root resource ID cleanup이 통과했다. 결과는 1 pass, 0 fail, 126.58초다.
+
+### 2026-09-05 세부 failure-path 회귀
+
+- recursive upload SIGINT와 중간 실패에서 완료된 remote 결과를 보존하고, failed operation을 재시도하지 않으며
+  `error.partialTransfer`를 반환하는 fake dependency 회귀를 추가했다. recursive download SIGINT은 완료된
+  local file과 directory를 보존하고 active temporary file만 제거한다.
+- manifest 이후 upload source file/directory 교체와 download destination ancestor symlink 교체를 결정적으로
+  재현했다. source 변경은 mutation 전에 중단되고, destination은 commit 직전 anchor/tree identity를 재검증해
+  외부 경로에 쓰지 않는다. 정상 temporary file 생성으로 directory mtime이 바뀌는 경우는 허용하도록
+  destination 내부 검증을 `(dev, ino)` 비교로 조정했다.
+- diagnostic file I/O 주입 경계와 first/mid/close failure 회귀를 추가했다. 첫 write 실패는 command 시작
+  전에 종료하고, 중간 write 실패는 diagnostic sink만 끄며, warning은 한 번만 남긴다. close failure에서도
+  완료 envelope와 exit code는 변경하지 않는다. JSON warning 및 secret redaction도 확인했다.
+- human/JSON partial transfer output 회귀를 포함한 대상 테스트는 32 pass, 0 fail이다. 전체
+  `bun run check`는 255 pass, 37 opt-in skip, 0 fail, 별도 `bun run build`도 통과했다.
+- 이 변경 후 새 3-OS CI 실행과 전체 `test/integration` suite 재실행은 아직 하지 않았다. 이번 slice의
+  commit/push도 아직 하지 않은 상태다.
 - 전체 `test/integration` suite는 재실행하지 않았다.
 
 ## 원격 검증
@@ -297,8 +315,8 @@ PR #11 merge는 2026-08-31에 완료했다. 추가 package publish, tag 생성, 
 
 ## 다음 실행 범위
 
-1. Phase 15 완료 조건 중 recursive SIGINT/partial failure, manifest 이후 local 교체와 diagnostic write
-   failure 등 별도 회귀 증거가 필요한 경로를 확인한다.
+1. 이번 failure-path 회귀를 commit 후 3-OS CI에서 확인하고, 원격 중간 mutation failure와 Windows npm
+   launcher diagnostic failure를 추가 검증한다.
 2. 모든 조건이 검증되면 phase 문서의 checklist와 `PROGRESS.md`/`HANDOFF.md`를 `complete`에 맞춰 갱신한다.
 3. 다음 npm 배포가 필요하면 version을 정한 뒤 [`operations/npm-release.md`](operations/npm-release.md)를
    따른다. tag/publish는 별도 승인 대상이다.

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { lstat, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DomainError } from "../errors.ts";
@@ -313,5 +313,345 @@ describe("recursive transfer", () => {
       ["download.transfer-progress", 3],
       ["download.transfer-completed", 3],
     ]);
+  });
+
+  test("keeps completed uploads and does not retry after recursive SIGINT", async () => {
+    const root = await fixture();
+    await writeFile(join(root, "a.txt"), "a");
+    await writeFile(join(root, "b.txt"), "b");
+    const controller = new AbortController();
+    let foldersCreated = 0;
+    let reservations = 0;
+    let uploads = 0;
+    let activeUpload: { name: string; size: number } | undefined;
+    const resolver = {
+      resolveCanonical: async () => ({ kind: "absent", resource: null }),
+      resolveForMutation: async () => ({ kind: "absent", resource: null }),
+      createFolder: async () => {
+        foldersCreated += 1;
+        return { resourceId: "remote-root-id", name: "remote" };
+      },
+    } as unknown as RemoteResolver;
+    const client = {
+      getStorage: async () => ({ maxFileBytes: 100 }),
+      createUpload: async (input: { fileName: string; fileSize: number }) => {
+        reservations += 1;
+        activeUpload = { name: input.fileName, size: input.fileSize };
+        return { uploadUrl: "https://upload.test" };
+      },
+      getResource: async (resourceId: string) => ({
+        resourceId,
+        parentId: "remote-root-id",
+        name: activeUpload?.name ?? "a.txt",
+        type: "file",
+        size: activeUpload?.size ?? 1,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        modifiedAt: "2026-01-01T00:00:00.000Z",
+        accessedAt: "2026-01-01T00:00:00.000Z",
+        isFavorite: false,
+        isHidden: false,
+        lastModifiedBy: "tester",
+      }),
+    } as unknown as MyboxClient;
+    const uploader = {
+      uploadContent: async (input: { fileName: string; fileSize: number }) => {
+        uploads += 1;
+        if (uploads === 1) {
+          controller.abort();
+          return { resourceId: "a-id", name: input.fileName, fileSize: input.fileSize };
+        }
+        throw new DOMException("aborted", "AbortError");
+      },
+    } as unknown as MyboxUploader;
+
+    const failure = runRecursiveUpload(
+      root,
+      "/remote",
+      { recursive: true },
+      {
+        resolver,
+        client,
+        uploader,
+        timeoutMs: 1_000,
+        signal: controller.signal,
+      },
+    );
+
+    await expect(failure).rejects.toMatchObject({
+      kind: "api-unavailable",
+      partialTransfer: {
+        rootCreated: true,
+        filesCompleted: 1,
+        foldersCompleted: 1,
+        bytesCompleted: 1,
+        mutationMayHaveOccurred: true,
+      },
+    });
+    expect({ foldersCreated, reservations, uploads }).toEqual({
+      foldersCreated: 1,
+      reservations: 2,
+      uploads: 2,
+    });
+  });
+
+  test("keeps completed downloads and removes only the active recursive temp file on SIGINT", async () => {
+    const parent = await fixture();
+    const controller = new AbortController();
+    const modifiedAt = "2026-01-01T00:00:00.000Z";
+    const resources = ["a.txt", "b.txt"].map((name) => ({
+      resourceId: `${name}-id`,
+      parentId: "folder-id",
+      name,
+      type: "file",
+      size: 1,
+      createdAt: modifiedAt,
+      modifiedAt,
+      accessedAt: modifiedAt,
+      isFavorite: false,
+      isHidden: false,
+      lastModifiedBy: "tester",
+    }));
+    const root = {
+      kind: "found",
+      path: {
+        kind: "child",
+        normalized: "/remote",
+        basename: "remote",
+        parentPath: "/",
+        components: ["remote"],
+      },
+      resource: { resourceId: "folder-id", name: "remote", type: "folder" },
+    } as const;
+    const resolver = {
+      listChildren: async () => resources,
+      detail: async (resolution: { resource: unknown }) => resolution.resource,
+    } as unknown as RemoteResolver;
+    const client = {
+      createDownloadUrl: async () => ({ downloadUrl: "https://download.test", expiresIn: 600 }),
+      getResource: async (resourceId: string) =>
+        resources.find((item) => item.resourceId === resourceId),
+    } as unknown as MyboxClient;
+    let downloads = 0;
+    const downloader = {
+      downloadContent: async (input: {
+        fileHandle: { writeFile(value: Uint8Array): Promise<void> };
+        signal?: AbortSignal;
+      }) => {
+        downloads += 1;
+        if (downloads === 1) {
+          await input.fileHandle.writeFile(new Uint8Array([1]));
+          controller.abort();
+          return 1;
+        }
+        expect(input.signal?.aborted).toBe(true);
+        throw new DOMException("aborted", "AbortError");
+      },
+    } as unknown as MyboxDownloader;
+
+    const failure = runRecursiveDownload(
+      "/remote",
+      join(parent, "copy"),
+      {
+        resolver,
+        client,
+        downloader,
+        timeoutMs: 1_000,
+        signal: controller.signal,
+      },
+      root,
+    );
+
+    await expect(failure).rejects.toMatchObject({
+      kind: "api-unavailable",
+      partialTransfer: {
+        rootCreated: true,
+        filesCompleted: 1,
+        foldersCompleted: 1,
+        bytesCompleted: 1,
+        mutationMayHaveOccurred: true,
+      },
+    });
+    expect(await readFile(join(parent, "copy", "a.txt"))).toEqual(Buffer.from([1]));
+    await expect(readFile(join(parent, "copy", "b.txt"))).rejects.toMatchObject({ code: "ENOENT" });
+    expect(
+      await Array.fromAsync(
+        new Bun.Glob(".*.myboxctl-*.tmp").scan({ cwd: join(parent, "copy"), onlyFiles: true }),
+      ),
+    ).toEqual([]);
+  });
+
+  test("fails closed when a manifest file is replaced after the remote root is created", async () => {
+    const root = await fixture();
+    const filePath = join(root, "a.txt");
+    await writeFile(filePath, "before");
+    let uploads = 0;
+    const resolver = {
+      resolveCanonical: async () => ({ kind: "absent", resource: null }),
+      resolveForMutation: async () => ({ kind: "absent", resource: null }),
+      createFolder: async () => {
+        await rm(filePath);
+        await writeFile(filePath, "after");
+        return { resourceId: "remote-root-id", name: "remote" };
+      },
+    } as unknown as RemoteResolver;
+    const client = {
+      getStorage: async () => ({ maxFileBytes: 100 }),
+      createUpload: async () => ({ uploadUrl: "https://upload.test" }),
+    } as unknown as MyboxClient;
+    const uploader = {
+      uploadContent: async () => {
+        uploads += 1;
+        return { resourceId: "file-id", name: "a.txt", fileSize: 5 };
+      },
+    } as unknown as MyboxUploader;
+
+    const failure = runRecursiveUpload(
+      root,
+      "/remote",
+      { recursive: true },
+      { resolver, client, uploader, timeoutMs: 1_000 },
+    );
+
+    await expect(failure).rejects.toMatchObject({
+      kind: "local-file-changed",
+      partialTransfer: {
+        rootCreated: true,
+        filesCompleted: 0,
+        foldersCompleted: 1,
+        mutationMayHaveOccurred: true,
+      },
+    });
+    expect(uploads).toBe(0);
+  });
+
+  test("fails closed when a manifest directory is replaced by a symlink", async () => {
+    const root = await fixture();
+    const nested = join(root, "nested");
+    await mkdir(nested);
+    await writeFile(join(nested, "a.txt"), "inside");
+    const outside = await fixture();
+    await writeFile(join(outside, "a.txt"), "outside");
+    let uploads = 0;
+    const resolver = {
+      resolveCanonical: async () => ({ kind: "absent", resource: null }),
+      resolveForMutation: async () => ({ kind: "absent", resource: null }),
+      createFolder: async (input: { folderName: string }) => {
+        if (input.folderName === "nested") {
+          await rm(nested, { recursive: true, force: true });
+          await symlink(outside, nested);
+        }
+        return { resourceId: `${input.folderName}-id`, name: input.folderName };
+      },
+    } as unknown as RemoteResolver;
+    const client = {
+      getStorage: async () => ({ maxFileBytes: 100 }),
+      createUpload: async () => ({ uploadUrl: "https://upload.test" }),
+    } as unknown as MyboxClient;
+    const uploader = {
+      uploadContent: async () => {
+        uploads += 1;
+        return { resourceId: "file-id", name: "a.txt", fileSize: 6 };
+      },
+    } as unknown as MyboxUploader;
+
+    const failure = runRecursiveUpload(
+      root,
+      "/remote",
+      { recursive: true },
+      { resolver, client, uploader, timeoutMs: 1_000 },
+    );
+
+    await expect(failure).rejects.toMatchObject({
+      kind: "local-file",
+      partialTransfer: {
+        rootCreated: true,
+        filesCompleted: 0,
+        foldersCompleted: 2,
+        mutationMayHaveOccurred: true,
+      },
+    });
+    expect(uploads).toBe(0);
+    expect(await readFile(join(outside, "a.txt"), "utf8")).toBe("outside");
+  });
+
+  test("does not commit outside the destination when its ancestor becomes a symlink", async () => {
+    const parent = await fixture();
+    const outside = await fixture();
+    const localRoot = join(parent, "copy");
+    const modifiedAt = "2026-01-01T00:00:00.000Z";
+    const resources = ["a.txt", "b.txt"].map((name) => ({
+      resourceId: `${name}-id`,
+      parentId: "folder-id",
+      name,
+      type: "file",
+      size: 1,
+      createdAt: modifiedAt,
+      modifiedAt,
+      accessedAt: modifiedAt,
+      isFavorite: false,
+      isHidden: false,
+      lastModifiedBy: "tester",
+    }));
+    const root = {
+      kind: "found",
+      path: {
+        kind: "child",
+        normalized: "/remote",
+        basename: "remote",
+        parentPath: "/",
+        components: ["remote"],
+      },
+      resource: { resourceId: "folder-id", name: "remote", type: "folder" },
+    } as const;
+    const resolver = {
+      listChildren: async () => resources,
+      detail: async (resolution: { resource: unknown }) => resolution.resource,
+    } as unknown as RemoteResolver;
+    const client = {
+      createDownloadUrl: async () => ({ downloadUrl: "https://download.test", expiresIn: 600 }),
+      getResource: async (resourceId: string) =>
+        resources.find((item) => item.resourceId === resourceId),
+    } as unknown as MyboxClient;
+    const downloader = {
+      downloadContent: async (input: {
+        fileHandle: { writeFile(value: Uint8Array): Promise<void> };
+      }) => {
+        await input.fileHandle.writeFile(new Uint8Array([1]));
+        return 1;
+      },
+    } as unknown as MyboxDownloader;
+    let beforeCommitCalls = 0;
+
+    const failure = runRecursiveDownload(
+      "/remote",
+      localRoot,
+      {
+        resolver,
+        client,
+        downloader,
+        timeoutMs: 1_000,
+        beforeCommit: async () => {
+          beforeCommitCalls += 1;
+          if (beforeCommitCalls === 1) {
+            await rm(localRoot, { recursive: true, force: true });
+            await symlink(outside, localRoot);
+          }
+        },
+      },
+      root,
+    );
+
+    await expect(failure).rejects.toMatchObject({
+      kind: "local-file-changed",
+      partialTransfer: {
+        rootCreated: true,
+        filesCompleted: 0,
+        foldersCompleted: 1,
+        mutationMayHaveOccurred: true,
+      },
+    });
+    expect(beforeCommitCalls).toBe(1);
+    expect((await lstat(localRoot)).isSymbolicLink()).toBe(true);
+    await expect(readFile(join(outside, "a.txt"))).rejects.toMatchObject({ code: "ENOENT" });
   });
 });

@@ -71,6 +71,20 @@ export function parseDiagnosticBootstrap(argv: readonly string[]): DiagnosticBoo
 
 type DiagnosticRecord = Record<string, unknown> & { type: string };
 
+export type DiagnosticFileIo = {
+  open: (path: string, flags: string, mode?: number) => number;
+  write: (fd: number, buffer: Buffer, offset: number, length: number) => number;
+  close: (fd: number) => void;
+  warn: (message: string) => void;
+};
+
+const defaultFileIo: DiagnosticFileIo = {
+  open: openSync,
+  write: (fd, buffer, offset, length) => writeSync(fd, buffer, offset, length),
+  close: closeSync,
+  warn: (message) => process.stderr.write(message),
+};
+
 export class DiagnosticSession {
   readonly path: string;
   readonly command: string;
@@ -80,20 +94,32 @@ export class DiagnosticSession {
   #sequence = 0;
   #active = true;
   #warned = false;
+  #io: DiagnosticFileIo;
 
-  private constructor(path: string, command: string, fd: number, runId: string, json: boolean) {
+  private constructor(
+    path: string,
+    command: string,
+    fd: number,
+    runId: string,
+    json: boolean,
+    io: DiagnosticFileIo,
+  ) {
     this.path = path;
     this.command = command;
     this.#fd = fd;
     this.runId = runId;
     this.json = json;
+    this.#io = io;
   }
 
-  static open(bootstrap: DiagnosticBootstrap): DiagnosticSession | undefined {
+  static open(
+    bootstrap: DiagnosticBootstrap,
+    io: DiagnosticFileIo = defaultFileIo,
+  ): DiagnosticSession | undefined {
     if (bootstrap.path === undefined || bootstrap.skip) return undefined;
     let fd: number;
     try {
-      fd = openSync(bootstrap.path, "wx", 0o600);
+      fd = io.open(bootstrap.path, "wx", 0o600);
     } catch (error) {
       throw new DomainError("local-file", "The diagnostic log could not be created.", {
         cause: error,
@@ -105,6 +131,7 @@ export class DiagnosticSession {
       fd,
       crypto.randomUUID(),
       bootstrap.options.json === true,
+      io,
     );
     try {
       session.write({
@@ -121,7 +148,7 @@ export class DiagnosticSession {
       if (!session.#active) throw new Error("The initial diagnostic record could not be written.");
     } catch (error) {
       try {
-        closeSync(fd);
+        io.close(fd);
       } catch {}
       throw new DomainError("local-file", "The diagnostic log could not be written.", {
         cause: error,
@@ -150,7 +177,7 @@ export class DiagnosticSession {
     let offset = 0;
     try {
       while (offset < bytes.length) {
-        const written = writeSync(this.#fd, bytes, offset, bytes.length - offset);
+        const written = this.#io.write(this.#fd, bytes, offset, bytes.length - offset);
         if (written <= 0) throw new Error("Diagnostic write made no progress.");
         offset += written;
       }
@@ -160,7 +187,7 @@ export class DiagnosticSession {
       if (!this.#warned) {
         this.#warned = true;
         const code = redactSensitiveText((error as NodeJS.ErrnoException).code ?? "UNKNOWN");
-        process.stderr.write(
+        this.#io.warn(
           this.json
             ? `${JSON.stringify({ type: "event", level: "warning", event: "diagnostic.write-failed", command: this.command, data: { stage: "write", code } })}\n`
             : `Warning: diagnostic log write failed (${code}).\n`,
@@ -197,11 +224,11 @@ export class DiagnosticSession {
     const fd = this.#fd;
     this.#fd = -1;
     try {
-      closeSync(fd);
+      this.#io.close(fd);
     } catch (error) {
       if (!this.#warned) {
         const code = redactSensitiveText((error as NodeJS.ErrnoException).code ?? "UNKNOWN");
-        process.stderr.write(
+        this.#io.warn(
           this.json
             ? `${JSON.stringify({ type: "event", level: "warning", event: "diagnostic.write-failed", command: this.command, data: { stage: "close", code } })}\n`
             : `Warning: diagnostic log close failed (${code}).\n`,

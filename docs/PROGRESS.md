@@ -10,7 +10,7 @@
 - 릴리스 상태: npm `latest`는 `v0.2.3`. standalone 실행파일 배포는 폐기했고 npm(Node 기반) 단독
   배포를 사용한다. `v0.1.0` draft Release/tag는 삭제했다.
 - 활성 구현 phase: Phase 15
-- 다음 담당자: Phase 15 완료 조건 중 별도 회귀 증거가 필요한 세부 실패 경로를 검증하고 phase 문서를
+- 다음 담당자: Phase 15의 남은 원격 중간 실패와 Windows npm launcher 진단 회귀를 검증하고 phase 문서를
   갱신한다. 다음 npm 배포 version 결정은 별도 승인 범위다.
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
 - Phase 14 command surface, destination semantics, human renderer와 versioned machine envelope 구현을
@@ -624,6 +624,25 @@ macOS Gatekeeper가 미서명 standalone 실행파일(.tar.gz/.zip) 다운로드
   통과했다.
 - 전체 `test/integration` suite 재실행은 하지 않았고, Phase 15 상태는 세부 완료 조건 검증 전까지
   `in_progress`로 유지한다.
+
+## 2026-09-05 Phase 15 세부 failure-path 회귀
+
+- recursive upload SIGINT가 retryable 오류로 재시도되지 않고, 이미 완료된 파일과 폴더를 보존한 채
+  `error.partialTransfer`에 확인된 count와 `mutationMayHaveOccurred`를 남기는 회귀 테스트를 추가했다.
+- recursive download SIGINT에서 완료된 파일은 보존하고 현재 전송의 temporary file만 제거하는 회귀 테스트를
+  추가했다. upload source file과 directory가 manifest 이후 교체되거나 symlink가 되면 upload mutation 전에
+  fail-closed하고, download destination ancestor가 symlink로 교체되면 commit 전에 identity를 재검증해
+  외부 경로에 쓰지 않도록 수정했다.
+- destination tree 내부 directory 검증은 정상적인 temporary file 생성으로 바뀌는 mtime을 교체로 오인하지
+  않도록 `(dev, ino)`를 사용하고, destination parent anchor의 realpath/identity 검증은 유지한다.
+- diagnostic file I/O를 injectable boundary로 분리하고 first-write, mid-write와 close failure를 검증했다.
+  mid-write 이후 diagnostic sink만 비활성화하고 warning을 한 번 출력하며, command result/exit code와
+  mutation retry 정책은 바꾸지 않는다. JSON warning과 secret redaction도 함께 확인했다.
+- partial transfer human/JSON envelope 회귀를 추가했다. 대상 회귀 묶음은 32 pass, 0 fail이고 전체
+  `bun run check`는 255 pass, 37 opt-in skip, 0 fail, 별도 `bun run build`와 `git diff --check`도 통과했다.
+- 이번 변경 후 새 3-OS CI 실행과 전체 `test/integration` suite 재실행은 하지 않았다. Phase 15는 원격
+  중간 mutation failure, Windows npm launcher failure 진단과 나머지 완료 조건 확인 전까지 `in_progress`로
+  유지한다.
 
 ## 상태 변경 규칙
 

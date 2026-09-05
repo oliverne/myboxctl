@@ -100,4 +100,25 @@ describe("JSON output", () => {
       retryAfterMs: 60_000,
     });
   });
+
+  test("preserves confirmed partial transfer details in the JSON failure envelope", () => {
+    const partial = {
+      direction: "upload" as const,
+      remoteRootPath: "/remote/tree",
+      localRootPath: "/tmp/tree",
+      rootCreated: true,
+      filesCompleted: 1,
+      foldersCompleted: 2,
+      supportingFoldersCreated: 0,
+      bytesCompleted: 3,
+      mutationMayHaveOccurred: true,
+    };
+    const output = JSON.parse(
+      renderFailure(
+        "upload",
+        new DomainError("api-unavailable", "The transfer stopped.", { partialTransfer: partial }),
+      ),
+    );
+    expect(output.error.partialTransfer).toEqual(partial);
+  });
 });

@@ -185,7 +185,7 @@ export async function runRecursiveDownload(
         const current = await lstat(
           relative === "" ? localRoot : join(localRoot, ...components.slice(0, index)),
         );
-        if (current.isSymbolicLink() || !current.isDirectory() || !sameIdentity(expected, current))
+        if (current.isSymbolicLink() || !current.isDirectory() || !sameNode(expected, current))
           throw new DomainError(
             "local-file-changed",
             "The local destination tree changed during download.",
@@ -239,6 +239,10 @@ export async function runRecursiveDownload(
             totalFiles: files.length,
             cumulativeBytes: bytesCompleted,
             totalBytes,
+          },
+          beforeCommit: async () => {
+            await dependencies.beforeCommit?.();
+            await assertTree(relativeParent);
           },
         },
         resolved,

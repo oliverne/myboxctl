@@ -338,7 +338,7 @@ export async function runUpload(
         finishStage();
       } catch (error) {
         const failure = normalizeError(error);
-        if (!failure.retryable) {
+        if (!failure.retryable || dependencies.signal?.aborted) {
           throw failure;
         }
 

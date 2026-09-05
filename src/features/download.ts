@@ -28,6 +28,7 @@ export type DownloadDependencies = {
   };
   downloadQuota?: { plan: string | null; isDefault: boolean; dailyLimit: number };
   expectedRemote?: { resourceId: string; size: number; modifiedAt: string; name: string };
+  beforeCommit?: () => Promise<void>;
 };
 
 export type DownloadResult = {
@@ -170,6 +171,7 @@ export async function runDownload(
       });
     }
     handleClosed = true;
+    await dependencies.beforeCommit?.();
     await commitDownloadFile(prepared);
     eventSink.emit({
       type: "event",
