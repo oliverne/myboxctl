@@ -73,7 +73,7 @@ bun run build
 targeted live probe:
 
 ```bash
-MYBOX_PHASE10_PROBE=1 bun test test/integration/cross-implementation-hardening.test.ts
+bun run test:server-semantics-probe
 ```
 
 완료 조건:

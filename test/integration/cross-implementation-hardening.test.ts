@@ -15,7 +15,8 @@ import {
 } from "./helpers.ts";
 
 const PREFIX_PATH = "/myboxctl-integration-test/";
-const probeEnabled = process.env.MYBOX_PHASE10_PROBE === "1" && Boolean(process.env.MYBOX_PAT);
+const probeEnabled =
+  process.env.MYBOX_SERVER_SEMANTICS_PROBE === "1" && Boolean(process.env.MYBOX_PAT);
 const describeProbe = probeEnabled ? describe : describe.skip;
 if (probeEnabled) {
   setDefaultTimeout(600_000);
@@ -191,7 +192,7 @@ async function observeNamePair(
   };
 }
 
-describeProbe("MYBOX Phase 10 cross-implementation hardening probe", () => {
+describeProbe("MYBOX server semantics probe", () => {
   beforeAll(async () => {
     const prefix = await exactResource(PREFIX_PATH, "folder");
     if (prefix === undefined) {

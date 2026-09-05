@@ -168,10 +168,10 @@ probe 결과: 1 pass, 0 fail. 생성한 모든 resource의 ID 기반 cleanup도 
 bun run check
 bun run build
 bun run test:integration
-MYBOX_PHASE12_PROBE=1 bun test test/integration/cross-platform-unicode-filenames.test.ts
+bun run test:unicode-probe
 ```
 
-GitHub Actions의 `workflow_dispatch`에서 `phase12_probe=true`를 선택하면 저장소의 `MYBOX_PAT` secret을 사용하는 동일한 targeted probe를 실행할 수 있다.
+GitHub Actions의 `workflow_dispatch`에서 `unicode_probe=true`를 선택하면 저장소의 `MYBOX_PAT` secret을 사용하는 동일한 targeted probe를 실행할 수 있다.
 
 완료 조건:
 
@@ -179,7 +179,7 @@ GitHub Actions의 `workflow_dispatch`에서 `phase12_probe=true`를 선택하면
 - [x] 기존 NFD resource를 NFC 입력으로 조회·다운로드할 수 있다.
 - [x] 기존 NFD resource를 overwrite해도 NFC duplicate를 만들지 않는다.
 - [x] canonical-equivalent 후보가 여러 개면 exact match가 있어도 mutation 없이 안정적인 conflict를
-  반환한다.
+      반환한다.
 - [x] local path는 upload/download 모두 입력 spelling 그대로 사용한다.
 - [x] macOS, Windows, Ubuntu CI에서 Unicode CLI regression이 통과한다.
 - [x] 실제 MYBOX targeted probe와 resource-ID 기반 cleanup이 통과한다.

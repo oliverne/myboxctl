@@ -23,7 +23,7 @@ Human UI 조사: [`../reference/human-cli-ui-investigation.md`](../reference/hum
 - [x] P13-B local quota/server cooldown/GET retry 계측과 fake-clock 검증
 - [x] P13-C upload/put file-byte progress, resume event와 TTY/non-TTY renderer
 - [x] P13-D 일반 문서와 212 pass/35 opt-in skip 회귀 검증
-- [x] `MYBOX_PHASE13_PROBE=1` targeted live probe와 실제 wall-time/event 증거 기록
+- [x] targeted live probe와 실제 wall-time/event 증거 기록
 
 targeted probe와 full live acceptance에서 자연 발생 429는 관찰되지 않았다. 장시간 지연은 local
 shared limiter의 `quota` 대기로 확인했으며 현행 bounded GET retry 정책을 유지한다.
@@ -263,9 +263,13 @@ mutation generic retry 금지, signed upload/download URL의 단일 사용 정�
 bun run check
 bun run build
 bun test test/http/client.test.ts src/mybox/rate-limit.test.ts test/http/upload.test.ts test/http/put.test.ts
-MYBOX_PHASE13_PROBE=1 bun test test/integration/observability.test.ts
+bun test src/observability.test.ts src/human-ui.test.ts
 bun run test:integration
 ```
+
+Phase 완료 때 사용한 별도 observability live probe는 event가 발생하지 않아도 통과하는 낮은 신호의
+검사였다. 완료 증거는 유지하되 현재 entrypoint는 제거했으며, 위 unit regression과 전체 live
+integration의 JSONL 검증을 현재 계약으로 사용한다.
 
 실제 MYBOX 명령은 PAT가 준비된 authorized 환경에서만 실행한다. 100MiB upload contract probe는 429
 원인 확인이나 progress correctness에 필요하지 않으므로 Phase 13의 필수 검증에서 제외한다.

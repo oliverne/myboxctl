@@ -11,9 +11,9 @@ NAVER MYBOX Open API를 이용하여 다음 작업을 결정적으로 수행하�
 
 1. 원격 경로의 파일과 폴더 조회
 2. 원격 폴더 생성과 계층 보장
-3. 로컬 파일의 안전한 조건부 업로드와 명시적 강제 덮어쓰기
+3. 로컬 파일과 폴더 tree의 안전한 조건부 업로드와 명시적 강제 덮어쓰기
 4. 원격 파일과 폴더를 MYBOX 휴지통으로 이동
-5. 원격 파일을 로컬 파일로 안전하게 다운로드
+5. 원격 파일과 폴더 tree를 로컬에 안전하게 다운로드
 6. 다양한 AI 에이전트가 파싱할 수 있는 안정적인 JSON과 exit code 제공
 
 예상 사용 방식:
@@ -22,7 +22,9 @@ NAVER MYBOX Open API를 이용하여 다음 작업을 결정적으로 수행하�
 myboxctl info /agents/output/report.md --json
 myboxctl mkdir --parents /agents/output --json
 myboxctl upload ./report.md /agents/output/ --mkdir --json
+myboxctl upload ./output /agents/ --recursive --mkdir --json
 myboxctl download /agents/output/report.md ./report.md --json
+myboxctl download /agents/output ./output --recursive --json
 myboxctl delete /agents/output/old-report.md --json
 ```
 
@@ -64,9 +66,9 @@ myboxctl delete /agents/output/old-report.md --json
 
 ## 4. 문서 구조와 상태 관리
 
-| 문서                     | 역할                                    | 갱신 시점               |
-| ------------------------ | --------------------------------------- | ----------------------- |
-| `PLAN.md`                | 범위, phase 순서, 프로젝트 완료 정의    | 범위나 phase가 바뀔 때  |
+| 문서                | 역할                                    | 갱신 시점               |
+| ------------------- | --------------------------------------- | ----------------------- |
+| `PLAN.md`           | 범위, phase 순서, 프로젝트 완료 정의    | 범위나 phase가 바뀔 때  |
 | `PROGRESS.md`       | phase/task 상태의 단일 기준             | 작업 시작/완료/차단 시  |
 | `HANDOFF.md`        | 다음 에이전트가 즉시 이어받을 현재 문맥 | 모든 작업 종료 전       |
 | `phases/*.md`       | 각 phase의 실행 가능한 상세 계획        | 해당 phase 계획 변경 시 |
@@ -299,6 +301,24 @@ Phase 14는 첫 공개 Release 전에 기존 기능을 사람이 이해하기 �
 Phase 14는 새 MYBOX API나 동기화 기능을 추가하지 않는다. 구현 결과와 검증 사실은
 `PROGRESS.md`와 `HANDOFF.md`에 기록한다. 실제 MYBOX live acceptance는 opt-in이라 이번
 로컬 검증에서는 실행하지 않았다.
+
+### Phase 15 — Recursive Folder Transfer
+
+문서: [`phases/15-recursive-folder-transfer.md`](phases/15-recursive-folder-transfer.md)
+
+단일 파일 전용 `upload`와 `download`를 명시적인 `--recursive` folder transfer로 확장한다.
+
+- folder 입력은 `--recursive`가 있을 때만 허용하고 MYBOX root `/` 전체 다운로드는 거부
+- local walk와 remote direct-child pagination으로 deterministic manifest를 만든 뒤 파일을 순차 전송
+- empty folder 보존, portable name collision, symlink/non-regular entry와 manifest 이후 경로 교체를
+  fail-closed
+- transfer tree는 exclusive create하고 409/응답 유실로 소유권이 불확실하면 기존 tree에 merge하지 않음
+- 기존 local/remote destination merge/recursive overwrite와 폴더 전체 atomic commit은 제외
+- 기존 파일별 upload resume/postcondition, download temp/atomic commit과 secret redaction 재사용
+- 부분 성공 또는 mutation 결과 불확실성을 version 1 failure envelope의 structured additive field로 제공
+- fake HTTP/CLI 회귀, 세 운영체제 local filesystem과 승인된 실제 MYBOX round-trip으로 검증
+
+Phase 15는 one-shot transfer이며 directory sync, remote watch 또는 local 삭제 전파를 추가하지 않는다.
 
 ## 6. 전체 MVP 완료 조건
 

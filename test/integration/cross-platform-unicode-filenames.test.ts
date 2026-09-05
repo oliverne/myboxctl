@@ -16,7 +16,7 @@ import {
 } from "./helpers.ts";
 
 const PREFIX_PATH = "/myboxctl-integration-test/";
-const probeEnabled = process.env.MYBOX_PHASE12_PROBE === "1" && Boolean(process.env.MYBOX_PAT);
+const probeEnabled = process.env.MYBOX_UNICODE_PROBE === "1" && Boolean(process.env.MYBOX_PAT);
 const describeProbe = probeEnabled ? describe : describe.skip;
 
 if (probeEnabled) {
@@ -164,7 +164,7 @@ async function deleteForCleanup(id: string): Promise<void> {
   throw new Error(`Phase 12 cleanup did not settle for ${id}`);
 }
 
-describeProbe("MYBOX Phase 12 cross-platform Unicode filename probe", () => {
+describeProbe("MYBOX Unicode filename probe", () => {
   beforeAll(async () => {
     const prefix = await exactResource(PREFIX_PATH, "folder");
     if (prefix === undefined) {

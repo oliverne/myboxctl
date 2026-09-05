@@ -3,9 +3,9 @@
 ## 인수 목적
 
 Phase 00~14의 구현과 로컬 검증을 완료했다. 첫 공개 Release 전에 CLI command surface와 출력 계약을
-정리하는 Phase 14를 반영했으며 상태는 `complete`이다. npm `@oliverne/myboxctl@0.2.2` 게시를 완료했다.
-인자 없는 실행의 root help 수정은 commit `fd36b3d`와 `v0.2.3` tag로 push했다. npm publish는 아직
-실행하지 않았다. 실행 절차는 [`operations/npm-release.md`](operations/npm-release.md)에 있다.
+정리하는 Phase 14를 반영했으며 상태는 `complete`이다. 인자 없는 실행의 root help 수정은 commit
+`fd36b3d`와 `v0.2.3` tag로 push했고 npm `latest`로 게시했다. 실행 절차는
+[`operations/npm-release.md`](operations/npm-release.md)에 있다.
 
 ## 현재 상태
 
@@ -15,7 +15,7 @@ Phase 00~14의 구현과 로컬 검증을 완료했다. 첫 공개 Release 전�
 - 작업 브랜치: 없음 (PR #11은 `main`으로 merge 완료)
 - PR: [#11 feat: add Phase 13 observability and progress events](https://github.com/oliverne/myboxctl/pull/11) — 2026-08-31 merge됨
 - integration stderr 계약 수정 commit: `710cde214f93d7758b7cabe226b6d0d769c28bd4`
-- 로컬 검증: `bun run check` 234 pass, 35 opt-in skip, 0 fail; 별도 `bun run build`와 v0.2.3 npm
+- 로컬 검증: `bun run check` 234 pass, 34 opt-in skip, 0 fail; 별도 `bun run build`와 v0.2.3 npm
   package의 no-args help/`--version`/`npm pack --dry-run` 검증 통과(6개 파일)
 - Phase 14 계획: [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)
 - Phase 14 구현·검증: P14-A~E 완료
@@ -136,8 +136,32 @@ macOS Gatekeeper 차단 문제와 미사용 판단으로 standalone 실행파일
   종료하도록 수정했다. subprocess 회귀 테스트는 help 내용, 빈 stderr와 MYBOX API 미호출을 검증한다.
 - `bun run check`는 234 pass, 35 opt-in skip, 0 fail이고 별도 build도 통과했다. v0.2.3 npm launcher의
   no-args help/`--version`과 6개 파일 package dry-run도 통과했다.
-- 이 변경은 commit `fd36b3d`와 `v0.2.3` tag로 push했고 main CI run `33885020537`이 성공했다. npm
-  publish와 MYBOX live test는 실행하지 않았다.
+- 이 변경은 commit `fd36b3d`와 `v0.2.3` tag로 push했고 main CI run `33885020537`이 성공했다.
+  `v0.2.3`은 npm `latest`로 게시됐으며 MYBOX live test는 실행하지 않았다.
+
+### 2026-09-04 live probe entrypoint 정리
+
+- `test:phase10-probe`와 `phase10_probe`를 `test:server-semantics-probe`와
+  `server_semantics_probe`로 바꾸고 opt-in 환경변수도 동작 중심으로 변경했다.
+- `test:phase12-probe`와 `phase12_probe`를 `test:unicode-probe`와 `unicode_probe`로 바꿨다.
+- 낮은 신호의 Phase 13 observability live probe와 script/CI input/step은 제거했다. observability 계약은
+  `src/observability.test.ts`, `src/human-ui.test.ts`와 전체 live integration의 JSONL 검증이 유지한다.
+- `bun run check` 234 pass, 34 opt-in skip, 0 fail, 별도 build와 CI YAML parsing이 통과했다. 실제 MYBOX
+  probe는 실행하지 않았다. 변경은 아직 commit/push하지 않았다.
+
+### 2026-09-05 Phase 15 계획
+
+- 다음 기능은 [`phases/15-recursive-folder-transfer.md`](phases/15-recursive-folder-transfer.md)의
+  one-shot recursive folder upload/download다. 상태는 `pending`이다.
+- folder에는 `--recursive`를 요구하고 root `/` download, 기존 destination merge/recursive overwrite,
+  parallel transfer와 tree 전체 atomic commit은 제외한다.
+- 계획 리뷰 후 missing parent/`--mkdir` matrix, transfer tree exclusive create, response-loss uncertain
+  중단, portable name과 manifest 이후 file/directory identity 검증을 명시했다.
+- remote topology/file metadata 재검증, 기존 파일별 upload/download 정책 재사용과 structured partial
+  failure 계약을 P15-A~D로 나눴다.
+- 계획 문서 수정 후 Prettier와 `git diff --check`, `bun run check` 234 pass/34 opt-in skip/0 fail 및 별도
+  `bun run build`가 통과했다.
+- 구현, 실제 MYBOX 검증, commit/push는 실행하지 않았다.
 
 ## 원격 검증
 
@@ -146,7 +170,7 @@ macOS Gatekeeper 차단 문제와 미사용 판단으로 standalone 실행파일
 - Phase 13 targeted probe run [`33388395781`](https://github.com/oliverne/myboxctl/actions/runs/33388395781): 성공
 - full live acceptance run [`33388494698`](https://github.com/oliverne/myboxctl/actions/runs/33388494698): 성공
 
-targeted probe는 `phase13_probe=true`만 켜 실행했다. 기존 `/myboxctl-integration-test/` root를 조회하고
+targeted probe는 당시 전용 workflow input만 켜 실행했다. 기존 `/myboxctl-integration-test/` root를 조회하고
 mutation하지 않았으며 1 pass, 0 fail, 1,095.83ms에 끝났다. stderr event는 0건이어서 원인별 wait
 합계도 0ms였다.
 
@@ -181,20 +205,21 @@ bucket을 완화하지 않고 GET 429 한 번 retry, `Retry-After` 우선, heade
 - `v0.1.0` tag/Release: 삭제됨 (2026-09-03)
 - `v0.2.2` tag: 생성·push 완료. `v0.2.0`과 `v0.2.1` tag는 이전 commit을 가리키는 이력 마커로
   잔류. GitHub Release: 없음
-- `v0.2.3` tag: root help 수정 commit `fd36b3d`를 가리키며 생성·push 완료. npm 미게시
+- `v0.2.3` tag: root help 수정 commit `fd36b3d`를 가리키며 생성·push 및 npm 게시 완료
 - 배포 방식: npm 단독(`@oliverne/myboxctl`), standalone 실행파일/Homebrew/Scoop/install.sh 폐기
-- npm publish: `@oliverne/myboxctl@0.2.2` 게시 완료, npm `latest`도 `0.2.2`. root help 수정
-  `v0.2.3`은 아직 게시하지 않았다. Homebrew tap/Scoop registry: 폐기
+- npm publish: `@oliverne/myboxctl@0.2.3` 게시 완료, npm `latest`도 `0.2.3`. Homebrew tap/Scoop
+  registry: 폐기
 
 PR #11 merge는 2026-08-31에 완료했다. 추가 package publish, tag 생성, credential 변경은 각각 별도
 승인 후 실행한다. 추가 MYBOX live test도 다시 사용자 의사를 확인한다.
 
 ## 다음 실행 범위
 
-1. 배포가 승인되면 [`operations/npm-release.md`](operations/npm-release.md)에 따라
-   `publish-npm.yml -f tag=v0.2.3`을 실행한다.
-2. npm registry 설치, 인자 없는 실행, `--version`, `--help`와 pipe 출력을 smoke test한다.
-3. 배포 결과를 `docs/PROGRESS.md`와 `docs/HANDOFF.md`에 사실 기준으로 반영한다.
+1. live probe entrypoint 정리 diff를 검토하고 commit/push한다.
+2. Phase 15 구현이 승인되면 [`phases/15-recursive-folder-transfer.md`](phases/15-recursive-folder-transfer.md)의
+   P15-A부터 시작하고 `PROGRESS.md` 상태를 `in_progress`로 바꾼다.
+3. 다음 npm 배포가 필요하면 version을 정한 뒤 [`operations/npm-release.md`](operations/npm-release.md)를
+   따른다. tag/publish는 별도 승인 대상이다.
 
 ## 로컬 시작 명령
 

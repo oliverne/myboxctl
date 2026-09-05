@@ -7,12 +7,11 @@
 
 - 현재 phase: `Phase 14 CLI UX & Agent Contract`
 - 상태: `complete`
-- 릴리스 상태: npm `latest`는 `v0.2.2`. root help 수정 commit `fd36b3d`와 `v0.2.3` tag를 push했고
-  npm에는 아직 게시하지 않았다. standalone 실행파일 배포는 폐기했고 npm(Node 기반) 단독 배포를
-  사용한다. `v0.1.0` draft Release/tag는 삭제했다.
+- 릴리스 상태: npm `latest`는 `v0.2.3`. standalone 실행파일 배포는 폐기했고 npm(Node 기반) 단독
+  배포를 사용한다. `v0.1.0` draft Release/tag는 삭제했다.
 - 활성 구현 phase: 없음
-- 다음 담당자: `publish-npm.yml -f tag=v0.2.3`을 실행하고 registry smoke를 확인한다. npm publish는
-  별도 승인 대상이다.
+- 다음 담당자: live probe entrypoint 정리 변경을 검토한 뒤 commit/push한다. 다음 npm 배포 version은
+  정하지 않았다. 이후 Phase 15 구현을 시작할 때 상태를 `in_progress`로 바꾼다.
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
 - Phase 14 command surface, destination semantics, human renderer와 versioned machine envelope 구현을
   완료했다. `list`, `info`, `mkdir`, `upload`, `download`, `delete`와 `ls` alias를 제공하며, 기존
@@ -34,7 +33,7 @@
 - Phase 11 후속 dependency maintenance로 Release workflow의 artifact action을 Node 24 기반
   `upload-artifact@v7`과 `download-artifact@v8`로 갱신했다. PR Release workflow의 5개 native
   smoke는 통과했으며 새 tag 기반 artifact transfer는 아직 실행하지 않았다.
-- 로컬 검증: `bun run check` 234 pass, 35 opt-in skip, 0 fail; 별도 `bun run build`와 v0.2.3 npm
+- 로컬 검증: `bun run check` 234 pass, 34 opt-in skip, 0 fail; 별도 `bun run build`와 v0.2.3 npm
   package의 no-args help/`--version`/`npm pack --dry-run` 검증 통과.
 - 실제 MYBOX live acceptance(`MYBOX_INTEGRATION=1 bun test test/integration`)를 2026-09-03에 로컬에서 실행해 8 pass, 17 opt-in skip, 0 fail, 2,284.88초(약 38분)로 통과했다. unique prefix cleanup도 검증하는 suite다. upload 통합 timeout 900s 상향과 upload 중복 resolution 제거 리팩터의 라이브 동작을 이번 실행으로 확인했다.
 - `test/integration/upload.test.ts`를 정정했다. Phase 14에서 `put`이 `upload`로 통합된 뒤
@@ -42,7 +41,7 @@
   반영하지 않은 stale 단언(기존 파일이 크기만 다를 때 `--force` 없이도 충돌이 아닌 덮어쓰기)을
   병합된 의미에 맞췄다. 권위 있는 acceptance는 `test/integration/put.test.ts`다. 특수문자 파일명
   검색 동작은 `docs/reference/mybox-api.md`의 API-12로 미확정 이슈로 기록했다.
-- 마지막 갱신: 2026-09-04
+- 마지막 갱신: 2026-09-05
 
 ## Phase 상태
 
@@ -63,6 +62,7 @@
 | 12 Cross-platform Unicode names   | complete | CI 90·Release 21, Phase 12 live probe run 33244082095 성공                      | [`phases/12-cross-platform-unicode-filenames.md`](phases/12-cross-platform-unicode-filenames.md) |
 | 13 Observability & test latency   | complete | 212 pass, targeted probe 1 pass, live acceptance 8 pass                         | [`phases/13-observability-and-test-latency.md`](phases/13-observability-and-test-latency.md)     |
 | 14 CLI UX & Agent Contract        | complete | canonical surface, destination/output contract, docs와 release smoke 검증 완료  | [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)               |
+| 15 Recursive folder transfer      | pending  | 계획 리뷰·안전 계약 보완 완료, 구현과 실제 MYBOX 검증 미착수                    | [`phases/15-recursive-folder-transfer.md`](phases/15-recursive-folder-transfer.md)               |
 
 ## 초기화 상태
 
@@ -284,7 +284,7 @@ PR #6의 GitHub Actions CI run 33229198802에서 Ubuntu 24.04/Bun 1.4 frozen ins
 Biome, build, 188 pass/31 opt-in skip/0 fail과 Git diff check가 통과했다. macOS/Ubuntu/Windows의
 download local commit regression도 모두 통과했다.
 
-Phase 10 targeted live probe code와 `phase10_probe` workflow input을 추가했다. GitHub Actions
+Phase 10 targeted live probe code와 현재 `server_semantics_probe` workflow input을 추가했다. GitHub Actions
 run 33230351165에서 전체 integration 8 pass, download probe 1 pass와 Phase 10 probe 2 pass가
 성공했다. unique integration child와 local temporary file cleanup도 성공했다.
 
@@ -359,7 +359,7 @@ Ubuntu/macOS/Windows local download regression이 성공했고, Release 17에서
 성공했다. Phase 12는 실제 MYBOX targeted probe가 남아 있어 완료 처리하지 않는다. 프로브는 NFC
 입력으로 기존 NFD resource를 찾는 단일 fallback, canonical-equivalent 중복 mutation 차단, 신규
 원격 이름의 NFC 전송, 그리고 local path 비정규화를 확인하며 `workflow_dispatch`의
-`phase12_probe=true`로 실행한다.
+`unicode_probe=true`로 실행한다.
 
 ## Phase 13 완료
 
@@ -515,7 +515,31 @@ macOS Gatekeeper가 미서명 standalone 실행파일(.tar.gz/.zip) 다운로드
   package의 no-args 실행은 stdout help/빈 stderr/exit 0이며 `--version`과 6개 파일 package dry-run도
   통과했다. 네트워크를 사용하지 않는 경로이므로 MYBOX live test는 실행하지 않았다.
 - `v0.2.2`는 이미 npm에 게시되어 변경할 수 없으므로 이 수정은 commit `fd36b3d`와 `v0.2.3` tag로
-  push했다. main CI run `33885020537`도 성공했다. npm publish는 실행하지 않았다.
+  push했다. main CI run `33885020537`도 성공했고 `v0.2.3`은 npm `latest`로 게시됐다.
+
+## 2026-09-04 live probe entrypoint 정리
+
+- Phase 번호 기반 script와 CI input을 동작 기반 `server-semantics`와 `unicode` 이름으로 바꿨다.
+  package script가 opt-in 환경변수를 설정하므로 CI step의 중복 환경변수 지정은 제거했다.
+- event가 발생하지 않아도 통과하고 전체 integration·unit regression과 중복되던 Phase 13 observability
+  live probe 파일, package script와 CI input/step을 제거했다. 기존 완료 증거는 phase와 handoff 문서에
+  유지했다.
+- `bun run check`는 234 pass, 34 opt-in skip, 0 fail이고 별도 `bun run build`도 통과했다. CI YAML은
+  Ruby YAML parser로 검증했다. 실제 MYBOX probe는 실행하지 않았다.
+- 변경은 아직 commit/push하지 않았고 다음 npm 배포 version도 정하지 않았다.
+
+## 2026-09-05 Phase 15 계획
+
+- local/remote folder tree의 one-shot recursive upload/download를 다음 기능 phase로 선택했다.
+- `--recursive` 필수, root download 거부, 기존 destination merge/recursive overwrite 제외, 양방향
+  manifest, empty folder, name collision, symlink와 부분 tree 실패 정책을
+  [`phases/15-recursive-folder-transfer.md`](phases/15-recursive-folder-transfer.md)에 정의했다.
+- 계획 리뷰를 반영해 missing parent/`--mkdir` matrix, transfer tree exclusive create, response-loss
+  uncertain 중단, manifest 이후 file/directory identity 재검증, portable filename 규칙, remote file
+  metadata 재검증과 structured partial failure 계약을 추가했다.
+- 계획 문서 수정 후 Prettier와 `git diff --check`, `bun run check` 234 pass/34 opt-in skip/0 fail 및 별도
+  `bun run build`가 통과했다.
+- 상태는 `pending`이며 구현, 실제 MYBOX mutation, commit/push는 실행하지 않았다.
 
 ## 상태 변경 규칙
 

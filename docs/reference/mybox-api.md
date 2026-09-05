@@ -195,7 +195,7 @@ sliding window 또는 endpoint별 상세 동작은 확인하지 못했다.
 - 상태: confirmed
 - 확인일: 2026-08-29
 - 환경: GitHub Actions Ubuntu 24.04, Bun 1.4.0
-- 실행: CI run 33230351165, `bun run test:phase10-probe`
+- 실행: CI run 33230351165, 현재 명령 `bun run test:server-semantics-probe`
 - prefix: `/myboxctl-integration-test/` 아래 실행별 unique child
 - 삭제 직후 기존 resource ID의 detail GET은 `200`으로 휴지통 resource를 계속 반환했다.
 - 같은 active path의 exact search와 parent direct-child listing에서는 기존 ID가 모두 사라졌다.
@@ -396,13 +396,13 @@ sliding window 또는 endpoint별 상세 동작은 확인하지 못했다.
 
 미확정 항목은 필요한 phase와 안전한 검증 방법을 기준으로 다음처럼 처리한다.
 
-| 항목                                    | 영향             | 해소 방법                                          |
-| --------------------------------------- | ---------------- | -------------------------------------------------- |
-| API-05 100MB 완료 streaming             | confirmed        | production uploader의 bounded-memory 완료 전송     |
-| API-06 non-zero checkpoint              | 비차단 자연 관찰 | 서버가 반환할 때 remaining-byte 경로 확인          |
-| API-08 alternate `modifiedTime` literal | 비차단 자연 관찰 | 동일 instant의 다른 offset 표기가 필요할 때 확인   |
-| API-10 live `Retry-After` 형식          | 릴리스 비차단    | 자연 발생 시 sanitized 형식만 기록                 |
-| API-11 423 해제 특성                    | 릴리스 비차단    | 자연 발생하거나 실제 command가 요구할 때 별도 조사 |
+| 항목                                     | 영향             | 해소 방법                                          |
+| ---------------------------------------- | ---------------- | -------------------------------------------------- |
+| API-05 100MB 완료 streaming              | confirmed        | production uploader의 bounded-memory 완료 전송     |
+| API-06 non-zero checkpoint               | 비차단 자연 관찰 | 서버가 반환할 때 remaining-byte 경로 확인          |
+| API-08 alternate `modifiedTime` literal  | 비차단 자연 관찰 | 동일 instant의 다른 offset 표기가 필요할 때 확인   |
+| API-10 live `Retry-After` 형식           | 릴리스 비차단    | 자연 발생 시 sanitized 형식만 기록                 |
+| API-11 423 해제 특성                     | 릴리스 비차단    | 자연 발생하거나 실제 command가 요구할 때 별도 조사 |
 | API-12 search `q` 특수문자(`# % +`) 동작 | 릴리스 비차단    | live probe 또는 자연 관찰로 확인                   |
 
 Phase 04는 API-05의 완료된 100MB bounded-memory 전송까지 확인해 완료됐다. API-06 non-zero

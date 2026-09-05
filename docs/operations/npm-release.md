@@ -3,8 +3,8 @@
 이 문서는 `@oliverne/myboxctl`을 npm에 배포하는 절차다. 배포 대상은 Node.js 20 이상에서
 실행되는 npm package이며 GitHub Release, standalone 실행파일, Homebrew와 Scoop은 사용하지 않는다.
 
-현재 `v0.2.2`가 게시되어 있고 root help 수정의 다음 후보는 `v0.2.3`이다. npm에 게시된 version은
-덮어쓸 수 없으므로 기존 tag를 이동하지 않는다.
+현재 npm `latest`는 `v0.2.3`이다. 아래 예시는 다음 patch version인 `0.2.4`를 사용한다. 실제 배포 때는
+게시되지 않은 version을 선택하며 기존 tag를 이동하지 않는다.
 
 ## 1. npm 계정과 scope 확인
 
@@ -71,15 +71,16 @@ bun run build
 
 하나라도 실패하면 tag를 생성하지 않는다.
 
-## 4. `v0.2.3` tag 생성
+## 4. tag 생성
 
 기존 tag는 이력으로 유지하고 이동하거나 덮어쓰지 않는다.
 
 ```bash
+release_version=0.2.4
 test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
-git tag -a v0.2.3 -m "myboxctl v0.2.3"
-git push origin v0.2.3
-git ls-remote --tags origin v0.2.3
+git tag -a "v${release_version}" -m "myboxctl v${release_version}"
+git push origin "v${release_version}"
+git ls-remote --tags origin "v${release_version}"
 ```
 
 로컬과 원격 tag가 배포 commit을 가리키는지 확인한다. 잘못된 commit에 tag를 붙였다면 publish하지 말고
@@ -88,9 +89,10 @@ git ls-remote --tags origin v0.2.3
 ## 5. npm publish workflow 실행
 
 ```bash
+release_version=0.2.4
 gh workflow run publish-npm.yml \
   --repo oliverne/myboxctl \
-  -f tag=v0.2.3
+  -f tag="v${release_version}"
 
 gh run list \
   --repo oliverne/myboxctl \
@@ -114,24 +116,25 @@ workflow는 tag checkout, 일반 검사, Node bundle 생성, package 준비, `--
 registry 전파 후 다음 결과를 확인한다.
 
 ```bash
-npm view @oliverne/myboxctl@0.2.3 version dist-tags.latest
-npx --yes @oliverne/myboxctl@0.2.3 --version
-npx --yes @oliverne/myboxctl@0.2.3
-npx --yes @oliverne/myboxctl@0.2.3 --help
-npx --yes @oliverne/myboxctl@0.2.3 --version | wc -l
+release_version=0.2.4
+npm view "@oliverne/myboxctl@${release_version}" version dist-tags.latest
+npx --yes "@oliverne/myboxctl@${release_version}" --version
+npx --yes "@oliverne/myboxctl@${release_version}"
+npx --yes "@oliverne/myboxctl@${release_version}" --help
+npx --yes "@oliverne/myboxctl@${release_version}" --version | wc -l
 ```
 
 통과 기준:
 
-- `version`과 `latest`가 모두 `0.2.3`이다.
-- `--version`이 `0.2.3`을 정확히 한 줄 출력하고 exit 0이다.
+- `version`과 `latest`가 선택한 version과 같다.
+- `--version`이 선택한 version을 정확히 한 줄 출력하고 exit 0이다.
 - 인자 없는 실행이 root help를 stdout에 출력하고 exit 0이다.
 - `--help`에 canonical command `list`, `info`, `mkdir`, `upload`, `download`, `delete`가 보인다.
 
 실사용 설치는 다음과 같다.
 
 ```bash
-npm install -g @oliverne/myboxctl@0.2.3
+npm install -g "@oliverne/myboxctl@${release_version}"
 myboxctl --version
 ```
 

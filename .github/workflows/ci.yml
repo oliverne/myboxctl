@@ -13,18 +13,13 @@ on:
         required: false
         default: false
         type: boolean
-      phase10_probe:
+      server_semantics_probe:
         description: Run the targeted delete and name-semantics hardening probe
         required: false
         default: false
         type: boolean
-      phase12_probe:
+      unicode_probe:
         description: Run the targeted cross-platform Unicode filename compatibility probe
-        required: false
-        default: false
-        type: boolean
-      phase13_probe:
-        description: Run the targeted observability and latency probe
         required: false
         default: false
         type: boolean
@@ -68,7 +63,7 @@ jobs:
 
   live-acceptance:
     name: Live MYBOX acceptance
-    if: github.event_name == 'workflow_dispatch' && (inputs.live_acceptance || inputs.download_probe || inputs.phase10_probe || inputs.phase12_probe || inputs.phase13_probe)
+    if: github.event_name == 'workflow_dispatch' && (inputs.live_acceptance || inputs.download_probe || inputs.server_semantics_probe || inputs.unicode_probe)
     needs: test
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -111,23 +106,13 @@ jobs:
           MYBOX_DOWNLOAD_PROBE: "1"
         run: bun run test:download-probe
 
-      - name: Run Phase 10 hardening probe
-        if: inputs.phase10_probe
-        env:
-          MYBOX_PHASE10_PROBE: "1"
-        run: bun run test:phase10-probe
+      - name: Run server semantics probe
+        if: inputs.server_semantics_probe
+        run: bun run test:server-semantics-probe
 
-      - name: Run Phase 12 Unicode filename probe
-        if: inputs.phase12_probe
-        env:
-          MYBOX_PHASE12_PROBE: "1"
-        run: bun run test:phase12-probe
-
-      - name: Run Phase 13 observability probe
-        if: inputs.phase13_probe
-        env:
-          MYBOX_PHASE13_PROBE: "1"
-        run: bun run test:phase13-probe
+      - name: Run Unicode filename probe
+        if: inputs.unicode_probe
+        run: bun run test:unicode-probe
 
       - name: Final diff check
         run: git diff --check
