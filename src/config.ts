@@ -1,6 +1,7 @@
 import type { Stats } from "node:fs";
 import { readFile as defaultReadFile, stat as defaultStat } from "node:fs/promises";
 import { homedir } from "node:os";
+import { join } from "node:path";
 
 export const DEFAULT_BASE_URL = "https://open-api.mybox.naver.com";
 export const DEFAULT_TIMEOUT_MS = 30_000;
@@ -66,10 +67,10 @@ export class AppConfig {
 function defaultCredentialsPath(env: ConfigEnvironment, homeDirectory: string): string {
   const xdgConfigHome = env.XDG_CONFIG_HOME;
   if (xdgConfigHome !== undefined && xdgConfigHome.length > 0) {
-    return `${xdgConfigHome}/myboxctl/credentials`;
+    return join(xdgConfigHome, "myboxctl", "credentials");
   }
 
-  return `${homeDirectory}/.config/myboxctl/credentials`;
+  return join(homeDirectory, ".config", "myboxctl", "credentials");
 }
 
 function parseTimeout(value: string | undefined): number {

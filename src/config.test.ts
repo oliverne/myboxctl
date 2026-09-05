@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import type { PathLike, Stats } from "node:fs";
+import { chmod, mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -21,6 +22,17 @@ async function temporaryDirectory(): Promise<string> {
   return directory;
 }
 
+// Windows cannot represent POSIX mode bits through chmod/stat, so the real
+// filesystem cannot faithfully exercise the Unix-only permission check. We read
+// the real file metadata and override only the mode field to keep the check
+// deterministic across platforms.
+const statWithMode =
+  (mode: number) =>
+  async (path: PathLike): Promise<Stats> => {
+    const stats = await stat(path);
+    return { ...stats, mode };
+  };
+
 describe("loadConfig", () => {
   test("uses MYBOX_PAT verbatim and applies defaults", async () => {
     const config = await loadConfig({
@@ -33,7 +45,7 @@ describe("loadConfig", () => {
     expect(config.pat).toBe("  raw-pat-value  ");
     expect(config.baseUrl).toBe("https://open-api.mybox.naver.com");
     expect(config.timeoutMs).toBe(30_000);
-    expect(config.credentialsPath).toBe("/home/tester/.config/myboxctl/credentials");
+    expect(config.credentialsPath).toBe(join("/home/tester", ".config", "myboxctl", "credentials"));
     expect(JSON.stringify(config)).not.toContain("raw-pat-value");
   });
 
@@ -48,6 +60,7 @@ describe("loadConfig", () => {
     const config = await loadConfig({
       env: { XDG_CONFIG_HOME: directory },
       platform: "linux",
+      stat: statWithMode(0o600) as unknown as typeof stat,
     });
 
     expect(config.pat).toBe("file-token");
@@ -67,15 +80,25 @@ describe("loadConfig", () => {
     const credentialsPath = join(directory, "credentials");
     await writeFile(credentialsPath, "first\nsecond\n", { mode: 0o600 });
     await chmod(credentialsPath, 0o600);
-    await expect(loadConfig({ env: {}, credentialsPath, platform: "linux" })).rejects.toMatchObject(
-      { kind: "invalid-arguments" },
-    );
+    await expect(
+      loadConfig({
+        env: {},
+        credentialsPath,
+        platform: "linux",
+        stat: statWithMode(0o600) as unknown as typeof stat,
+      }),
+    ).rejects.toMatchObject({ kind: "invalid-arguments" });
 
     await writeFile(credentialsPath, "token\n", { mode: 0o644 });
     await chmod(credentialsPath, 0o644);
-    await expect(loadConfig({ env: {}, credentialsPath, platform: "linux" })).rejects.toMatchObject(
-      { kind: "invalid-arguments" },
-    );
+    await expect(
+      loadConfig({
+        env: {},
+        credentialsPath,
+        platform: "linux",
+        stat: statWithMode(0o644) as unknown as typeof stat,
+      }),
+    ).rejects.toMatchObject({ kind: "invalid-arguments" });
   });
 
   test("validates timeout and base URL overrides", async () => {

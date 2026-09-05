@@ -124,7 +124,7 @@ describe("SharedRateLimiter", () => {
       ),
     ).toBe("/custom/rate-limit.json");
     expect(defaultRateLimitStatePath({ XDG_STATE_HOME: "/state" }, "/home/tester")).toBe(
-      "/state/myboxctl/rate-limit.json",
+      join("/state", "myboxctl", "rate-limit.json"),
     );
   });
 
