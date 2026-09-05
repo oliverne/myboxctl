@@ -117,8 +117,8 @@ jobs:
       - name: Final diff check
         run: git diff --check
 
-  local-download-contract:
-    name: Download local commit / ${{ matrix.os }}
+  local-transfer-contract:
+    name: Phase 15 local transfer contracts / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
@@ -138,10 +138,17 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Verify local commit and download transport
+      - name: Verify local transfer, diagnostics, and launcher contracts
         run: >-
           bun test
+          src/features/tree-manifest.test.ts
+          src/features/recursive-transfer.test.ts
+          src/diagnostics.test.ts
+          test/cli/diagnostics.test.ts
           src/local/download-file.test.ts
           src/features/download.test.ts
+          test/http/upload.test.ts
           test/http/download.test.ts
+          test/cli/upload.test.ts
           test/cli/download.test.ts
+          test/cli/npm-package.test.ts

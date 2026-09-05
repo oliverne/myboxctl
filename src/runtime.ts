@@ -33,7 +33,17 @@ export async function createRuntime(options: RuntimeOptions = {}): Promise<Runti
   const events = createEventPresentation(options.presentation ?? { command: "myboxctl" });
   const rateLimiter =
     options.clientDependencies?.rateLimiter ??
-    new SharedRateLimiter({ statePath: defaultRateLimitStatePath() }, { eventSink: events.sink });
+    new SharedRateLimiter(
+      { statePath: defaultRateLimitStatePath() },
+      {
+        eventSink: events.sink,
+        policy: {
+          searchRequestLimit: config.rateLimits.searchRequestsPerMinute,
+          deleteRequestLimit: config.rateLimits.deleteRequestsPerMinute,
+          otherRequestLimit: config.rateLimits.otherRequestsPerMinute,
+        },
+      },
+    );
   const client = new MyboxClient(config, {
     ...options.clientDependencies,
     rateLimiter,

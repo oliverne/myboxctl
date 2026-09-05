@@ -12,14 +12,14 @@ AI 에이전트가 MYBOX에 파일을 올리고, 확인하고, 내려받고, 필
 
 ## 명령
 
-| 명령          | 기능                                        |
-| ------------- | ------------------------------------------- |
-| `list` / `ls` | 폴더 내용 또는 단일 파일 조회           |
-| `info`        | 특정 파일·폴더 정보 조회                         |
-| `mkdir`       | 원격 폴더 생성 (`-p` 지원)                  |
-| `upload`      | 파일 업로드(현재 단일 파일만 지원) |
-| `download`    | 파일 다운로드(현재 단일 파일만 지원)          |
-| `delete`      | 원격 파일·폴더를 MYBOX 휴지통으로 이동      |
+| 명령          | 기능                                       |
+| ------------- | ------------------------------------------ |
+| `list` / `ls` | 폴더 내용 또는 단일 파일 조회              |
+| `info`        | 특정 파일·폴더 정보 조회                   |
+| `mkdir`       | 원격 폴더 생성 (`-p` 지원)                 |
+| `upload`      | 파일 또는 명시적인 재귀 폴더 tree 업로드   |
+| `download`    | 파일 또는 명시적인 재귀 폴더 tree 다운로드 |
+| `delete`      | 원격 파일·폴더를 MYBOX 휴지통으로 이동     |
 
 ## 설치
 
@@ -43,6 +43,8 @@ myboxctl info /agents/report.md
 myboxctl mkdir -p /agents/output
 myboxctl upload ./report.md /agents/output/ --mkdir
 myboxctl download /agents/output/report.md ./report.md
+myboxctl upload ./reports /agents/ --recursive --mkdir
+myboxctl download /agents/reports ./reports-copy --recursive
 myboxctl delete /agents/output/report.md
 ```
 
@@ -66,6 +68,8 @@ myboxctl download "/Team Files/big report.zip" ".\Local Files\big report.zip"
 - `upload`는 content hash가 아니라 크기와 수정 시각을 비교합니다. 같은 파일은 건너뛰고 원격 파일이
   명백하게 더 최신 파일이면 중단합니다. 의도적으로 덮어쓸 때만 `--force`를 사용하세요.
 - `download`는 `--overwrite`를 지정하지 않으면 기존 로컬 파일을 덮어 쓰지 않습니다.
+- 폴더 전송에는 `--recursive`가 필요합니다. 기존 destination tree와 병합하지 않으며 symlink와 macOS,
+  Linux, Windows에서 이식할 수 없는 이름은 거부합니다.
 - `delete`는 대상 파일을 MYBOX 휴지통으로 이동합니다. 암호 폴더, 공유 폴더는 지원하지 않습니다.
 - 원격 파일명은 NFC(윈도우, 리눅스 방식)로 저장하며, NFD(macOS 방식)와 파일명이 충돌할 경우 파일을 변경하지 않습니다.
 
@@ -78,6 +82,15 @@ AI 에이전트는 `--json` 옵션을 사용하고 exit code를 먼저 확인하
 ```bash
 myboxctl upload ./report.md /agents/output/ --mkdir --json
 ```
+
+`MYBOX_PLAN`에 `30GB`, `80GB`, `180GB`, `330GB`, `2TB`, `5TB`, `10TB`, `20TB` 중 하나를 지정하면
+요금제별 로컬 제한과 다운로드 일 한도 안내를 적용합니다. 환경변수가 없으면
+`~/.config/myboxctl/config.json`의 `{"plan":"180GB"}` 형식을 사용합니다. 저장 용량만으로 요금제를
+안전하게 판별할 수 없어 자동 감지는 하지 않습니다.
+
+지원용 로그가 필요하면 `--diagnostic-log <새-파일>`을 추가하세요. 기존 파일은 덮어쓰지 않고 JSONL
+event와 최종 결과를 기록합니다. 로컬 경로와 redaction된 stack이 포함될 수 있으므로 공유 전에 내용을
+검토하세요.
 
 | Exit | 의미                          |
 | ---: | ----------------------------- |

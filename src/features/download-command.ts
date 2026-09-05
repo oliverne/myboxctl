@@ -10,13 +10,16 @@ import {
   resolveDownloadFile,
   runDownload,
 } from "./download.ts";
+import { type RecursiveDownloadResult, runRecursiveDownload } from "./recursive-download.ts";
 
-export type DownloadCommandOptions = { overwrite?: boolean };
+export type DownloadCommandOptions = { overwrite?: boolean; recursive?: boolean };
 
-export type DownloadCommandResult = {
-  action: "downloaded";
-  data: Omit<DownloadResult["data"], "size"> & { sizeBytes: number };
-};
+export type DownloadCommandResult =
+  | {
+      action: "downloaded";
+      data: Omit<DownloadResult["data"], "size"> & { sizeBytes: number };
+    }
+  | RecursiveDownloadResult;
 
 function remoteBaseName(
   remotePath: string,
@@ -86,7 +89,28 @@ export async function runDownloadCommand(
   options: DownloadCommandOptions,
   dependencies: DownloadDependencies,
 ): Promise<DownloadCommandResult> {
-  const resolved = await resolveDownloadFile(remotePath, dependencies.resolver);
+  const parsed = parseRemotePath(remotePath);
+  if (parsed.kind === "root")
+    throw new DomainError("invalid-arguments", "The MYBOX root cannot be downloaded recursively.");
+  const initial = await dependencies.resolver.resolveCanonical(parsed);
+  if (initial.kind === "absent")
+    throw new DomainError("not-found", `The remote path was not found: ${parsed.normalized}.`);
+  if (initial.kind === "root")
+    throw new DomainError("unexpected", "The remote download resolution was invalid.");
+  if (initial.resource.type.toLowerCase() === "folder") {
+    if (!options.recursive)
+      throw new DomainError(
+        "conflict",
+        `The remote download path is a folder; use --recursive: ${parsed.normalized}.`,
+      );
+    if (options.overwrite)
+      throw new DomainError(
+        "invalid-arguments",
+        "--overwrite cannot be used for recursive folder download.",
+      );
+    return runRecursiveDownload(remotePath, localDestination, dependencies, initial);
+  }
+  const resolved = await resolveDownloadFile(remotePath, dependencies.resolver, initial);
   const target = await resolveDownloadDestination(
     remotePath,
     localDestination,

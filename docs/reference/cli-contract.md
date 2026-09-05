@@ -15,6 +15,8 @@
 - `--json --verbose`를 사용하면 최종 envelope는 stdout에 하나, 안전한 progress/warning event JSONL은
   stderr에 출력한다. `--quiet`는 실행 event만 숨긴다. `--verbose`와 `--quiet`는 함께 쓸 수 없다.
 - PAT, `Authorization` header, upload/download URL과 query token은 어느 stream에도 출력하지 않는다.
+- `--diagnostic-log <file>`은 기존 path를 덮어쓰지 않고 실행별 JSONL을 기록한다. local path와 redaction된
+  stack이 포함될 수 있으므로 공유 전에 검토한다.
 - 성공/실패의 exit code는 다음과 같다.
 
 | Code | 의미                                                |
@@ -61,6 +63,10 @@
 }
 ```
 
+mutation이 시작됐거나 응답 유실로 결과가 불확실한 폴더 전송 실패는 기존 필드에
+`error.partialTransfer`를 추가한다. `direction`, 양쪽 root path, `rootCreated`, 완료한 file/folder/byte 수,
+지원용 parent folder 수와 `mutationMayHaveOccurred`를 포함하며 완료 path 목록은 출력하지 않는다.
+
 공통 resource shape는 다음과 같다.
 
 ```ts
@@ -97,7 +103,7 @@ root folder다. missing은 성공 결과가 아니라 exit 4 failure다.
 `--parents`는 누락된 parent를 계층적으로 만들고 target이 이미 있어도 `action: "existing"`으로 성공한다.
 중간 component가 file이면 exit 5다. `/`와 `-p`는 이미 존재하는 root로 성공한다.
 
-### `upload <local-file> [remote-destination]`
+### `upload <local-path> [remote-destination] [--recursive]`
 
 기존 directory destination에는 local basename을 붙이고, destination을 생략하거나 `/`를 주면
 `/<local-basename>`을 사용한다. trailing `/`는 directory intent다. intent가 있는 missing directory는
@@ -108,12 +114,24 @@ size와 modified time을 비교하는 안전한 조건부 업로드다. 같은 m
 `--force`는 file overwrite를 강제하고 `--mkdir`는 missing parent/directory destination을 만든다.
 content hash 비교는 하지 않는다.
 
-### `download <remote-file> [local-destination]`
+local path가 directory이면 `--recursive`가 필수다. 전체 manifest와 portable name을 mutation 전에
+검증하고 빈 folder를 포함해 순차 전송한다. 기존 remote destination tree에는 병합하지 않으며 folder
+upload와 `--force`는 함께 쓸 수 없다. transfer root와 child folder는 exclusive create한다.
+
+### `download <remote-path> [local-destination] [--recursive]`
 
 destination을 생략하거나 `.`을 주면 `./<remote-basename>`을 사용한다. 기존 local directory에는
 basename을 붙이고, 그 외 path는 정확한 file destination이다. trailing separator인데 directory가 없으면
 실패하며 local parent directory는 자동 생성하지 않는다. 기존 regular file은 `--overwrite` 없이는
 exit 5다. 전송은 임시 파일에 한 뒤 metadata와 byte count를 확인하고 atomic commit한다.
+
+remote path가 folder이면 `--recursive`가 필수다. `/` 전체 download, 기존 local tree merge와
+`--overwrite` 조합은 거부한다. 전체 remote manifest를 먼저 만든 뒤 빈 folder와 file을 순차 생성하고,
+완료 후 topology와 file metadata를 다시 검증한다.
+
+재귀 전송 이름은 separator, C0/DEL, Windows 금지 문자, 끝의 ASCII space/dot, Windows 예약 basename을
+거부한다. 같은 parent 아래 NFC 후 소문자 collision도 거부한다. symlink와 non-regular local entry를
+따르지 않으며 source/destination ancestor identity가 달라지면 중단한다.
 
 ### `delete [--ignore-missing] <remote-path>`
 
@@ -126,9 +144,23 @@ file 또는 folder를 MYBOX trash로 이동한다. folder는 subtree 전체가 �
 빈 결과의 `No items in ...` 문장을 사용하고, `info`는 `Path/Type/Size/Modified` key/value를 사용한다.
 mutation과 download는 `Created`, `Uploaded`, `Updated`, `Skipped`, `Downloaded`, `Deleted`,
 `Folder moved to trash`, `Already absent` 형식의 짧은 문장을 사용한다. 오류는 stderr의 `Error:`와
-필요한 `Code:`, `Request ID:`, `Retry after:`로 한 번만 출력한다.
+필요한 `Code:`, `Request ID:`, `Retry after:`로 한 번만 출력한다. 부분 전송은 완료 count와 mutation
+불확실성을 추가로 알린다.
 
 ## Presentation option 위치
 
-`--json`, `--verbose`, `--quiet`는 root 또는 subcommand 앞/뒤 어느 위치에도 둘 수 있으며 의미가 같다.
+`--json`, `--verbose`, `--quiet`, `--diagnostic-log`는 root 또는 subcommand 앞/뒤 어느 위치에도 둘 수 있으며 의미가 같다.
 예를 들어 `myboxctl --json list /`와 `myboxctl list / --json`은 같은 machine mode다.
+
+## 요금제와 처리량
+
+`MYBOX_PLAN` → XDG 지원 `config.json`의 `plan` → 보수적 기본값 순서로 적용한다. 허용값은 `30GB`,
+`80GB`, `180GB`, `330GB`, `2TB`, `5TB`, `10TB`, `20TB`다. 미설정 기본은 검색 10회/분, 삭제
+60회/분, 기타 API별 60회/분과 다운로드 500회/일 참고값이다. 180GB 이상은 검색 30회/분, 삭제
+240회/분이며 다운로드 참고값은 요금제에 따라 1,000~50,000회/일이다. 저장 API에서 요금제를 자동
+감지하지 않는다.
+
+재귀 upload 정상 경로는 file마다 예약과 완료 detail을 한 번씩 사용하고, download는 file마다 detail
+두 번과 URL 발급 한 번을 사용한다. download manifest의 예상 file 수가 일 한도 참고값보다 많으면
+warning을 내지만 차단하거나 잔여 quota/reset 시각을 추측하지 않는다. 부분 실패 뒤에는 완료 파일을
+확인해 단일 파일로 받거나 충분한 quota가 있을 때 새 destination으로 전체 전송한다.

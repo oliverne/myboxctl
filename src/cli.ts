@@ -3,7 +3,11 @@
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { Command, CommanderError, Option } from "commander";
-
+import {
+  type DiagnosticBootstrap,
+  DiagnosticSession,
+  parseDiagnosticBootstrap,
+} from "./diagnostics.ts";
 import { DomainError } from "./errors.ts";
 import { runDelete } from "./features/delete.ts";
 import { runDownloadCommand } from "./features/download-command.ts";
@@ -15,9 +19,11 @@ import { createEventPresentation, type EventPresentationOptions } from "./human-
 import {
   type CommandAction,
   exitCodeForError,
+  failure,
   redactSecrets,
+  success,
   writeFailure,
-  writeSuccess,
+  writeJson,
 } from "./output.ts";
 import { createRuntime, type Runtime } from "./runtime.ts";
 import { VERSION } from "./version.ts";
@@ -31,12 +37,19 @@ type OutputOptions = {
   json?: boolean;
   verbose?: boolean;
   quiet?: boolean;
+  diagnosticLog?: string;
 };
 
-type UploadCommandOptions = OutputOptions & { force?: boolean; mkdir?: boolean };
+type ResultObserver = (result: ReturnType<typeof success>) => void;
+
+type UploadCommandOptions = OutputOptions & {
+  force?: boolean;
+  mkdir?: boolean;
+  recursive?: boolean;
+};
 type MkdirCommandOptions = OutputOptions & { parents?: boolean };
 type DeleteCommandOptions = OutputOptions & { ignoreMissing?: boolean };
-type DownloadCommandOptions = OutputOptions & { overwrite?: boolean };
+type DownloadCommandOptions = OutputOptions & { overwrite?: boolean; recursive?: boolean };
 
 function displayValue(value: unknown): string {
   return redactSecrets(String(value));
@@ -78,10 +91,13 @@ function writeCommandSuccess(
   command: "list" | "info" | "mkdir" | "upload" | "delete" | "download",
   result: { action: CommandAction; data: unknown },
   options: OutputOptions,
+  observer?: ResultObserver,
 ): void {
   const data = normalizeMachineData(command, result.data);
+  const envelope = success(command, result.action, data);
+  observer?.(envelope);
   if (options.json) {
-    writeSuccess(command, result.action, data);
+    writeJson(envelope);
     return;
   }
 
@@ -120,7 +136,22 @@ function writeCommandSuccess(
   }
 
   if (command === "upload") {
-    const uploadData = data as { path: string; sizeBytes: number | null };
+    const uploadData = data as {
+      type?: string;
+      path: string;
+      remotePath?: string;
+      localPath?: string;
+      sizeBytes: number | null;
+      filesUploaded?: number;
+      foldersCreated?: number;
+      bytesUploaded?: number;
+    };
+    if (uploadData.type === "folder") {
+      process.stdout.write(
+        `Uploaded ${displayValue(uploadData.localPath)} -> ${displayValue(uploadData.remotePath)} (${uploadData.filesUploaded} files, ${uploadData.foldersCreated} folders, ${formatBytes(uploadData.bytesUploaded ?? 0)})\n`,
+      );
+      return;
+    }
     const verb =
       result.action === "skipped"
         ? "Skipped"
@@ -137,10 +168,20 @@ function writeCommandSuccess(
 
   if (command === "download") {
     const downloadData = data as {
+      type?: string;
       remotePath: string;
       localPath: string;
       sizeBytes: number | null;
+      filesDownloaded?: number;
+      foldersCreated?: number;
+      bytesDownloaded?: number;
     };
+    if (downloadData.type === "folder") {
+      process.stdout.write(
+        `Downloaded ${displayValue(downloadData.remotePath)} -> ${displayValue(downloadData.localPath)} (${downloadData.filesDownloaded} files, ${downloadData.foldersCreated} folders, ${formatBytes(downloadData.bytesDownloaded ?? 0)})\n`,
+      );
+      return;
+    }
     process.stdout.write(
       `Downloaded ${displayValue(downloadData.remotePath)} -> ${displayValue(downloadData.localPath)} (${formatBytes(downloadData.sizeBytes)})\n`,
     );
@@ -160,6 +201,12 @@ function writeCommandSuccess(
 function normalizeMachineData(command: string, value: unknown): unknown {
   if (command === "upload") {
     const data = value as {
+      type?: "folder";
+      remotePath?: string;
+      localPath?: string;
+      filesUploaded?: number;
+      foldersCreated?: number;
+      bytesUploaded?: number;
       path: string;
       resourceId?: string | null;
       size?: number;
@@ -167,6 +214,7 @@ function normalizeMachineData(command: string, value: unknown): unknown {
       modifiedAt?: string | null;
       reason?: string;
     };
+    if (data.type === "folder") return data;
     return {
       path: data.path,
       resourceId: data.resourceId ?? null,
@@ -177,6 +225,10 @@ function normalizeMachineData(command: string, value: unknown): unknown {
   }
   if (command === "download") {
     const data = value as {
+      type?: "folder";
+      filesDownloaded?: number;
+      foldersCreated?: number;
+      bytesDownloaded?: number;
       remotePath: string;
       localPath: string;
       resourceId?: string | null;
@@ -184,6 +236,7 @@ function normalizeMachineData(command: string, value: unknown): unknown {
       sizeBytes?: number | null;
       modifiedAt?: string | null;
     };
+    if (data.type === "folder") return data;
     return {
       remotePath: data.remotePath,
       localPath: data.localPath,
@@ -212,7 +265,8 @@ function addPresentationOptions(command: Command): Command {
   return command
     .option("--json", "Print one machine-readable JSON envelope")
     .addOption(new Option("--verbose", "Print detailed progress events"))
-    .addOption(new Option("--quiet", "Suppress progress events"));
+    .addOption(new Option("--quiet", "Suppress progress events"))
+    .option("--diagnostic-log <file>", "Write an exclusive diagnostic JSONL log");
 }
 
 function addContractHelp(command: Command, text: string): Command {
@@ -245,8 +299,13 @@ function runtimeForCommand(
   runtimeFactory: RuntimeFactory,
   command: string,
   options: OutputOptions,
+  diagnosticSink?: import("./observability.ts").EventSink,
 ): Promise<Runtime> {
-  return runtimeFactory({ command, ...options });
+  return runtimeFactory({
+    command,
+    ...options,
+    ...(diagnosticSink === undefined ? {} : { additionalSink: diagnosticSink }),
+  });
 }
 
 function commandDependencies(runtime: Runtime) {
@@ -257,10 +316,19 @@ function commandDependencies(runtime: Runtime) {
     downloader: runtime.downloader,
     timeoutMs: runtime.config.timeoutMs,
     eventSink: runtime.events.sink,
+    downloadQuota: {
+      plan: runtime.config.plan,
+      isDefault: runtime.config.rateLimits.isDefault,
+      dailyLimit: runtime.config.rateLimits.downloadUrlsPerDay,
+    },
   };
 }
 
-export function createProgram(runtimeFactory: RuntimeFactory = defaultRuntimeFactory): Command {
+export function createProgram(
+  runtimeFactory: RuntimeFactory = defaultRuntimeFactory,
+  observer?: ResultObserver,
+  diagnosticSink?: import("./observability.ts").EventSink,
+): Command {
   const program = new Command()
     .exitOverride()
     .configureOutput({ writeErr: () => {} })
@@ -282,11 +350,16 @@ export function createProgram(runtimeFactory: RuntimeFactory = defaultRuntimeFac
         .argument("[remote-path]", "Absolute remote path", "/")
         .action(async (remotePath: string, options: OutputOptions) => {
           const effective = mergedOptions(program, options);
-          const runtime = await runtimeForCommand(runtimeFactory, "list", effective);
+          const runtime = await runtimeForCommand(
+            runtimeFactory,
+            "list",
+            effective,
+            diagnosticSink,
+          );
           try {
             const result = await runList(remotePath, runtime.resolver);
             runtime.events.finish();
-            writeCommandSuccess("list", result, effective);
+            writeCommandSuccess("list", result, effective, observer);
           } finally {
             runtime.events.finish();
           }
@@ -303,11 +376,16 @@ export function createProgram(runtimeFactory: RuntimeFactory = defaultRuntimeFac
         .argument("<remote-path>", "Absolute remote path")
         .action(async (remotePath: string, options: OutputOptions) => {
           const effective = mergedOptions(program, options);
-          const runtime = await runtimeForCommand(runtimeFactory, "info", effective);
+          const runtime = await runtimeForCommand(
+            runtimeFactory,
+            "info",
+            effective,
+            diagnosticSink,
+          );
           try {
             const result = await runInfo(remotePath, runtime.resolver);
             runtime.events.finish();
-            writeCommandSuccess("info", result, effective);
+            writeCommandSuccess("info", result, effective, observer);
           } finally {
             runtime.events.finish();
           }
@@ -325,7 +403,12 @@ export function createProgram(runtimeFactory: RuntimeFactory = defaultRuntimeFac
         .option("-p, --parents", "Create missing parent directories and succeed if existing")
         .action(async (remotePath: string, options: MkdirCommandOptions) => {
           const effective = mergedOptions(program, options);
-          const runtime = await runtimeForCommand(runtimeFactory, "mkdir", effective);
+          const runtime = await runtimeForCommand(
+            runtimeFactory,
+            "mkdir",
+            effective,
+            diagnosticSink,
+          );
           try {
             const result = await runMkdir(
               remotePath,
@@ -333,7 +416,7 @@ export function createProgram(runtimeFactory: RuntimeFactory = defaultRuntimeFac
               runtime.resolver,
             );
             runtime.events.finish();
-            writeCommandSuccess("mkdir", result, effective);
+            writeCommandSuccess("mkdir", result, effective, observer);
           } finally {
             runtime.events.finish();
           }
@@ -346,11 +429,12 @@ export function createProgram(runtimeFactory: RuntimeFactory = defaultRuntimeFac
     addContractHelp(
       program
         .command("upload")
-        .description("Upload or update a file when needed")
-        .argument("<local-file>", "Local regular file")
+        .description("Upload a file or recursive folder tree")
+        .argument("<local-path>", "Local regular file or directory")
         .argument("[remote-destination]", "Remote file or directory destination (default: /)")
         .option("--force", "Overwrite regardless of file metadata")
         .option("--mkdir", "Create a missing remote directory destination or parent")
+        .option("--recursive", "Upload a local directory recursively")
         .action(
           async (
             localPath: string,
@@ -358,7 +442,12 @@ export function createProgram(runtimeFactory: RuntimeFactory = defaultRuntimeFac
             options: UploadCommandOptions,
           ) => {
             const effective = mergedOptions(program, options);
-            const runtime = await runtimeForCommand(runtimeFactory, "upload", effective);
+            const runtime = await runtimeForCommand(
+              runtimeFactory,
+              "upload",
+              effective,
+              diagnosticSink,
+            );
             const interrupt = new AbortController();
             const onInterrupt = () => interrupt.abort();
             process.once("SIGINT", onInterrupt);
@@ -369,11 +458,12 @@ export function createProgram(runtimeFactory: RuntimeFactory = defaultRuntimeFac
                 {
                   ...(options.force === undefined ? {} : { force: options.force }),
                   ...(options.mkdir === undefined ? {} : { mkdir: options.mkdir }),
+                  ...(options.recursive === undefined ? {} : { recursive: options.recursive }),
                 },
                 { ...commandDependencies(runtime), signal: interrupt.signal },
               );
               runtime.events.finish();
-              writeCommandSuccess("upload", result, effective);
+              writeCommandSuccess("upload", result, effective, observer);
             } finally {
               process.removeListener("SIGINT", onInterrupt);
               runtime.events.finish();
@@ -388,10 +478,11 @@ export function createProgram(runtimeFactory: RuntimeFactory = defaultRuntimeFac
     addContractHelp(
       program
         .command("download")
-        .description("Download a file (default destination: current directory)")
-        .argument("<remote-file>", "Absolute remote file path")
+        .description("Download a file or recursive folder tree")
+        .argument("<remote-path>", "Absolute remote file or folder path")
         .argument("[local-destination]", "Local file or directory destination")
         .option("--overwrite", "Atomically replace an existing regular local file")
+        .option("--recursive", "Download a remote folder recursively")
         .action(
           async (
             remotePath: string,
@@ -399,7 +490,12 @@ export function createProgram(runtimeFactory: RuntimeFactory = defaultRuntimeFac
             options: DownloadCommandOptions,
           ) => {
             const effective = mergedOptions(program, options);
-            const runtime = await runtimeForCommand(runtimeFactory, "download", effective);
+            const runtime = await runtimeForCommand(
+              runtimeFactory,
+              "download",
+              effective,
+              diagnosticSink,
+            );
             const interrupt = new AbortController();
             const onInterrupt = () => interrupt.abort();
             process.once("SIGINT", onInterrupt);
@@ -407,11 +503,14 @@ export function createProgram(runtimeFactory: RuntimeFactory = defaultRuntimeFac
               const result = await runDownloadCommand(
                 remotePath,
                 localDestination,
-                options.overwrite === undefined ? {} : { overwrite: options.overwrite },
+                {
+                  ...(options.overwrite === undefined ? {} : { overwrite: options.overwrite }),
+                  ...(options.recursive === undefined ? {} : { recursive: options.recursive }),
+                },
                 { ...commandDependencies(runtime), signal: interrupt.signal },
               );
               runtime.events.finish();
-              writeCommandSuccess("download", result, effective);
+              writeCommandSuccess("download", result, effective, observer);
             } finally {
               process.removeListener("SIGINT", onInterrupt);
               runtime.events.finish();
@@ -431,7 +530,12 @@ export function createProgram(runtimeFactory: RuntimeFactory = defaultRuntimeFac
         .option("--ignore-missing", "Succeed when the remote path is already absent")
         .action(async (remotePath: string, options: DeleteCommandOptions) => {
           const effective = mergedOptions(program, options);
-          const runtime = await runtimeForCommand(runtimeFactory, "delete", effective);
+          const runtime = await runtimeForCommand(
+            runtimeFactory,
+            "delete",
+            effective,
+            diagnosticSink,
+          );
           try {
             const result = await runDelete(
               remotePath,
@@ -439,7 +543,7 @@ export function createProgram(runtimeFactory: RuntimeFactory = defaultRuntimeFac
               { client: runtime.client, resolver: runtime.resolver },
             );
             runtime.events.finish();
-            writeCommandSuccess("delete", result, effective);
+            writeCommandSuccess("delete", result, effective, observer);
           } finally {
             runtime.events.finish();
           }
@@ -452,9 +556,16 @@ export function createProgram(runtimeFactory: RuntimeFactory = defaultRuntimeFac
 }
 
 function commandFromArgv(argv: readonly string[]): string {
-  const candidate = argv.slice(2).find((arg) => !arg.startsWith("-"));
-  if (candidate === "ls") return "list";
-  return candidate ?? "myboxctl";
+  for (let index = 2; index < argv.length; index += 1) {
+    const argument = argv[index] ?? "";
+    if (argument === "--diagnostic-log") {
+      index += 1;
+      continue;
+    }
+    if (argument.startsWith("-")) continue;
+    return argument === "ls" ? "list" : argument;
+  }
+  return "myboxctl";
 }
 
 function wantsJson(argv: readonly string[]): boolean {
@@ -465,7 +576,29 @@ export async function runCli(
   argv: readonly string[] = process.argv,
   runtimeFactory: RuntimeFactory = defaultRuntimeFactory,
 ): Promise<number> {
-  const program = createProgram(runtimeFactory);
+  let bootstrap: DiagnosticBootstrap;
+  try {
+    bootstrap = parseDiagnosticBootstrap(argv);
+  } catch (error) {
+    const command = commandFromArgv(argv);
+    if (wantsJson(argv)) writeFailure(command, error);
+    else createEventPresentation({ command, json: false }).writeHumanFailure(error);
+    return exitCodeForError(error);
+  }
+  let diagnostics: DiagnosticSession | undefined;
+  try {
+    diagnostics = DiagnosticSession.open(bootstrap);
+  } catch (error) {
+    if (wantsJson(argv)) writeFailure(bootstrap.command, error);
+    else
+      createEventPresentation({ command: bootstrap.command, json: false }).writeHumanFailure(error);
+    return exitCodeForError(error);
+  }
+  const program = createProgram(
+    runtimeFactory,
+    (result) => diagnostics?.complete(0, result),
+    diagnostics?.sink,
+  );
   if (argv.length === 2) {
     program.outputHelp();
     return 0;
@@ -479,13 +612,19 @@ export async function runCli(
       return 0;
     }
 
-    const command = commandFromArgv(argv);
+    const command = bootstrap.command;
     const cliError =
       error instanceof CommanderError
         ? new DomainError("invalid-arguments", error.message.replace(/^error:\s*/, ""))
         : error;
+    const result = failure(command, cliError);
+    diagnostics?.complete(
+      exitCodeForError(cliError),
+      result,
+      cliError instanceof Error ? (cliError.cause ?? cliError) : cliError,
+    );
     if (wantsJson(argv)) {
-      writeFailure(command, cliError);
+      writeJson(result);
     } else {
       createEventPresentation({
         command,

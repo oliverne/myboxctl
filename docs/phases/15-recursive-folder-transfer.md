@@ -5,8 +5,8 @@
 
 ## 상태와 진입 조건
 
-- 상태: `pending`
-- 활성 phase: 없음
+- 상태: `in_progress`
+- 활성 phase: Phase 15
 - Phase 00~14와 npm `v0.2.3` 배포는 완료된 상태를 전제로 한다.
 - 구현 시작 시 `docs/PROGRESS.md`에서 Phase 15만 `in_progress`로 바꾼다.
 - 실제 MYBOX 검증은 기존 opt-in 정책과 `/myboxctl-integration-test/` 격리 규칙을 유지한다.

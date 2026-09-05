@@ -39,7 +39,23 @@ export type ObservabilityEventInput =
         elapsedMs: number;
       }
     >
-  | EventBase<"upload.resume", { offset: number; totalBytes: number }>;
+  | EventBase<"upload.resume", { offset: number; totalBytes: number }>
+  | EventBase<
+      "download.transfer-started" | "download.transfer-progress" | "download.transfer-completed",
+      {
+        transferredBytes: number;
+        totalBytes: number;
+        percent: number;
+        elapsedMs: number;
+        relativePath?: string;
+        filesCompleted?: number;
+        totalFiles?: number;
+      }
+    >
+  | EventBase<
+      "download.quota-advisory",
+      { plan: string | null; isDefault: boolean; expectedDownloads: number; dailyLimit: number }
+    >;
 
 export type ObservabilityEvent = ObservabilityEventInput & { command: string };
 

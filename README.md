@@ -11,14 +11,14 @@ not affiliated with NAVER.
 
 ## Commands
 
-| Command       | Purpose                                            |
-| ------------- | -------------------------------------------------- |
-| `list` / `ls` | List a folder or show one resource                 |
-| `info`        | Show file or folder metadata                       |
-| `mkdir`       | Create a remote folder; supports `-p`              |
-| `upload`      | Upload or update using size and modification time  |
-| `download`    | Download without overwriting local data by default |
-| `delete`      | Move a remote file or folder to the MYBOX trash    |
+| Command       | Purpose                                              |
+| ------------- | ---------------------------------------------------- |
+| `list` / `ls` | List a folder or show one resource                   |
+| `info`        | Show file or folder metadata                         |
+| `mkdir`       | Create a remote folder; supports `-p`                |
+| `upload`      | Upload a file or an explicit recursive folder tree   |
+| `download`    | Download a file or an explicit recursive folder tree |
+| `delete`      | Move a remote file or folder to the MYBOX trash      |
 
 ## Install
 
@@ -43,6 +43,8 @@ myboxctl info /agents/report.md
 myboxctl mkdir -p /agents/output
 myboxctl upload ./report.md /agents/output/ --mkdir
 myboxctl download /agents/output/report.md ./report.md
+myboxctl upload ./reports /agents/ --recursive --mkdir
+myboxctl download /agents/reports ./reports-copy --recursive
 myboxctl delete /agents/output/report.md
 ```
 
@@ -66,6 +68,8 @@ Important behavior:
 - `upload` compares size and modification time, not content hashes. It skips matching files and
   rejects a clearly newer remote file; use `--force` only for an intentional overwrite.
 - `download` preserves an existing local file unless `--overwrite` is explicit.
+- Folder transfer requires `--recursive`, never merges an existing destination tree, and rejects
+  symlinks and names that are not portable across macOS, Linux, and Windows.
 - `delete` moves resources to the MYBOX trash. Root, encrypted folders, and shared-with-me folders
   are unsupported.
 - New remote names use NFC. Ambiguous Unicode-equivalent names fail safely.
@@ -79,6 +83,15 @@ are redacted.
 ```bash
 myboxctl upload ./report.md /agents/output/ --mkdir --json
 ```
+
+Set `MYBOX_PLAN` to `30GB`, `80GB`, `180GB`, `330GB`, `2TB`, `5TB`, `10TB`, or `20TB` to apply the
+documented plan-specific local limits and download daily-limit advisory. A `{"plan":"180GB"}` value
+in `~/.config/myboxctl/config.json` is used when the environment variable is absent. The plan is
+declared by the user; it cannot be detected safely from storage capacity.
+
+For an opt-in support log, add `--diagnostic-log <new-file>`. The file is created exclusively and
+contains JSONL events and the final result, but it may contain local paths and a redacted stack;
+review it before sharing. Existing files are never overwritten.
 
 | Exit | Meaning                        |
 | ---: | ------------------------------ |

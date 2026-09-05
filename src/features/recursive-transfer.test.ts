@@ -1,0 +1,317 @@
+import { afterEach, describe, expect, test } from "bun:test";
+import { lstat, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { DomainError } from "../errors.ts";
+import type { MyboxClient } from "../mybox/client.ts";
+import type { MyboxDownloader } from "../mybox/download.ts";
+import type { MyboxUploader } from "../mybox/upload.ts";
+import type { RemoteResolver } from "../remote/resolver.ts";
+import { runDownloadCommand } from "./download-command.ts";
+import { runRecursiveDownload } from "./recursive-download.ts";
+import { runRecursiveUpload } from "./recursive-upload.ts";
+import { runUploadCommand } from "./upload-command.ts";
+
+const temporaryDirectories: string[] = [];
+afterEach(async () =>
+  Promise.all(
+    temporaryDirectories.splice(0).map((path) => rm(path, { recursive: true, force: true })),
+  ),
+);
+async function fixture(): Promise<string> {
+  const path = await mkdtemp(join(tmpdir(), "myboxctl-recursive-"));
+  temporaryDirectories.push(path);
+  return path;
+}
+
+describe("recursive transfer", () => {
+  test("requires --recursive before a folder transfer can mutate", async () => {
+    const localRoot = await fixture();
+    const remoteFolder = {
+      kind: "found",
+      path: {
+        kind: "child",
+        normalized: "/remote",
+        basename: "remote",
+        parentPath: "/",
+        components: ["remote"],
+      },
+      resource: { resourceId: "folder-id", name: "remote", type: "folder" },
+    } as const;
+    const resolver = {
+      resolveCanonical: async () => remoteFolder,
+    } as unknown as RemoteResolver;
+    await expect(
+      runUploadCommand(
+        localRoot,
+        "/remote",
+        {},
+        {
+          resolver,
+          client: {} as MyboxClient,
+          uploader: {} as MyboxUploader,
+          timeoutMs: 1_000,
+        },
+      ),
+    ).rejects.toMatchObject({ kind: "invalid-arguments" });
+    await expect(
+      runDownloadCommand(
+        "/remote",
+        undefined,
+        {},
+        {
+          resolver,
+          client: {} as MyboxClient,
+          downloader: {} as MyboxDownloader,
+          timeoutMs: 1_000,
+        },
+      ),
+    ).rejects.toMatchObject({ kind: "conflict" });
+  });
+
+  test("uploads an empty folder with one exclusive create", async () => {
+    const root = await fixture();
+    const calls: unknown[] = [];
+    const resolver = {
+      resolveCanonical: async () => ({ kind: "absent", resource: null }),
+      resolveForMutation: async () => ({ kind: "absent", resource: null }),
+      createFolder: async (input: unknown) => {
+        calls.push(input);
+        return { resourceId: "created-root", name: "remote" };
+      },
+    } as unknown as RemoteResolver;
+    const result = await runRecursiveUpload(
+      root,
+      "/remote",
+      { recursive: true },
+      { resolver, client: {} as MyboxClient, uploader: {} as MyboxUploader, timeoutMs: 1_000 },
+    );
+    expect(result.data).toMatchObject({
+      remotePath: "/remote",
+      resourceId: "created-root",
+      filesUploaded: 0,
+      foldersCreated: 1,
+      bytesUploaded: 0,
+    });
+    expect(calls).toEqual([{ folderName: "remote" }]);
+  });
+
+  test("downloads an empty remote folder and verifies the tree twice", async () => {
+    const parent = await fixture();
+    let listings = 0;
+    const resolver = {
+      listChildren: async () => {
+        listings += 1;
+        return [];
+      },
+    } as unknown as RemoteResolver;
+    const root = {
+      kind: "found",
+      path: {
+        kind: "child",
+        normalized: "/remote",
+        basename: "remote",
+        parentPath: "/",
+        components: ["remote"],
+      },
+      resource: { resourceId: "folder-id", name: "remote", type: "folder" },
+    } as const;
+    const result = await runRecursiveDownload(
+      "/remote",
+      join(parent, "copy"),
+      { resolver, client: {} as MyboxClient, downloader: {} as MyboxDownloader, timeoutMs: 1_000 },
+      root,
+    );
+    expect(result.data).toMatchObject({
+      filesDownloaded: 0,
+      foldersCreated: 1,
+      bytesDownloaded: 0,
+    });
+    expect((await lstat(join(parent, "copy"))).isDirectory()).toBe(true);
+    expect(listings).toBe(2);
+  });
+
+  test("uploads nested and empty folders with created parent IDs and no file path search", async () => {
+    const root = await fixture();
+    await mkdir(join(root, "nested", "empty"), { recursive: true });
+    await writeFile(join(root, "nested", "a.txt"), "abc");
+    let mutationResolutions = 0;
+    const resolver = {
+      resolveCanonical: async () => ({ kind: "absent", resource: null }),
+      resolveForMutation: async () => {
+        mutationResolutions += 1;
+        return { kind: "absent", resource: null };
+      },
+      createFolder: async (input: { folderName: string }) => ({
+        resourceId: `${input.folderName}-id`,
+        name: input.folderName,
+      }),
+    } as unknown as RemoteResolver;
+    const reservations: unknown[] = [];
+    const client = {
+      getStorage: async () => ({ maxFileBytes: 100 }),
+      createUpload: async (input: unknown) => {
+        reservations.push(input);
+        return { uploadUrl: "https://upload.test" };
+      },
+      getResource: async () => ({
+        resourceId: "file-id",
+        type: "file",
+        name: "a.txt",
+        size: 3,
+        modifiedAt: "2026-01-01T00:00:00.000Z",
+      }),
+    } as unknown as MyboxClient;
+    const uploader = {
+      uploadContent: async () => ({ resourceId: "file-id", name: "a.txt", fileSize: 3 }),
+    } as unknown as MyboxUploader;
+    const result = await runRecursiveUpload(
+      root,
+      "/remote",
+      { recursive: true },
+      { resolver, client, uploader, timeoutMs: 1_000 },
+    );
+    expect(result.data).toMatchObject({ filesUploaded: 1, foldersCreated: 3, bytesUploaded: 3 });
+    expect(reservations).toEqual([
+      expect.objectContaining({ parentId: "nested-id", fileName: "a.txt", fileSize: 3 }),
+    ]);
+    expect(mutationResolutions).toBe(3);
+  });
+
+  test("reports an uncertain root create without repeating the mutation", async () => {
+    const root = await fixture();
+    let resolutions = 0;
+    let creates = 0;
+    const resolver = {
+      resolveCanonical: async () => ({ kind: "absent", resource: null }),
+      resolveForMutation: async () => {
+        resolutions += 1;
+        if (resolutions === 1) return { kind: "absent", resource: null };
+        throw new DomainError("api-unavailable", "reconcile failed", { retryable: true });
+      },
+      createFolder: async () => {
+        creates += 1;
+        throw new DomainError("api-unavailable", "response lost", { retryable: true });
+      },
+    } as unknown as RemoteResolver;
+    const failure = runRecursiveUpload(
+      root,
+      "/remote",
+      { recursive: true },
+      { resolver, client: {} as MyboxClient, uploader: {} as MyboxUploader, timeoutMs: 1_000 },
+    );
+    await expect(failure).rejects.toMatchObject({
+      code: "FOLDER_CREATION_UNCERTAIN",
+      partialTransfer: { rootCreated: null, mutationMayHaveOccurred: true },
+    });
+    expect(creates).toBe(1);
+  });
+
+  test("downloads a nested file and empty folder with two detail reads", async () => {
+    const parent = await fixture();
+    const modifiedAt = "2026-01-01T00:00:00.000Z";
+    const resource = {
+      resourceId: "file-id",
+      parentId: "nested-id",
+      name: "a.txt",
+      type: "file",
+      size: 3,
+      createdAt: modifiedAt,
+      modifiedAt,
+      accessedAt: modifiedAt,
+      isFavorite: false,
+      isHidden: false,
+      lastModifiedBy: "tester",
+    };
+    const folderResource = (resourceId: string, parentId: string, name: string) => ({
+      ...resource,
+      resourceId,
+      parentId,
+      name,
+      type: "folder",
+      size: 0,
+    });
+    let listings = 0;
+    let details = 0;
+    const resolver = {
+      listChildren: async (_path: string, folderId: string) => {
+        listings += 1;
+        if (folderId === "folder-id") {
+          return [folderResource("nested-id", "folder-id", "nested")];
+        }
+        if (folderId === "nested-id") {
+          return [folderResource("empty-id", "nested-id", "empty"), resource];
+        }
+        return [];
+      },
+      detail: async () => {
+        details += 1;
+        return resource;
+      },
+    } as unknown as RemoteResolver;
+    const client = {
+      createDownloadUrl: async () => ({ downloadUrl: "https://download.test", expiresIn: 600 }),
+      getResource: async () => {
+        details += 1;
+        return resource;
+      },
+    } as unknown as MyboxClient;
+    const downloader = {
+      downloadContent: async (input: {
+        fileHandle: { writeFile(value: string): Promise<void> };
+        onProgress?: (value: number) => void;
+      }) => {
+        await input.fileHandle.writeFile("abc");
+        input.onProgress?.(3);
+        return 3;
+      },
+    } as unknown as MyboxDownloader;
+    const events: Array<{ event: string; data: { transferredBytes?: number } }> = [];
+    const root = {
+      kind: "found",
+      path: {
+        kind: "child",
+        normalized: "/remote",
+        basename: "remote",
+        parentPath: "/",
+        components: ["remote"],
+      },
+      resource: { resourceId: "folder-id", name: "remote", type: "folder" },
+    } as const;
+    const result = await runRecursiveDownload(
+      "/remote",
+      join(parent, "copy"),
+      {
+        resolver,
+        client,
+        downloader,
+        timeoutMs: 1_000,
+        eventSink: {
+          emit: (event) =>
+            events.push({
+              event: event.event,
+              data: event.data as { transferredBytes?: number },
+            }),
+        },
+      },
+      root,
+    );
+    expect(await readFile(join(parent, "copy", "nested", "a.txt"), "utf8")).toBe("abc");
+    expect((await lstat(join(parent, "copy", "nested", "empty"))).isDirectory()).toBe(true);
+    expect(result.data).toMatchObject({
+      filesDownloaded: 1,
+      foldersCreated: 3,
+      bytesDownloaded: 3,
+    });
+    expect({ listings, details }).toEqual({ listings: 6, details: 2 });
+    expect(
+      events
+        .filter((event) => event.event.startsWith("download.transfer-"))
+        .map((event) => [event.event, event.data.transferredBytes]),
+    ).toEqual([
+      ["download.transfer-started", 0],
+      ["download.transfer-progress", 3],
+      ["download.transfer-completed", 3],
+    ]);
+  });
+});

@@ -47,6 +47,19 @@ export type DomainErrorOptions = {
   status?: number;
   retryAfterMs?: number;
   cause?: unknown;
+  partialTransfer?: PartialTransfer;
+};
+
+export type PartialTransfer = {
+  direction: "upload" | "download";
+  remoteRootPath: string;
+  localRootPath: string;
+  rootCreated: boolean | null;
+  filesCompleted: number;
+  foldersCompleted: number;
+  supportingFoldersCreated: number;
+  bytesCompleted: number;
+  mutationMayHaveOccurred: boolean;
 };
 
 export class DomainError extends Error {
@@ -56,6 +69,7 @@ export class DomainError extends Error {
   readonly requestId?: string;
   readonly status?: number;
   readonly retryAfterMs?: number;
+  readonly partialTransfer?: PartialTransfer;
 
   constructor(kind: ErrorKind, message: string, options: DomainErrorOptions = {}) {
     super(redactSensitiveText(message), { cause: options.cause });
@@ -74,6 +88,9 @@ export class DomainError extends Error {
     if (options.retryAfterMs !== undefined) {
       this.retryAfterMs = options.retryAfterMs;
     }
+    if (options.partialTransfer !== undefined) {
+      this.partialTransfer = options.partialTransfer;
+    }
   }
 
   toJSON(): {
@@ -83,6 +100,7 @@ export class DomainError extends Error {
     code?: string;
     requestId?: string;
     retryAfterMs?: number;
+    partialTransfer?: PartialTransfer;
   } {
     const result: {
       kind: ErrorKind;
@@ -91,6 +109,7 @@ export class DomainError extends Error {
       code?: string;
       requestId?: string;
       retryAfterMs?: number;
+      partialTransfer?: PartialTransfer;
     } = {
       kind: this.kind,
       message: this.message,
@@ -104,6 +123,9 @@ export class DomainError extends Error {
     }
     if (this.retryAfterMs !== undefined) {
       result.retryAfterMs = this.retryAfterMs;
+    }
+    if (this.partialTransfer !== undefined) {
+      result.partialTransfer = this.partialTransfer;
     }
     return result;
   }

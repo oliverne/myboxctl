@@ -1,3 +1,5 @@
+import type { Stats } from "node:fs";
+import { lstat } from "node:fs/promises";
 import { basename } from "node:path";
 
 import { DomainError } from "../errors.ts";
@@ -5,17 +7,21 @@ import { parseRemoteDestination } from "../remote/destination.ts";
 import { canonicalRemotePath } from "../remote/path.ts";
 import { runEnsureDir } from "./ensure-dir.ts";
 import { type PutResult, runPut } from "./put/command.ts";
+import { type RecursiveUploadResult, runRecursiveUpload } from "./recursive-upload.ts";
 import type { UploadDependencies } from "./upload.ts";
 
 export type UploadCommandOptions = {
   force?: boolean;
   mkdir?: boolean;
+  recursive?: boolean;
 };
 
-export type UploadCommandResult = {
-  action: PutResult["action"];
-  data: Omit<PutResult["data"], "size"> & { sizeBytes: number };
-};
+export type UploadCommandResult =
+  | {
+      action: PutResult["action"];
+      data: Omit<PutResult["data"], "size"> & { sizeBytes: number };
+    }
+  | RecursiveUploadResult;
 
 function localBaseName(localPath: string): string {
   const value = basename(localPath);
@@ -82,6 +88,21 @@ export async function runUploadCommand(
   options: UploadCommandOptions,
   dependencies: UploadDependencies,
 ): Promise<UploadCommandResult> {
+  let stats: Stats;
+  try {
+    stats = await lstat(localPath);
+  } catch (error) {
+    throw new DomainError(
+      "local-file",
+      `The local upload path could not be inspected: ${localPath}.`,
+      { cause: error },
+    );
+  }
+  if (stats.isDirectory() && !stats.isSymbolicLink()) {
+    if (!options.recursive)
+      throw new DomainError("invalid-arguments", "A directory upload requires --recursive.");
+    return runRecursiveUpload(localPath, remoteDestination, options, dependencies);
+  }
   const target = await resolveUploadDestination(
     localPath,
     remoteDestination,

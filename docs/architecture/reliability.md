@@ -36,7 +36,9 @@ network/5xx의 기본 최대 attempt는 최초 요청을 포함해 4회다. dela
 
 ### 검색 API budget
 
-검색은 가장 낮은 요금제의 공식 한도인 10회/분을 안전한 기본값으로 사용한다. 각 CLI process의
+검색은 가장 낮은 요금제의 공식 한도인 10회/분을 안전한 기본값으로 사용한다. `MYBOX_PLAN`, XDG
+`config.json`의 `plan`, 기본값 순으로 사용자가 선언한 요금제를 적용하며 180GB 이상은 검색 30회/분과
+삭제 240회/분을 사용한다. 요금제가 바뀌어도 기존 요청 이력과 `blockedUntil`은 유지한다. 각 CLI process의
 메모리만으로는 여러 로컬 AI 에이전트를 조정할 수 없으므로 최근 검색 요청 시각과 429
 `blockedUntil`을 local state 파일에 저장한다. sliding window slot 예약과 상태 갱신은 atomic
 directory lock 아래에서 수행한다.
@@ -47,8 +49,8 @@ directory lock 아래에서 수행한다.
 - bucket key: MYBOX API origin과 `search`
 - 저장 금지: PAT, Authorization, URL query, request/response body
 
-현재 구현은 `/v1/search/` GET의 10회/분 bucket과
-`DELETE /v1/drive/resources/{resourceId}`의 60회/분 bucket을 origin별로 분리해 선제 조정한다. upload
+현재 구현은 `/v1/search/` GET의 10회 또는 30회/분 bucket과
+`DELETE /v1/drive/resources/{resourceId}`의 60회 또는 240회/분 bucket을 origin별로 분리해 선제 조정한다. upload
 reservation과 signed storage transfer는 검색/delete bucket에 섞지 않고 operation-specific
 resume/reconcile 정책을 사용한다. download는 요금제별 일일 한도를 서버 응답으로 따르며 reset 기준이나
 공유 단위를 추측한 local daily bucket을 만들지 않는다.
@@ -114,6 +116,16 @@ download는 destination과 같은 directory에 exclusive temporary file을 만�
 atomic rename을 사용한다. destination이 동시에 생기거나 바뀌면 기존 파일을 보존하고 conflict로
 실패한다. remote byte count와 전송 전후 metadata가 일치한 경우에만 temp file을 공개한다.
 
+재귀 upload는 mutation 전에 `lstat` manifest와 source root `realpath`를 고정하고, 각 file 직전에 tree와
+열린 handle의 `fstat` identity를 다시 확인한다. 재귀 download는 destination parent와 exclusive create한
+directory chain의 identity를 mkdir/temp/commit 전에 다시 확인한다. 양방향 모두 symlink를 따라가지 않고
+중간 실패에서 완료 tree를 자동 삭제하지 않는다.
+
+transfer root와 child folder 생성은 일반 `mkdir -p` reconcile과 분리한다. 직접 성공한 POST만 이번 실행의
+소유로 확정한다. 409는 conflict이며 response-loss 뒤에는 exact path를 조회하되 발견 여부와 관계없이
+소유권이 불확실하므로 POST를 반복하거나 하위 mutation을 시작하지 않는다. 시작된 전송의 실패는
+`error.partialTransfer`에 확정 count와 mutation 불확실성을 남긴다.
+
 ## 원격 race
 
 - resolve 후 upload 전에 대상이 생기면 409를 최신 원격 상태와 함께 conflict로 변환한다.
@@ -129,5 +141,9 @@ atomic rename을 사용한다. destination이 동시에 생기거나 바뀌면 �
 - upload/download URL 전체
 - query string에 포함된 token
 - credential 파일 내용
+
+`--diagnostic-log`도 같은 redaction을 적용한다. 다만 사용자가 명시한 support artifact이므로 local path와
+redaction된 stack은 포함할 수 있다. 기존 path를 덮어쓰지 않으며 기록 실패는 진행 중 mutation을
+중단하거나 재시도하지 않는다.
 
 오류 context에는 HTTP status, MYBOX code, request ID, retryable 여부만 허용한다.

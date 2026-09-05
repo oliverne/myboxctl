@@ -1,5 +1,5 @@
 import type { Stats } from "node:fs";
-import { type FileHandle, open } from "node:fs/promises";
+import { type FileHandle, lstat, open } from "node:fs/promises";
 
 import { apiResponseError, DomainError, normalizeError } from "../errors.ts";
 import type { CreateUploadInput, MyboxClient } from "../mybox/client.ts";
@@ -35,6 +35,11 @@ export type UploadData = {
 export type UploadResult = {
   action: "uploaded" | "overwritten";
   data: UploadData;
+};
+
+export type UploadExecutionHints = {
+  parentId?: string;
+  expectedFile?: { dev: number; ino: number; size: number; mtimeMs: number };
 };
 
 function localFileError(message: string, cause?: unknown): DomainError {
@@ -173,7 +178,24 @@ function assertContentResponse(
 }
 
 function stableFile(before: Stats, after: Stats): boolean {
-  return before.size === after.size && before.mtimeMs === after.mtimeMs;
+  return (
+    before.dev === after.dev &&
+    before.ino === after.ino &&
+    before.size === after.size &&
+    before.mtimeMs === after.mtimeMs
+  );
+}
+
+function matchesExpectedFile(
+  stats: Stats,
+  expected: NonNullable<UploadExecutionHints["expectedFile"]>,
+): boolean {
+  return (
+    stats.dev === expected.dev &&
+    stats.ino === expected.ino &&
+    stats.size === expected.size &&
+    stats.mtimeMs === expected.mtimeMs
+  );
 }
 
 function targetWithName(target: ChildRemotePath, name: string): ChildRemotePath {
@@ -191,6 +213,7 @@ export async function runUpload(
   options: UploadOptions,
   dependencies: UploadDependencies,
   targetResolution?: PathResolution,
+  hints: UploadExecutionHints = {},
 ): Promise<UploadResult> {
   const eventSink = dependencies.eventSink ?? noOpEventSink;
   const now = dependencies.now ?? (() => Date.now());
@@ -224,10 +247,36 @@ export async function runUpload(
     );
   }
 
+  if (hints.expectedFile !== undefined) {
+    const pathStats = await lstat(localPath).catch((error) => {
+      throw new DomainError(
+        "local-file-changed",
+        "The local upload file changed after the tree manifest was built.",
+        { cause: error },
+      );
+    });
+    if (
+      pathStats.isSymbolicLink() ||
+      !pathStats.isFile() ||
+      !matchesExpectedFile(pathStats, hints.expectedFile)
+    ) {
+      throw new DomainError(
+        "local-file-changed",
+        "The local upload file changed after the tree manifest was built.",
+      );
+    }
+  }
   const local = await openLocalFile(localPath);
   try {
+    if (hints.expectedFile !== undefined && !matchesExpectedFile(local.stats, hints.expectedFile)) {
+      throw new DomainError(
+        "local-file-changed",
+        "The local upload file changed after the tree manifest was built.",
+      );
+    }
     await assertWithinStorageLimit(local.stats.size, dependencies.client);
-    const parentId = await resolveParentId(target, options, dependencies.resolver);
+    const parentId =
+      hints.parentId ?? (await resolveParentId(target, options, dependencies.resolver));
     const existing = targetResolution ?? (await dependencies.resolver.resolveForMutation(target));
     if (existing.kind === "root") {
       throw new DomainError("unexpected", "The upload target resolution was invalid.");

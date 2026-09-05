@@ -2,8 +2,8 @@
 
 ## 인수 목적
 
-Phase 00~14의 구현과 로컬 검증을 완료했다. 첫 공개 Release 전에 CLI command surface와 출력 계약을
-정리하는 Phase 14를 반영했으며 상태는 `complete`이다. 인자 없는 실행의 root help 수정은 commit
+Phase 00~14의 구현과 로컬 검증을 완료했고 Phase 15 recursive folder transfer의 로컬 구현과 일반 검사를
+완료했다. 교차 운영체제와 실제 MYBOX 검증이 남아 상태는 `in_progress`이다. 인자 없는 실행의 root help 수정은 commit
 `fd36b3d`와 `v0.2.3` tag로 push했고 npm `latest`로 게시했다. 실행 절차는
 [`operations/npm-release.md`](operations/npm-release.md)에 있다.
 
@@ -11,12 +11,13 @@ Phase 00~14의 구현과 로컬 검증을 완료했다. 첫 공개 Release 전�
 
 - Phase 00~13: `complete`
 - Phase 14: `complete`
-- 활성 구현 phase: 없음
+- Phase 15: `in_progress`
+- 활성 구현 phase: Phase 15
 - 작업 브랜치: 없음 (PR #11은 `main`으로 merge 완료)
 - PR: [#11 feat: add Phase 13 observability and progress events](https://github.com/oliverne/myboxctl/pull/11) — 2026-08-31 merge됨
 - integration stderr 계약 수정 commit: `710cde214f93d7758b7cabe226b6d0d769c28bd4`
-- 로컬 검증: `bun run check` 234 pass, 34 opt-in skip, 0 fail; 별도 `bun run build`와 v0.2.3 npm
-  package의 no-args help/`--version`/`npm pack --dry-run` 검증 통과(6개 파일)
+- 로컬 검증: Phase 15 구현 기준 `bun run check` 248 pass, 37 opt-in skip, 0 fail. 별도
+  `bun run build` 결과는 아래 Phase 15 기록에 남긴다.
 - Phase 14 계획: [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)
 - Phase 14 구현·검증: P14-A~E 완료
 - 2026-09-01 최근 소스 리뷰: [`reviews/2026-09-01-phase14-source-review.md`](reviews/2026-09-01-phase14-source-review.md)
@@ -209,6 +210,34 @@ macOS Gatekeeper 차단 문제와 미사용 판단으로 standalone 실행파일
 - 대상 문서 Prettier 검사와 `git diff --check`가 통과했다. 코드 변경이 없어 전체 check/build는
   재실행하지 않았다.
 
+## Phase 15 로컬 구현 결과
+
+- `upload <directory> ... --recursive`와 `download <folder> ... --recursive`를 구현했다. manifest-first,
+  exclusive transfer root, no-merge, empty folder, portable name/collision, local identity와 remote topology 재검증,
+  파일별 기존 upload/download 안전 정책을 적용한다.
+- mutation 응답이 불확실하면 같은 POST를 반복하지 않는다. 이미 확인된 file/folder/byte와 root 소유권을
+  `error.partialTransfer`에 기록해 pre-mutation failure와 partial/uncertain failure를 구분한다.
+- 요금제 설정은 `MYBOX_PLAN`, `config.json`, 보수적 기본값 순이다. shared limiter의 기존 history와 cooldown은
+  유지한다. download 일 한도는 실제 잔여량이 아닌 참고값으로만 출력한다.
+- 실제 write byte 기반 download progress와 TTY/non-TTY/JSONL 표시를 추가했다. 모든 canonical command의
+  opt-in `--diagnostic-log`는 exclusive mode 0600 JSONL로 run/event/final envelope와 exit code를 기록하며
+  secret-shaped 값과 raw HTTP/argv는 제외한다.
+- `test/integration/recursive-transfer.test.ts`는 기존 opt-in gate 아래 unique child의
+  nested/empty/Unicode/0-byte 왕복과 resource ID cleanup을 검증하도록 추가했다. 이번 작업에서는 PAT 기반
+  live mutation을 실행하지 않았다.
+- 로컬 `bun run check`: 248 pass, 37 opt-in skip, 0 fail. 별도 `bun run build`: 통과. 교차 운영체제 CI와
+  실제 MYBOX round-trip은 미검증이므로 Phase 15는 `in_progress`를 유지한다.
+- 변경은 아직 commit/push하지 않았다.
+
+### 2026-09-05 3-OS local 검증 연결
+
+- `.github/workflows/ci.yml`의 Ubuntu/macOS/Windows matrix가 Phase 15 tree manifest, recursive transfer,
+  diagnostic log, upload/download local·HTTP·CLI와 npm launcher 테스트를 실행하도록 확장했다. 이 job은
+  MYBOX credential과 live mutation을 사용하지 않는다.
+- workflow YAML은 Ruby YAML parser로 확인했고, 현재 checkout에서 같은 테스트 묶음은 ephemeral fake HTTP
+  port를 허용한 실행으로 48 pass, 0 fail이었다. 실제 3-OS Actions run은 아직 없으며 commit/push도 하지
+  않았다.
+
 ## 원격 검증
 
 - PR CI run [`33388258127`](https://github.com/oliverne/myboxctl/actions/runs/33388258127): 성공
@@ -261,10 +290,11 @@ PR #11 merge는 2026-08-31에 완료했다. 추가 package publish, tag 생성, 
 
 ## 다음 실행 범위
 
-1. live probe entrypoint 정리 diff를 검토하고 commit/push한다.
-2. Phase 15 구현이 승인되면 [`phases/15-recursive-folder-transfer.md`](phases/15-recursive-folder-transfer.md)의
-   P15-A부터 시작하고 `PROGRESS.md` 상태를 `in_progress`로 바꾼다.
-3. 다음 npm 배포가 필요하면 version을 정한 뒤 [`operations/npm-release.md`](operations/npm-release.md)를
+1. Phase 15 변경을 선택적으로 검토·commit한 뒤, push 승인 시 3-OS Actions matrix를 실행한다.
+2. 별도 승인을 받아 `MYBOX_INTEGRATION=1 bun test test/integration`으로 recursive round-trip과 cleanup을
+   실행한다.
+3. 실제 결과를 반영해 Phase 15 완료 조건과 `PROGRESS.md`/`HANDOFF.md`를 갱신한다.
+4. 다음 npm 배포가 필요하면 version을 정한 뒤 [`operations/npm-release.md`](operations/npm-release.md)를
    따른다. tag/publish는 별도 승인 대상이다.
 
 ## 로컬 시작 명령

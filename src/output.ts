@@ -3,6 +3,7 @@ import {
   type ErrorKind,
   exitCodeForKind,
   normalizeError,
+  type PartialTransfer,
   redactSensitiveText,
 } from "./errors.ts";
 
@@ -42,6 +43,7 @@ export type FailureError = {
   code: string | null;
   requestId: string | null;
   retryAfterMs: number | null;
+  partialTransfer?: PartialTransfer;
 };
 
 export type FailureEnvelope = {
@@ -123,6 +125,9 @@ export function failure(command: string, error: unknown): FailureEnvelope {
       code: serialized.code ?? null,
       requestId: serialized.requestId ?? null,
       retryAfterMs: serialized.retryAfterMs ?? null,
+      ...(serialized.partialTransfer === undefined
+        ? {}
+        : { partialTransfer: serialized.partialTransfer }),
     },
   };
 }

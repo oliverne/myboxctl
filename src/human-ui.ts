@@ -20,6 +20,7 @@ export type EventPresentationOptions = {
     setInterval(callback: () => void, ms: number): unknown;
     clearInterval(handle: unknown): void;
   };
+  additionalSink?: EventSink;
 };
 
 export type EventPresentation = {
@@ -75,6 +76,24 @@ function humanEvent(event: ObservabilityEvent, columns: number, verbose: boolean
   if (event.event === "upload.stage-completed") {
     return `Upload ${event.data.stage} completed${event.data.elapsedMs === undefined ? "" : ` in ${formatDuration(event.data.elapsedMs)}`}.`;
   }
+  if (event.event === "download.quota-advisory") {
+    return `${event.level === "warning" ? "Warning: " : ""}Recursive download will request ${event.data.expectedDownloads} download URLs (daily reference limit ${event.data.dailyLimit}${event.data.isDefault ? ", conservative default" : `, plan ${event.data.plan}`}).`;
+  }
+  if (event.event.startsWith("download.transfer-")) {
+    const data = (
+      event as Extract<
+        ObservabilityEvent,
+        {
+          event:
+            | "download.transfer-started"
+            | "download.transfer-progress"
+            | "download.transfer-completed";
+        }
+      >
+    ).data;
+    const label = data.relativePath === undefined ? "Download" : `Download ${data.relativePath}`;
+    return `${label} ${Math.floor(data.percent)}% ${formatBytes(data.transferredBytes)}/${formatBytes(data.totalBytes)}`;
+  }
 
   const data = (
     event as Extract<
@@ -120,7 +139,10 @@ function shouldRender(event: ObservabilityEvent, options: EventPresentationOptio
     options.writer?.isTTY === true &&
     (event.event === "upload.transfer-started" ||
       event.event === "upload.transfer-progress" ||
-      event.event === "upload.transfer-completed")
+      event.event === "upload.transfer-completed" ||
+      event.event === "download.transfer-started" ||
+      event.event === "download.transfer-progress" ||
+      event.event === "download.transfer-completed")
   ) {
     return event.data.elapsedMs >= 500;
   }
@@ -183,6 +205,7 @@ export function createEventPresentation(options: EventPresentationOptions): Even
 
   const sink: EventSink = {
     emit(event) {
+      options.additionalSink?.emit(event);
       const contextualEvent = { ...event, command: options.command } as ObservabilityEvent;
       if (!shouldRender(contextualEvent, resolved)) {
         return;
@@ -200,11 +223,16 @@ export function createEventPresentation(options: EventPresentationOptions): Even
       }
 
       const line = humanEvent(contextualEvent, writer.columns, resolved.verbose === true);
-      const progress = contextualEvent.event.startsWith("upload.transfer-");
+      const progress =
+        contextualEvent.event.startsWith("upload.transfer-") ||
+        contextualEvent.event.startsWith("download.transfer-");
       if (writer.isTTY && progress) {
         writer.write(`\r\u001b[2K${line}`);
         activeLine = true;
-        if (contextualEvent.event === "upload.transfer-completed") {
+        if (
+          contextualEvent.event === "upload.transfer-completed" ||
+          contextualEvent.event === "download.transfer-completed"
+        ) {
           finishActiveLine();
         }
         return;
@@ -238,6 +266,12 @@ export function createEventPresentation(options: EventPresentationOptions): Even
       }
       if (serialized.retryAfterMs !== undefined) {
         writer.write(`Retry after: ${formatDuration(serialized.retryAfterMs)}\n`);
+      }
+      if (serialized.partialTransfer !== undefined) {
+        const partial = serialized.partialTransfer;
+        writer.write(
+          `Partial transfer: ${partial.filesCompleted} files, ${partial.foldersCompleted} folders, ${formatBytes(partial.bytesCompleted)} completed${partial.mutationMayHaveOccurred ? "; mutation may have occurred" : ""}.\n`,
+        );
       }
     },
   };

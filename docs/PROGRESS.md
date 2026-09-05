@@ -5,13 +5,13 @@
 
 ## 현재 상태
 
-- 현재 phase: `Phase 14 CLI UX & Agent Contract`
-- 상태: `complete`
+- 현재 phase: `Phase 15 Recursive Folder Transfer`
+- 상태: `in_progress`
 - 릴리스 상태: npm `latest`는 `v0.2.3`. standalone 실행파일 배포는 폐기했고 npm(Node 기반) 단독
   배포를 사용한다. `v0.1.0` draft Release/tag는 삭제했다.
-- 활성 구현 phase: 없음
-- 다음 담당자: live probe entrypoint 정리 변경을 검토한 뒤 commit/push한다. 다음 npm 배포 version은
-  정하지 않았다. 이후 Phase 15 구현을 시작할 때 상태를 `in_progress`로 바꾼다.
+- 활성 구현 phase: Phase 15
+- 다음 담당자: Phase 15의 Ubuntu/macOS/Windows 검증과 승인된 실제 MYBOX 재귀 왕복 acceptance를
+  실행한다. commit/push와 다음 npm 배포 version 결정은 별도 승인 범위다.
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
 - Phase 14 command surface, destination semantics, human renderer와 versioned machine envelope 구현을
   완료했다. `list`, `info`, `mkdir`, `upload`, `download`, `delete`와 `ls` alias를 제공하며, 기존
@@ -33,8 +33,8 @@
 - Phase 11 후속 dependency maintenance로 Release workflow의 artifact action을 Node 24 기반
   `upload-artifact@v7`과 `download-artifact@v8`로 갱신했다. PR Release workflow의 5개 native
   smoke는 통과했으며 새 tag 기반 artifact transfer는 아직 실행하지 않았다.
-- 로컬 검증: `bun run check` 234 pass, 34 opt-in skip, 0 fail; 별도 `bun run build`와 v0.2.3 npm
-  package의 no-args help/`--version`/`npm pack --dry-run` 검증 통과.
+- 로컬 검증: Phase 15 구현 기준 `bun run check` 248 pass, 37 opt-in skip, 0 fail. 별도
+  `bun run build` 결과는 아래 Phase 15 구현 기록에 남긴다.
 - 실제 MYBOX live acceptance(`MYBOX_INTEGRATION=1 bun test test/integration`)를 2026-09-03에 로컬에서 실행해 8 pass, 17 opt-in skip, 0 fail, 2,284.88초(약 38분)로 통과했다. unique prefix cleanup도 검증하는 suite다. upload 통합 timeout 900s 상향과 upload 중복 resolution 제거 리팩터의 라이브 동작을 이번 실행으로 확인했다.
 - `test/integration/upload.test.ts`를 정정했다. Phase 14에서 `put`이 `upload`로 통합된 뒤
   적용된 메타데이터 정책(size-different → 자동 `overwritten`, conflict는 remote-newer만)을
@@ -45,24 +45,24 @@
 
 ## Phase 상태
 
-| Phase                             | 상태     | 상태 근거                                                                       | 문서                                                                                             |
-| --------------------------------- | -------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| 00 API contract                   | complete | contract test 4회 성공, resolver/upload 결과 및 미확정 항목을 API ledger에 기록 | [`phases/00-api-contract.md`](phases/00-api-contract.md)                                         |
-| 01 Foundation                     | complete | config/error/output/client 및 fake HTTP test 통과, typecheck/lint/build 통과    | [`phases/01-foundation.md`](phases/01-foundation.md)                                             |
-| 02 Read commands                  | complete | path/resolver/stat/ls 구현, fake HTTP/subprocess 및 실제 MYBOX smoke 통과       | [`phases/02-read-commands.md`](phases/02-read-commands.md)                                       |
-| 03 Ensure directory               | complete | ensure-dir, 공유 검색 limiter, fake/subprocess/실제 MYBOX acceptance 통과       | [`phases/03-ensure-dir.md`](phases/03-ensure-dir.md)                                             |
-| 04 Upload                         | complete | 실제 소형 acceptance와 100MiB bounded-memory resume 완료 전송 통과              | [`phases/04-upload.md`](phases/04-upload.md)                                                     |
-| 05 Put                            | complete | 순수 decision, CLI/fake HTTP, 실제 metadata policy flow 및 cleanup 통과         | [`phases/05-put.md`](phases/05-put.md)                                                           |
-| 06 Delete                         | complete | file/non-empty-folder 실제 삭제, ID reconcile, limiter 및 cleanup 통과          | [`phases/06-delete.md`](phases/06-delete.md)                                                     |
-| 07 Hardening                      | complete | P07-A~D CI 및 통합 P07-E live acceptance 1회와 cleanup 확인                     | [`phases/07-hardening.md`](phases/07-hardening.md)                                               |
-| 08 Official API alignment         | complete | 공식 API correction, 일반 CI와 실제 MYBOX acceptance 통과                       | [`phases/08-official-api-alignment.md`](phases/08-official-api-alignment.md)                     |
-| 09 Download                       | complete | targeted probe, 3개 OS CI, 실제 MYBOX download acceptance와 cleanup 통과        | [`phases/09-download.md`](phases/09-download.md)                                                 |
-| 10 Cross-implementation hardening | complete | C0/DEL 방어, live delete/name probe, active-membership reconcile 및 CI 통과     | [`phases/10-cross-implementation-hardening.md`](phases/10-cross-implementation-hardening.md)     |
-| 11 Distribution & Release         | complete | v0.1.0 draft Release 최초 실행·재실행과 5개 native smoke 성공                   | [`phases/11-distribution-release.md`](phases/11-distribution-release.md)                         |
-| 12 Cross-platform Unicode names   | complete | CI 90·Release 21, Phase 12 live probe run 33244082095 성공                      | [`phases/12-cross-platform-unicode-filenames.md`](phases/12-cross-platform-unicode-filenames.md) |
-| 13 Observability & test latency   | complete | 212 pass, targeted probe 1 pass, live acceptance 8 pass                         | [`phases/13-observability-and-test-latency.md`](phases/13-observability-and-test-latency.md)     |
-| 14 CLI UX & Agent Contract        | complete | canonical surface, destination/output contract, docs와 release smoke 검증 완료  | [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)               |
-| 15 Recursive folder transfer      | pending  | 계획 리뷰·안전 계약 보완 완료, 구현과 실제 MYBOX 검증 미착수                    | [`phases/15-recursive-folder-transfer.md`](phases/15-recursive-folder-transfer.md)               |
+| Phase                             | 상태        | 상태 근거                                                                       | 문서                                                                                             |
+| --------------------------------- | ----------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 00 API contract                   | complete    | contract test 4회 성공, resolver/upload 결과 및 미확정 항목을 API ledger에 기록 | [`phases/00-api-contract.md`](phases/00-api-contract.md)                                         |
+| 01 Foundation                     | complete    | config/error/output/client 및 fake HTTP test 통과, typecheck/lint/build 통과    | [`phases/01-foundation.md`](phases/01-foundation.md)                                             |
+| 02 Read commands                  | complete    | path/resolver/stat/ls 구현, fake HTTP/subprocess 및 실제 MYBOX smoke 통과       | [`phases/02-read-commands.md`](phases/02-read-commands.md)                                       |
+| 03 Ensure directory               | complete    | ensure-dir, 공유 검색 limiter, fake/subprocess/실제 MYBOX acceptance 통과       | [`phases/03-ensure-dir.md`](phases/03-ensure-dir.md)                                             |
+| 04 Upload                         | complete    | 실제 소형 acceptance와 100MiB bounded-memory resume 완료 전송 통과              | [`phases/04-upload.md`](phases/04-upload.md)                                                     |
+| 05 Put                            | complete    | 순수 decision, CLI/fake HTTP, 실제 metadata policy flow 및 cleanup 통과         | [`phases/05-put.md`](phases/05-put.md)                                                           |
+| 06 Delete                         | complete    | file/non-empty-folder 실제 삭제, ID reconcile, limiter 및 cleanup 통과          | [`phases/06-delete.md`](phases/06-delete.md)                                                     |
+| 07 Hardening                      | complete    | P07-A~D CI 및 통합 P07-E live acceptance 1회와 cleanup 확인                     | [`phases/07-hardening.md`](phases/07-hardening.md)                                               |
+| 08 Official API alignment         | complete    | 공식 API correction, 일반 CI와 실제 MYBOX acceptance 통과                       | [`phases/08-official-api-alignment.md`](phases/08-official-api-alignment.md)                     |
+| 09 Download                       | complete    | targeted probe, 3개 OS CI, 실제 MYBOX download acceptance와 cleanup 통과        | [`phases/09-download.md`](phases/09-download.md)                                                 |
+| 10 Cross-implementation hardening | complete    | C0/DEL 방어, live delete/name probe, active-membership reconcile 및 CI 통과     | [`phases/10-cross-implementation-hardening.md`](phases/10-cross-implementation-hardening.md)     |
+| 11 Distribution & Release         | complete    | v0.1.0 draft Release 최초 실행·재실행과 5개 native smoke 성공                   | [`phases/11-distribution-release.md`](phases/11-distribution-release.md)                         |
+| 12 Cross-platform Unicode names   | complete    | CI 90·Release 21, Phase 12 live probe run 33244082095 성공                      | [`phases/12-cross-platform-unicode-filenames.md`](phases/12-cross-platform-unicode-filenames.md) |
+| 13 Observability & test latency   | complete    | 212 pass, targeted probe 1 pass, live acceptance 8 pass                         | [`phases/13-observability-and-test-latency.md`](phases/13-observability-and-test-latency.md)     |
+| 14 CLI UX & Agent Contract        | complete    | canonical surface, destination/output contract, docs와 release smoke 검증 완료  | [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)               |
+| 15 Recursive folder transfer      | in_progress | P15-A~D 로컬 구현·일반 검사 완료, 교차 OS와 live acceptance 미실행              | [`phases/15-recursive-folder-transfer.md`](phases/15-recursive-folder-transfer.md)               |
 
 ## 초기화 상태
 
@@ -581,6 +581,38 @@ macOS Gatekeeper가 미서명 standalone 실행파일(.tar.gz/.zip) 다운로드
   commit/push는 실행하지 않았다.
 - 대상 문서 Prettier 검사와 `git diff --check`가 통과했다. 코드 변경이 없어 전체 check/build는
   재실행하지 않았다.
+
+## 2026-09-05 Phase 15 로컬 구현
+
+- `upload`와 `download`에 명시적 `--recursive` folder 전송을 추가했다. 양방향 manifest를 먼저 만들고
+  nested file과 empty folder를 순차 전송하며, 기존 destination에는 merge하거나 recursive overwrite하지
+  않는다.
+- portable filename과 sibling collision, local symlink/non-regular entry, manifest 이후 file/directory 및
+  destination ancestor 교체를 fail-closed로 처리한다. remote folder create는 direct response로만 소유권을
+  확정하며 409나 response-loss에서는 mutation POST를 반복하지 않고 structured `partialTransfer`를 남긴다.
+- recursive upload는 생성된 parent ID를 전달해 파일별 path search를 제거했다. recursive download는
+  direct-child manifest를 전후 비교하고 파일별 metadata 검증, bounded-memory stream과 atomic commit을
+  재사용한다. 실제 기록 byte 기반 `download.transfer-*` event와 요금제별 일 한도 참고 안내를 추가했다.
+- `MYBOX_PLAN` → XDG/default `config.json`의 `plan` → 보수적 기본값 순서로 공식 요금제 preset을 적용한다.
+  limiter instance 교체 없이 기존 공유 history와 cooldown을 보존하며 자동 요금제 감지는 하지 않는다.
+- 모든 canonical command에 opt-in `--diagnostic-log` JSONL을 추가했다. 기존 file/symlink를 덮어쓰지 않고
+  command 시작, typed event, 최종 envelope/exit code를 기록하며 raw argv, PAT, Authorization, signed URL과
+  raw HTTP payload는 기록하지 않는다.
+- unit/subprocess/fake dependency test와 opt-in 실제 MYBOX recursive round-trip test를 추가했다. live test는
+  nested/empty/Unicode/0-byte tree를 전용 prefix의 unique child에 올리고 내려받아 byte와 구조를 확인한 뒤
+  root resource ID로 cleanup하도록 작성했다.
+- `bun run check`는 248 pass, 37 opt-in skip, 0 fail이고 별도 `bun run build`도 통과했다. 실제 MYBOX
+  acceptance와 Ubuntu/macOS/Windows 검증은 실행하지 않았다. commit/push도 실행하지 않았다.
+
+## 2026-09-05 Phase 15 3-OS local 검증 연결
+
+- `.github/workflows/ci.yml`의 Ubuntu/macOS/Windows matrix job 이름을 `Phase 15 local transfer contracts`로
+  정리하고, tree manifest, recursive transfer, diagnostic log, upload/download local·HTTP·CLI와 npm
+  launcher 회귀 테스트를 세 운영체제에서 실행하도록 확장했다. MYBOX credential과 live mutation은 이 job에
+  전달하지 않는다.
+- workflow YAML은 Ruby YAML parser로 유효성을 확인했다. 현재 checkout에서 같은 테스트 묶음은 ephemeral
+  fake HTTP port를 허용한 실행으로 48 pass, 0 fail을 기록했다. GitHub Actions의 실제 3-OS run은 아직
+  실행하지 않았고, commit/push도 실행하지 않았다.
 
 ## 상태 변경 규칙
 

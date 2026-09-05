@@ -8,6 +8,7 @@ export type DownloadContentInput = {
   fileHandle: FileHandle;
   expectedSize: number;
   signal: AbortSignal;
+  onProgress?: (receivedBytes: number) => void;
 };
 
 export type DownloaderDependencies = {
@@ -87,6 +88,7 @@ export class MyboxDownloader {
         }
         await writeAll(input.fileHandle, value, received);
         received += value.byteLength;
+        input.onProgress?.(received);
       }
     } catch (error) {
       await reader.cancel().catch(() => undefined);

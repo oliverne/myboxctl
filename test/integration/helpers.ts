@@ -44,6 +44,34 @@ const OBSERVABILITY_EVENT_DATA_KEYS: Record<string, ReadonlySet<string>> = {
     "elapsedMs",
   ]),
   "upload.resume": new Set(["offset", "totalBytes"]),
+  "download.transfer-started": new Set([
+    "transferredBytes",
+    "totalBytes",
+    "percent",
+    "elapsedMs",
+    "relativePath",
+    "filesCompleted",
+    "totalFiles",
+  ]),
+  "download.transfer-progress": new Set([
+    "transferredBytes",
+    "totalBytes",
+    "percent",
+    "elapsedMs",
+    "relativePath",
+    "filesCompleted",
+    "totalFiles",
+  ]),
+  "download.transfer-completed": new Set([
+    "transferredBytes",
+    "totalBytes",
+    "percent",
+    "elapsedMs",
+    "relativePath",
+    "filesCompleted",
+    "totalFiles",
+  ]),
+  "download.quota-advisory": new Set(["plan", "isDefault", "expectedDownloads", "dailyLimit"]),
 };
 
 const OBSERVABILITY_EVENT_KEYS = new Set(["type", "level", "event", "command", "data"]);

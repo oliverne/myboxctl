@@ -118,4 +118,43 @@ describe("loadConfig", () => {
       loadConfig({ env: { ...baseEnv, MYBOX_BASE_URL: "ftp://example.test" } }),
     ).rejects.toBeInstanceOf(ConfigError);
   });
+
+  test("loads a plan from config and lets MYBOX_PLAN take precedence", async () => {
+    const directory = await temporaryDirectory();
+    const configDirectory = join(directory, "myboxctl");
+    await mkdir(configDirectory, { recursive: true });
+    await writeFile(join(configDirectory, "config.json"), '{"plan":"80GB"}\n');
+
+    const fromFile = await loadConfig({
+      env: { MYBOX_PAT: "token", XDG_CONFIG_HOME: directory },
+    });
+    expect(fromFile.plan).toBe("80GB");
+    expect(fromFile.rateLimits).toMatchObject({
+      searchRequestsPerMinute: 10,
+      deleteRequestsPerMinute: 60,
+      downloadUrlsPerDay: 1_000,
+      isDefault: false,
+    });
+
+    const fromEnvironment = await loadConfig({
+      env: { MYBOX_PAT: "token", XDG_CONFIG_HOME: directory, MYBOX_PLAN: "20TB" },
+    });
+    expect(fromEnvironment.plan).toBe("20TB");
+    expect(fromEnvironment.rateLimits).toMatchObject({
+      searchRequestsPerMinute: 30,
+      deleteRequestsPerMinute: 240,
+      downloadUrlsPerDay: 50_000,
+    });
+  });
+
+  test("rejects invalid plan configuration", async () => {
+    await expect(
+      loadConfig({ env: { MYBOX_PAT: "token", MYBOX_PLAN: "enterprise" } }),
+    ).rejects.toBeInstanceOf(ConfigError);
+    const directory = await temporaryDirectory();
+    await writeFile(join(directory, "config.json"), '{"plan":"30GB","limit":1}\n');
+    await expect(
+      loadConfig({ env: { MYBOX_PAT: "token" }, configPath: join(directory, "config.json") }),
+    ).rejects.toBeInstanceOf(ConfigError);
+  });
 });
