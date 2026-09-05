@@ -554,6 +554,34 @@ macOS Gatekeeper가 미서명 standalone 실행파일(.tar.gz/.zip) 다운로드
   secure prompt 저장, 세션 unlock, AI agent용 무프롬프트 자동 로드와 보안 트레이드오프를 정리했다.
 - 실제 토큰 값은 문서에 기록하지 않았으며, 코드와 MYBOX live test는 변경하거나 실행하지 않았다.
 
+### API 사용 한도 검토 반영
+
+- Phase 15 계획에 `config.json`의 `plan`, `MYBOX_PLAN` 우선순위와 공식 요금제별 preset을 추가했다.
+  미설정 시 기존 보수적 한도를 사용하며 자동 요금제 감지와 임의 rate override는 제외한다.
+- 기존 upload의 부모 재검색을 제거하도록 `parentId` 전달을 명시했다. download는 기존 전송 직전
+  detail을 재사용하고 파일당 전후 detail 2회와 최종 tree 재순회를 유지한다.
+- 정상 API 호출량, 설정별 limiter와 호출 이력·cooldown 보존을 구현 작업 및 완료 조건에 추가했다.
+- 다운로드 일 한도는 실제 잔여 quota와 구분해 안내하고, 부분 실패 후 수동 처리 절차를 정의했다.
+  `429`만으로 일 한도 소진을 단정하거나 다음 날까지 자동 대기하지 않는다.
+- 이번 변경은 계획 문서에만 반영했으며 상태는 `pending`이다. 설정과 recursive transfer 구현, 실제
+  MYBOX 호출, commit/push는 실행하지 않았다.
+- 이번 문서 변경의 Prettier 검사와 `git diff --check`가 통과했다. 코드 변경이 없어 전체 check/build는
+  재실행하지 않았다. 위의 234 pass 기록은 앞선 계획 변경 시점의 결과다.
+
+### Phase 15 Windows 진단 로그 계획
+
+- Windows 테스트에서 error code만 확보되어 원인을 재현하기 어려웠던 사례를 Phase 15 입력으로
+  반영했다. 모든 canonical command에 opt-in `--diagnostic-log <file>`을 추가하는 계획이며 아직
+  구현된 option이 아니다.
+- 진단 파일은 기존 경로를 덮어쓰지 않는 독립 JSONL이다. 실행 환경, typed event, 최종 envelope/exit
+  code와 allowlist된 OS 오류 정보를 기록하고, raw argv와 HTTP payload는 기록하지 않는다.
+- PAT, Authorization, credentials와 signed URL redaction, local path/stack의 공유 전 검토, open/write
+  failure와 SIGINT 정책 및 Windows npm launcher 회귀 조건을 Phase 15 계획과 완료 조건에 명시했다.
+- 이번 변경은 계획 문서에만 반영했으며 Phase 15 상태는 `pending`이다. 구현, 실제 MYBOX 호출,
+  commit/push는 실행하지 않았다.
+- 대상 문서 Prettier 검사와 `git diff --check`가 통과했다. 코드 변경이 없어 전체 check/build는
+  재실행하지 않았다.
+
 ## 상태 변경 규칙
 
 - phase를 시작할 때만 `pending → in_progress`로 변경한다.

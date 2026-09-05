@@ -310,12 +310,17 @@ Phase 14는 새 MYBOX API나 동기화 기능을 추가하지 않는다. 구현 
 
 - folder 입력은 `--recursive`가 있을 때만 허용하고 MYBOX root `/` 전체 다운로드는 거부
 - local walk와 remote direct-child pagination으로 deterministic manifest를 만든 뒤 파일을 순차 전송
+- config 파일의 `plan`과 `MYBOX_PLAN`으로 공식 요금제별 한도를 적용하고 미설정 시 보수적인 기본값 유지
+- 이미 확인한 parent/resource ID를 재사용해 파일별 검색을 제거하고 정상 API 호출량을 회귀 검증
+- 다운로드 일 한도 안내와 부분 실패 후 수동 처리 절차 제공; 실제 잔여 quota 추정과 폴더 resume는 제외
 - empty folder 보존, portable name collision, symlink/non-regular entry와 manifest 이후 경로 교체를
   fail-closed
 - transfer tree는 exclusive create하고 409/응답 유실로 소유권이 불확실하면 기존 tree에 merge하지 않음
 - 기존 local/remote destination merge/recursive overwrite와 폴더 전체 atomic commit은 제외
 - 기존 파일별 upload resume/postcondition, download temp/atomic commit과 secret redaction 재사용
 - 부분 성공 또는 mutation 결과 불확실성을 version 1 failure envelope의 structured additive field로 제공
+- Windows를 포함한 현장 오류를 재현할 수 있도록 모든 command에 opt-in `--diagnostic-log <file>` JSONL을
+  제공하고, typed event와 최종 결과 및 제한된 OS 오류 정보를 secret redaction 뒤 기록
 - fake HTTP/CLI 회귀, 세 운영체제 local filesystem과 승인된 실제 MYBOX round-trip으로 검증
 
 Phase 15는 one-shot transfer이며 directory sync, remote watch 또는 local 삭제 전파를 추가하지 않는다.

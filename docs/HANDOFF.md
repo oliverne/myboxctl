@@ -180,6 +180,35 @@ macOS Gatekeeper 차단 문제와 미사용 판단으로 standalone 실행파일
   AI agent 자동 로드 방법을 문서화했다.
 - 문서에는 실제 secret 값을 포함하지 않았고, 코드 변경과 MYBOX live test는 실행하지 않았다.
 
+### Phase 15 API 사용 한도 검토 반영
+
+- 계획에 사용자 `plan` 설정을 추가했다. `MYBOX_PLAN` → XDG 지원 `config.json`의 `plan` → 보수적
+  기본값 순서로 적용하며, 요금제별 검색/삭제 한도와 다운로드 일 한도 참고값을 매핑한다.
+- 요금제 자동 감지, 임의 rate override와 limiter 해제는 제외한다. 요금제 변경 시 기존 공유 호출
+  이력과 cooldown을 보존한다. 설정은 아직 구현되지 않았다.
+- P15-A에서 설정/preset/limiter 검증, P15-B에서 parent ID 재사용과 파일별 search 제거, P15-C에서
+  detail `2N`·URL 발급 `N`·목록 `2P` 검증, P15-D에서 사용자 문서와 일 한도 안내를 구현한다.
+- 다운로드 일 한도는 실제 남은 횟수로 표시하지 않는다. 부분 실패 후 같은 effective destination root
+  재전송은 conflict이며, 남은 파일의 단일 다운로드 또는 새 destination으로 재전송하는 수동 절차를
+  문서화한다. 같은 CLI 인자의 재실행은 기존 directory를 container로 해석할 수 있어 이어받기가 아니다.
+- 이번 반영은 문서 변경이며 Phase 15는 `pending`이다. 구현과 실제 MYBOX 검증은 실행하지 않았다.
+- 이번 문서 변경의 Prettier 검사와 `git diff --check`가 통과했다. 전체 check/build는 재실행하지
+  않았으며 위의 234 pass 기록은 앞선 계획 변경 시점의 결과다.
+
+### 2026-09-05 Phase 15 Windows 진단 로그 계획
+
+- Windows 테스트에서 error code만 남아 원인 확인이 어려웠던 사례를 Phase 15 계획에 반영했다.
+- 모든 canonical command의 opt-in `--diagnostic-log <file>`은 기존 file/symlink를 덮어쓰지 않는 독립
+  JSONL로 계획했다. 실행 환경, typed event, 최종 envelope/exit code와 제한된 OS 오류 정보를 남긴다.
+- console/file sink 분리, presentation option과 무관한 file 기록, SIGINT flush, open/first-write/mid-write
+  failure, Node npm launcher 기반 Windows 회귀와 secret redaction 조건을 구체화했다.
+- local path와 redaction된 stack은 opt-in 로그에 포함될 수 있어 공유 전에 검토하도록 문서화한다. raw
+  argv, HTTP header/body, PAT, Authorization과 signed URL은 기록하지 않는다.
+- 이번 변경은 문서 계획이며 Phase 15는 `pending`이다. 구현, 실제 MYBOX 호출, commit/push는 실행하지
+  않았다.
+- 대상 문서 Prettier 검사와 `git diff --check`가 통과했다. 코드 변경이 없어 전체 check/build는
+  재실행하지 않았다.
+
 ## 원격 검증
 
 - PR CI run [`33388258127`](https://github.com/oliverne/myboxctl/actions/runs/33388258127): 성공
