@@ -3,7 +3,7 @@
 이 문서는 `@oliverne/myboxctl`을 npm에 배포하는 절차다. 배포 대상은 Node.js 20 이상에서
 실행되는 npm package이며 GitHub Release, standalone 실행파일, Homebrew와 Scoop은 사용하지 않는다.
 
-현재 npm `latest`는 `v0.3.0`이다. `v0.3.0` 배포는 완료됐으며, 아래 명령은 다음 미게시 version을
+현재 npm `latest`는 `v0.3.1`이다. `v0.3.1` 배포는 완료됐으며, 아래 명령은 다음 미게시 version을
 선택해 실행하는 형식 예시다. 실제 배포 때는 게시되지 않은 version을 선택하며 기존 tag를 이동하지 않는다.
 
 ## 1. npm 계정과 scope 확인
@@ -76,7 +76,7 @@ bun run build
 기존 tag는 이력으로 유지하고 이동하거나 덮어쓰지 않는다.
 
 ```bash
-release_version=0.3.1
+release_version=0.3.2
 test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
 git tag -a "v${release_version}" -m "myboxctl v${release_version}"
 git push origin "v${release_version}"
@@ -89,7 +89,7 @@ git ls-remote --tags origin "v${release_version}"
 ## 5. npm publish workflow 실행
 
 ```bash
-release_version=0.3.1
+release_version=0.3.2
 gh workflow run publish-npm.yml \
   --repo oliverne/myboxctl \
   -f tag="v${release_version}"
@@ -116,7 +116,7 @@ workflow는 tag checkout, 일반 검사, Node bundle 생성, package 준비, `--
 registry 전파 후 다음 결과를 확인한다.
 
 ```bash
-release_version=0.3.1
+release_version=0.3.2
 npm view "@oliverne/myboxctl@${release_version}" version dist-tags.latest
 npx --yes "@oliverne/myboxctl@${release_version}" --version
 npx --yes "@oliverne/myboxctl@${release_version}"

@@ -4,7 +4,7 @@
 
 Phase 00~15의 구현과 로컬 검증을 완료했고 Phase 15 recursive folder transfer의 로컬 구현, 3-OS matrix,
 전용 recursive MYBOX acceptance와 세부 failure-path 회귀를 완료했다. 상태는 `complete`이다.
-인자 없는 실행의 root help 수정은 commit `fd36b3d`와 `v0.2.3` tag로 push했고 npm `latest`로 게시했다. 실행 절차는
+인자 없는 실행의 root help 수정은 commit `fd36b3d`와 `v0.2.3` tag로 push했고 npm에 게시했다. 실행 절차는
 [`operations/npm-release.md`](operations/npm-release.md)에 있다.
 
 ## 현재 상태
@@ -13,16 +13,17 @@ Phase 00~15의 구현과 로컬 검증을 완료했고 Phase 15 recursive folder
 - Phase 14: `complete`
 - Phase 15: `complete`
 - 활성 구현 phase: 없음
-- npm latest: `v0.3.0` 게시 완료. publish workflow `33973851394`와 registry/npx smoke가 성공했다.
-- 2026-09-06 `v0.3.0` Node npm launcher upload 오류를 수정했다. Node의 ReadableStream request에
-  `duplex: "half"`를 추가했고, 실제 Node launcher upload 회귀가 통과했다. 전체 `bun run check`는
-  262 pass, 37 opt-in skip, 0 fail이며 별도 `bun run build`도 통과했다. 현재 수정은 uncommitted 상태로
-  commit/push/npm 재배포가 남아 있다.
+- npm latest: `v0.3.1` 게시 workflow `33975001755`가 성공했다. registry 설치 smoke는 사용자가 확인할
+  예정이다.
+- 2026-09-06 `v0.3.1` Node npm launcher upload 오류를 수정했다. Node의 ReadableStream request에
+  `duplex: "half"`를 추가했고, 실제 Node launcher upload 회귀가 통과했다. commit `5e0b261`과
+  `v0.3.1` tag가 원격에 반영됐으며, 전체 `bun run check`는 262 pass, 37 opt-in skip, 0 fail이고
+  별도 `bun run build`도 통과했다.
 - 작업 브랜치: 없음 (PR #11은 `main`으로 merge 완료)
 - PR: [#11 feat: add Phase 13 observability and progress events](https://github.com/oliverne/myboxctl/pull/11) — 2026-08-31 merge됨
 - integration stderr 계약 수정 commit: `710cde214f93d7758b7cabe226b6d0d769c28bd4`
-- 로컬 검증: Phase 15 구현 기준 `bun run check` 248 pass, 37 opt-in skip, 0 fail에서 세부 failure-path
-  회귀 추가 후 261 pass, 37 opt-in skip, 0 fail로 갱신됐다. 별도 `bun run build` 결과는 아래 Phase 15 기록에
+- 로컬 검증: Phase 15 구현 기준 `bun run check` 248 pass, 37 opt-in skip, 0 fail에서 세부 failure-path와
+  Node upload 회귀 추가 후 262 pass, 37 opt-in skip, 0 fail로 갱신됐다. 별도 `bun run build` 결과는 아래 Phase 15 기록에
   남긴다.
 - Phase 14 계획: [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)
 - Phase 14 구현·검증: P14-A~E 완료
@@ -287,6 +288,16 @@ macOS Gatekeeper 차단 문제와 미사용 판단으로 standalone 실행파일
   Ubuntu/macOS/Windows Phase 15 matrix가 모두 성공했다. Phase 15 완료 조건을 충족해 상태를 `complete`로
   갱신한다. npm `v0.3.0` tag/publish와 registry smoke는 완료됐다.
 
+### 2026-09-06 Node upload patch release
+
+- Node `fetch`의 ReadableStream body 요청에 `duplex: "half"`를 추가해 `v0.3.0`에서 발생한 upload
+  `RequestInit` 오류를 수정했다. 실제 Node npm launcher upload 회귀를 추가하고 전체 검사를 통과했다.
+- commit `5e0b261`을 `origin/main`에 푸시했고, `v0.3.1` annotated tag를 생성·푸시했다.
+- GitHub Actions publish workflow
+  [`33975001755`](https://github.com/oliverne/myboxctl/actions/runs/33975001755)는 check, Node bundle,
+  package verify와 npm publish를 모두 성공했다.
+- registry `npm view`와 설치 smoke는 이 세션에서 실행하지 않으며 사용자가 확인한다.
+
 ## 원격 검증
 
 - PR CI run [`33388258127`](https://github.com/oliverne/myboxctl/actions/runs/33388258127): 성공
@@ -334,16 +345,17 @@ bucket을 완화하지 않고 GET 429 한 번 retry, `Retry-After` 우선, heade
 - `v0.3.0` tag: Phase 15 완료 commit `b4172c3`를 가리키며 생성·push 및 npm 게시 완료
 - npm publish: `@oliverne/myboxctl@0.3.0` 게시 완료, npm `latest`도 `0.3.0`. Homebrew tap/Scoop
   registry: 폐기
+- `v0.3.1` tag: Node ReadableStream upload 호환성 수정 commit `5e0b261`을 가리키며 생성·push 및
+  npm publish workflow 성공
 
 PR #11 merge는 2026-08-31에 완료했다. 추가 package publish, tag 생성, credential 변경은 각각 별도
 승인 후 실행한다. 추가 MYBOX live test도 다시 사용자 의사를 확인한다.
 
 ## 다음 실행 범위
 
-1. 원격 중간 mutation failure와 Windows npm launcher diagnostic failure를 추가 검증한다.
-2. 모든 조건이 검증되면 phase 문서의 checklist와 `PROGRESS.md`/`HANDOFF.md`를 `complete`에 맞춰 갱신한다.
-3. 다음 npm 배포는 새 version 승인 후 [`operations/npm-release.md`](operations/npm-release.md)를 따른다.
-   `v0.3.0` tag/publish와 registry smoke는 완료됐다.
+1. 사용자가 `v0.3.1` registry 설치 smoke와 실제 global install 여부를 확인한다.
+2. 다음 npm 배포는 새 version 승인 후 [`operations/npm-release.md`](operations/npm-release.md)를 따른다.
+   `v0.3.1` tag와 publish workflow는 완료됐고 registry 설치 smoke는 사용자 확인 대기다.
 
 ## 로컬 시작 명령
 
