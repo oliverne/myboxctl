@@ -7,11 +7,11 @@
 
 - 현재 phase: `Phase 15 Recursive Folder Transfer`
 - 상태: `in_progress`
-- 릴리스 상태: npm `latest`는 `v0.2.3`. standalone 실행파일 배포는 폐기했고 npm(Node 기반) 단독
+- 릴리스 상태: npm `latest`는 `v0.2.3`, 다음 배포 승인 버전은 `v0.3.0`이다. standalone 실행파일 배포는 폐기했고 npm(Node 기반) 단독
   배포를 사용한다. `v0.1.0` draft Release/tag는 삭제했다.
 - 활성 구현 phase: Phase 15
-- 다음 담당자: Phase 15의 남은 원격 중간 실패와 Windows npm launcher 진단 회귀를 검증하고 phase 문서를
-  갱신한다. 다음 npm 배포 version 결정은 별도 승인 범위다.
+- 다음 담당자: 추가한 원격 중간 실패와 Windows npm launcher 진단 회귀를 3-OS CI에서 확인한 뒤 phase
+  문서를 갱신하고, 승인된 `v0.3.0` npm 배포 절차를 실행한다.
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
 - Phase 14 command surface, destination semantics, human renderer와 versioned machine envelope 구현을
   완료했다. `list`, `info`, `mkdir`, `upload`, `download`, `delete`와 `ls` alias를 제공하며, 기존
@@ -647,6 +647,19 @@ macOS Gatekeeper가 미서명 standalone 실행파일(.tar.gz/.zip) 다운로드
 - 첫 run `33972523212`에서 발견된 import 정렬과 Windows npm launcher 일시 timeout은 follow-up 후 재실행에서
   통과했다. 전체 `test/integration` suite 재실행은 하지 않았다. Phase 15는 원격 중간 mutation failure,
   Windows npm launcher diagnostic failure와 나머지 완료 조건 확인 전까지 `in_progress`로 유지한다.
+
+## 2026-09-05 남은 failure-path 검증 추가
+
+- recursive upload의 중간 하위 폴더 mutation failure와 recursive download의 두 번째 원격 파일 전송
+  failure를 fake dependency로 재현했다. 완료된 결과와 `error.partialTransfer`를 보존하고, 이후 파일
+  mutation·재시도 없이 중단하며 download temporary file을 정리하는지 확인한다.
+- 실제 Node npm launcher subprocess에서 공백·한글 diagnostic 경로의 command failure JSONL 기록과 기존
+  directory를 diagnostic target으로 지정한 생성 실패의 terminal error/exit code를 확인한다. 이 테스트는
+  Windows CI에서도 같은 경로로 실행된다.
+- 대상 회귀는 22 pass, 0 fail이다. 현재 checkout의 `bun run check`는 261 pass, 37 opt-in skip, 0 fail이며
+  별도 `bun run build`와 `git diff --check`도 통과했다.
+- 아직 커밋·푸시하지 않았으므로 Windows/macOS/Ubuntu 원격 CI 증거는 없다. Phase 15는 CI 확인과 나머지
+  완료 조건 확인 전까지 `in_progress`로 유지한다.
 
 ## 상태 변경 규칙
 

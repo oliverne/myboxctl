@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -56,6 +56,97 @@ describe("npm package", () => {
       expect(exitCode).toBe(0);
       expect(stdout).toBe("1.2.3\n");
       expect(stderr).toBe("");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  test("Node launcher records failure and preserves diagnostic create errors on Unicode paths", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "myboxctl-npm-diagnostic-"));
+    const distPath = join(directory, "cli.js");
+    const outDir = join(directory, "package");
+    const logPath = join(directory, "한글 diagnostic log.jsonl");
+    const invalidLogPath = join(directory, "기존 diagnostic directory");
+
+    try {
+      const build = Bun.spawn(
+        ["bun", "run", "scripts/build.ts", "--version", "1.2.3", "--outfile", distPath],
+        { stdout: "ignore", stderr: "pipe" },
+      );
+      const [buildStderr, buildExitCode] = await Promise.all([output(build.stderr), build.exited]);
+      expect(buildExitCode).toBe(0);
+      expect(buildStderr).toBe("");
+
+      const prepare = Bun.spawn(
+        [
+          "bun",
+          "run",
+          "scripts/prepare-npm.ts",
+          "--version",
+          "1.2.3",
+          "--dist",
+          distPath,
+          "--outdir",
+          outDir,
+        ],
+        { stdout: "ignore", stderr: "pipe" },
+      );
+      const [prepareStderr, prepareExitCode] = await Promise.all([
+        output(prepare.stderr),
+        prepare.exited,
+      ]);
+      expect(prepareExitCode).toBe(0);
+      expect(prepareStderr).toBe("");
+
+      const launcherPath = join(outDir, "bin", "myboxctl.js");
+      const commandFailure = Bun.spawn(
+        ["node", launcherPath, "unknown", "--json", "--diagnostic-log", logPath],
+        { stdout: "pipe", stderr: "pipe" },
+      );
+      const [stdout, stderr, exitCode] = await Promise.all([
+        output(commandFailure.stdout),
+        output(commandFailure.stderr),
+        commandFailure.exited,
+      ]);
+
+      expect(exitCode).toBe(2);
+      expect(stderr).toBe("");
+      expect(JSON.parse(stdout)).toMatchObject({
+        schemaVersion: 1,
+        ok: false,
+        command: "unknown",
+        error: { kind: "invalid-arguments", retryable: false },
+      });
+      const records = (await readFile(logPath, "utf8"))
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line));
+      expect(records.map((record) => record.type)).toEqual(["run-started", "run-completed"]);
+      expect(records[1]).toMatchObject({
+        type: "run-completed",
+        exitCode: 2,
+        result: { ok: false, command: "unknown" },
+      });
+
+      await mkdir(invalidLogPath);
+      const diagnosticFailure = Bun.spawn(
+        ["node", launcherPath, "unknown", "--json", "--diagnostic-log", invalidLogPath],
+        { stdout: "pipe", stderr: "pipe" },
+      );
+      const [failureStdout, failureStderr, failureExitCode] = await Promise.all([
+        output(diagnosticFailure.stdout),
+        output(diagnosticFailure.stderr),
+        diagnosticFailure.exited,
+      ]);
+
+      expect(failureExitCode).toBe(7);
+      expect(failureStderr).toBe("");
+      expect(JSON.parse(failureStdout)).toMatchObject({
+        schemaVersion: 1,
+        ok: false,
+        command: "unknown",
+        error: { kind: "local-file", retryable: false },
+      });
     } finally {
       await rm(directory, { recursive: true, force: true });
     }

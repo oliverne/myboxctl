@@ -207,6 +207,66 @@ describe("recursive transfer", () => {
     expect(creates).toBe(1);
   });
 
+  test("preserves a partial tree when an intermediate remote folder mutation fails", async () => {
+    const root = await fixture();
+    await mkdir(join(root, "nested"));
+    await writeFile(join(root, "nested", "a.txt"), "abc");
+    const createdFolders: string[] = [];
+    let uploads = 0;
+    const resolver = {
+      resolveCanonical: async () => ({ kind: "absent", resource: null }),
+      resolveForMutation: async () => ({ kind: "absent", resource: null }),
+      createFolder: async (input: { folderName: string }) => {
+        createdFolders.push(input.folderName);
+        if (input.folderName === "nested") {
+          throw new DomainError("api-unavailable", "remote folder mutation failed", {
+            code: "REMOTE_MUTATION_FAILED",
+            requestId: "request-folder-failure",
+            retryable: false,
+            status: 503,
+          });
+        }
+        return { resourceId: "remote-root-id", name: input.folderName };
+      },
+    } as unknown as RemoteResolver;
+    const client = {
+      getStorage: async () => ({ maxFileBytes: 100 }),
+      createUpload: async () => ({ uploadUrl: "https://upload.test" }),
+    } as unknown as MyboxClient;
+    const uploader = {
+      uploadContent: async () => {
+        uploads += 1;
+        return { resourceId: "file-id", name: "a.txt", fileSize: 3 };
+      },
+    } as unknown as MyboxUploader;
+
+    const failure = runRecursiveUpload(
+      root,
+      "/remote",
+      { recursive: true },
+      { resolver, client, uploader, timeoutMs: 1_000 },
+    );
+
+    await expect(failure).rejects.toMatchObject({
+      kind: "api-unavailable",
+      code: "REMOTE_MUTATION_FAILED",
+      requestId: "request-folder-failure",
+      status: 503,
+      partialTransfer: {
+        direction: "upload",
+        remoteRootPath: "/remote",
+        rootCreated: true,
+        filesCompleted: 0,
+        foldersCompleted: 1,
+        supportingFoldersCreated: 0,
+        bytesCompleted: 0,
+        mutationMayHaveOccurred: true,
+      },
+    });
+    expect(createdFolders).toEqual(["remote", "nested"]);
+    expect(uploads).toBe(0);
+  });
+
   test("downloads a nested file and empty folder with two detail reads", async () => {
     const parent = await fixture();
     const modifiedAt = "2026-01-01T00:00:00.000Z";
@@ -471,6 +531,92 @@ describe("recursive transfer", () => {
         mutationMayHaveOccurred: true,
       },
     });
+    expect(await readFile(join(parent, "copy", "a.txt"))).toEqual(Buffer.from([1]));
+    await expect(readFile(join(parent, "copy", "b.txt"))).rejects.toMatchObject({ code: "ENOENT" });
+    expect(
+      await Array.fromAsync(
+        new Bun.Glob(".*.myboxctl-*.tmp").scan({ cwd: join(parent, "copy"), onlyFiles: true }),
+      ),
+    ).toEqual([]);
+  });
+
+  test("preserves completed downloads when an intermediate remote transfer fails", async () => {
+    const parent = await fixture();
+    const modifiedAt = "2026-01-01T00:00:00.000Z";
+    const resources = ["a.txt", "b.txt"].map((name) => ({
+      resourceId: `${name}-id`,
+      parentId: "folder-id",
+      name,
+      type: "file",
+      size: 1,
+      createdAt: modifiedAt,
+      modifiedAt,
+      accessedAt: modifiedAt,
+      isFavorite: false,
+      isHidden: false,
+      lastModifiedBy: "tester",
+    }));
+    const root = {
+      kind: "found",
+      path: {
+        kind: "child",
+        normalized: "/remote",
+        basename: "remote",
+        parentPath: "/",
+        components: ["remote"],
+      },
+      resource: { resourceId: "folder-id", name: "remote", type: "folder" },
+    } as const;
+    const resolver = {
+      listChildren: async () => resources,
+      detail: async (resolution: { resource: unknown }) => resolution.resource,
+    } as unknown as RemoteResolver;
+    const client = {
+      createDownloadUrl: async () => ({ downloadUrl: "https://download.test", expiresIn: 600 }),
+      getResource: async (resourceId: string) =>
+        resources.find((item) => item.resourceId === resourceId),
+    } as unknown as MyboxClient;
+    let downloads = 0;
+    const downloader = {
+      downloadContent: async (input: {
+        fileHandle: { writeFile(value: Uint8Array): Promise<void> };
+      }) => {
+        downloads += 1;
+        if (downloads === 1) {
+          await input.fileHandle.writeFile(new Uint8Array([1]));
+          return 1;
+        }
+        throw new DomainError("api-unavailable", "remote file transfer failed", {
+          code: "REMOTE_TRANSFER_FAILED",
+          requestId: "request-file-failure",
+          retryable: false,
+          status: 503,
+        });
+      },
+    } as unknown as MyboxDownloader;
+
+    const failure = runRecursiveDownload(
+      "/remote",
+      join(parent, "copy"),
+      { resolver, client, downloader, timeoutMs: 1_000 },
+      root,
+    );
+
+    await expect(failure).rejects.toMatchObject({
+      kind: "api-unavailable",
+      code: "REMOTE_TRANSFER_FAILED",
+      requestId: "request-file-failure",
+      status: 503,
+      partialTransfer: {
+        direction: "download",
+        rootCreated: true,
+        filesCompleted: 1,
+        foldersCompleted: 1,
+        bytesCompleted: 1,
+        mutationMayHaveOccurred: true,
+      },
+    });
+    expect(downloads).toBe(2);
     expect(await readFile(join(parent, "copy", "a.txt"))).toEqual(Buffer.from([1]));
     await expect(readFile(join(parent, "copy", "b.txt"))).rejects.toMatchObject({ code: "ENOENT" });
     expect(

@@ -17,7 +17,7 @@ Phase 00~14의 구현과 로컬 검증을 완료했고 Phase 15 recursive folder
 - PR: [#11 feat: add Phase 13 observability and progress events](https://github.com/oliverne/myboxctl/pull/11) — 2026-08-31 merge됨
 - integration stderr 계약 수정 commit: `710cde214f93d7758b7cabe226b6d0d769c28bd4`
 - 로컬 검증: Phase 15 구현 기준 `bun run check` 248 pass, 37 opt-in skip, 0 fail에서 세부 failure-path
-  회귀 추가 후 258 pass, 37 opt-in skip, 0 fail로 갱신됐다. 별도 `bun run build` 결과는 아래 Phase 15 기록에
+  회귀 추가 후 261 pass, 37 opt-in skip, 0 fail로 갱신됐다. 별도 `bun run build` 결과는 아래 Phase 15 기록에
   남긴다.
 - Phase 14 계획: [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)
 - Phase 14 구현·검증: P14-A~E 완료
@@ -267,6 +267,19 @@ macOS Gatekeeper 차단 문제와 미사용 판단으로 standalone 실행파일
   diagnostic failure는 별도 검증 대상으로 남아 있다.
 - 전체 `test/integration` suite는 재실행하지 않았다.
 
+### 2026-09-05 남은 failure-path 검증 추가
+
+- recursive upload의 중간 하위 폴더 mutation failure와 recursive download의 두 번째 원격 파일 전송
+  failure를 fake dependency로 재현했다. 완료된 결과와 `error.partialTransfer`를 보존하고, 이후 파일
+  mutation·재시도 없이 중단하며 download temporary file을 정리하는지 확인한다.
+- 실제 Node npm launcher subprocess에서 공백·한글 diagnostic 경로의 command failure JSONL 기록과 기존
+  directory를 diagnostic target으로 지정한 생성 실패의 terminal error/exit code를 확인한다. 이 테스트는
+  Windows CI에서도 같은 경로로 실행된다.
+- 대상 회귀는 22 pass, 0 fail이다. 현재 checkout의 `bun run check`는 261 pass, 37 opt-in skip, 0 fail이며
+  별도 `bun run build`와 `git diff --check`도 통과했다.
+- 아직 커밋·푸시하지 않았으므로 Windows/macOS/Ubuntu 원격 CI 증거는 없다. Phase 15는 CI 확인과 나머지
+  완료 조건 확인 전까지 `in_progress`로 유지한다.
+
 ## 원격 검증
 
 - PR CI run [`33388258127`](https://github.com/oliverne/myboxctl/actions/runs/33388258127): 성공
@@ -321,8 +334,8 @@ PR #11 merge는 2026-08-31에 완료했다. 추가 package publish, tag 생성, 
 
 1. 원격 중간 mutation failure와 Windows npm launcher diagnostic failure를 추가 검증한다.
 2. 모든 조건이 검증되면 phase 문서의 checklist와 `PROGRESS.md`/`HANDOFF.md`를 `complete`에 맞춰 갱신한다.
-3. 다음 npm 배포가 필요하면 version을 정한 뒤 [`operations/npm-release.md`](operations/npm-release.md)를
-   따른다. tag/publish는 별도 승인 대상이다.
+3. 다음 npm 배포 version은 승인된 `v0.3.0`이다. Phase 15 완료 후 [`operations/npm-release.md`](operations/npm-release.md)를
+   따르며 tag/publish 실행은 별도 승인 대상이다.
 
 ## 로컬 시작 명령
 
