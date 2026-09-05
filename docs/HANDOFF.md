@@ -2,9 +2,9 @@
 
 ## 인수 목적
 
-Phase 00~14의 구현과 로컬 검증을 완료했고 Phase 15 recursive folder transfer의 로컬 구현과 일반 검사를
-완료했다. 교차 운영체제와 실제 MYBOX 검증이 남아 상태는 `in_progress`이다. 인자 없는 실행의 root help 수정은 commit
-`fd36b3d`와 `v0.2.3` tag로 push했고 npm `latest`로 게시했다. 실행 절차는
+Phase 00~14의 구현과 로컬 검증을 완료했고 Phase 15 recursive folder transfer의 로컬 구현, 3-OS matrix와
+전용 recursive MYBOX acceptance를 완료했다. 세부 failure-path 완료 조건을 확인 중이라 상태는 `in_progress`이다.
+인자 없는 실행의 root help 수정은 commit `fd36b3d`와 `v0.2.3` tag로 push했고 npm `latest`로 게시했다. 실행 절차는
 [`operations/npm-release.md`](operations/npm-release.md)에 있다.
 
 ## 현재 상태
@@ -223,11 +223,10 @@ macOS Gatekeeper 차단 문제와 미사용 판단으로 standalone 실행파일
   opt-in `--diagnostic-log`는 exclusive mode 0600 JSONL로 run/event/final envelope와 exit code를 기록하며
   secret-shaped 값과 raw HTTP/argv는 제외한다.
 - `test/integration/recursive-transfer.test.ts`는 기존 opt-in gate 아래 unique child의
-  nested/empty/Unicode/0-byte 왕복과 resource ID cleanup을 검증하도록 추가했다. 이번 작업에서는 PAT 기반
-  live mutation을 실행하지 않았다.
-- 로컬 `bun run check`: 248 pass, 37 opt-in skip, 0 fail. 별도 `bun run build`: 통과. 교차 운영체제 CI와
-  실제 MYBOX round-trip은 미검증이므로 Phase 15는 `in_progress`를 유지한다.
-- 변경은 아직 commit/push하지 않았다.
+  nested/empty/Unicode/0-byte 왕복과 resource ID cleanup을 검증한다. 승인된 live 실행은 1 pass, 0 fail,
+  126.58초로 완료됐다.
+- 로컬 `bun run check`: 248 pass, 37 opt-in skip, 0 fail. 별도 `bun run build`: 통과. 구현 commit과 push를
+  완료했으며, 세부 failure-path 완료 조건 확인 전까지 Phase 15는 `in_progress`를 유지한다.
 
 ### 2026-09-05 3-OS local 검증 연결
 
@@ -235,8 +234,16 @@ macOS Gatekeeper 차단 문제와 미사용 판단으로 standalone 실행파일
   diagnostic log, upload/download local·HTTP·CLI와 npm launcher 테스트를 실행하도록 확장했다. 이 job은
   MYBOX credential과 live mutation을 사용하지 않는다.
 - workflow YAML은 Ruby YAML parser로 확인했고, 현재 checkout에서 같은 테스트 묶음은 ephemeral fake HTTP
-  port를 허용한 실행으로 48 pass, 0 fail이었다. 실제 3-OS Actions run은 아직 없으며 commit/push도 하지
-  않았다.
+  port를 허용한 실행으로 48 pass, 0 fail이었다. GitHub Actions run
+  [`33970836545`](https://github.com/oliverne/myboxctl/actions/runs/33970836545)은 Ubuntu/macOS/Windows
+  matrix와 Ubuntu 일반 check를 모두 성공시켰다.
+
+### 2026-09-05 recursive live acceptance
+
+- `MYBOX_INTEGRATION=1 bun test test/integration/recursive-transfer.test.ts`를 승인 후 실행했다.
+- 전용 integration prefix 아래 unique child에서 nested/empty/Unicode/0-byte tree upload/download, 구조·byte
+  검증과 root resource ID cleanup이 통과했다. 결과는 1 pass, 0 fail, 126.58초다.
+- 전체 `test/integration` suite는 재실행하지 않았다.
 
 ## 원격 검증
 
@@ -290,11 +297,10 @@ PR #11 merge는 2026-08-31에 완료했다. 추가 package publish, tag 생성, 
 
 ## 다음 실행 범위
 
-1. Phase 15 변경을 선택적으로 검토·commit한 뒤, push 승인 시 3-OS Actions matrix를 실행한다.
-2. 별도 승인을 받아 `MYBOX_INTEGRATION=1 bun test test/integration`으로 recursive round-trip과 cleanup을
-   실행한다.
-3. 실제 결과를 반영해 Phase 15 완료 조건과 `PROGRESS.md`/`HANDOFF.md`를 갱신한다.
-4. 다음 npm 배포가 필요하면 version을 정한 뒤 [`operations/npm-release.md`](operations/npm-release.md)를
+1. Phase 15 완료 조건 중 recursive SIGINT/partial failure, manifest 이후 local 교체와 diagnostic write
+   failure 등 별도 회귀 증거가 필요한 경로를 확인한다.
+2. 모든 조건이 검증되면 phase 문서의 checklist와 `PROGRESS.md`/`HANDOFF.md`를 `complete`에 맞춰 갱신한다.
+3. 다음 npm 배포가 필요하면 version을 정한 뒤 [`operations/npm-release.md`](operations/npm-release.md)를
    따른다. tag/publish는 별도 승인 대상이다.
 
 ## 로컬 시작 명령
