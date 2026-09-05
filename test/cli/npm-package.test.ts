@@ -3,8 +3,33 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { createFakeHttpServer, type FakeHttpServer, type RecordedRequest } from "../http/server.ts";
+
 async function output(stream: ReadableStream<Uint8Array>): Promise<string> {
   return new Response(stream).text();
+}
+
+function searchPage(resources: unknown[] = []) {
+  return { resources, responseMetaData: {} };
+}
+
+function storageResponse() {
+  return {
+    fileCounts: {
+      archive: 0,
+      audio: 0,
+      document: 0,
+      etc: 0,
+      executable: 0,
+      image: 0,
+      total: 0,
+      video: 0,
+    },
+    maxFileBytes: 1_000_000,
+    quotaBytes: 10_000_000,
+    trashAutoDeleteDays: 30,
+    usedBytes: 0,
+  };
 }
 
 describe("npm package", () => {
@@ -57,6 +82,121 @@ describe("npm package", () => {
       expect(stdout).toBe("1.2.3\n");
       expect(stderr).toBe("");
     } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  test("Node launcher streams an upload body with Node fetch", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "myboxctl-npm-upload-"));
+    const distPath = join(directory, "cli.js");
+    const outDir = join(directory, "package");
+    const localPath = join(directory, "report.txt");
+    const rateLimitStatePath = join(directory, "rate-limit.json");
+    await writeFile(localPath, "content");
+
+    let server: FakeHttpServer | undefined;
+    try {
+      server = await createFakeHttpServer({
+        handler: (request: RecordedRequest) => {
+          if (request.path === "/v1/drive/storage") {
+            return { body: storageResponse() };
+          }
+          if (request.path.startsWith("/v1/search/resources/")) {
+            return { body: searchPage() };
+          }
+          if (request.path === "/v1/drive/files") {
+            return {
+              status: 201,
+              body: { uploadUrl: `${server?.baseUrl}/storage/upload`, offset: 0 },
+            };
+          }
+          if (request.path === "/storage/upload") {
+            return { body: { resourceId: "file-1", name: "report.txt", fileSize: 7 } };
+          }
+          if (request.path === "/v1/drive/resources/file-1") {
+            return {
+              body: {
+                resourceId: "file-1",
+                parentId: "parent-1",
+                name: "report.txt",
+                type: "file",
+                size: 7,
+                createdAt: "2026-08-23T10:00:00Z",
+                modifiedAt: "2026-08-23T10:00:01Z",
+                accessedAt: "2026-08-23T10:00:01Z",
+                isFavorite: false,
+                isHidden: false,
+                lastModifiedBy: "tester",
+              },
+            };
+          }
+          return { status: 500, body: { code: "UNEXPECTED", message: "unexpected request" } };
+        },
+      });
+
+      const build = Bun.spawn(
+        ["bun", "run", "scripts/build.ts", "--version", "1.2.3", "--outfile", distPath],
+        { stdout: "ignore", stderr: "pipe" },
+      );
+      const [buildStderr, buildExitCode] = await Promise.all([output(build.stderr), build.exited]);
+      expect(buildExitCode).toBe(0);
+      expect(buildStderr).toBe("");
+
+      const prepare = Bun.spawn(
+        [
+          "bun",
+          "run",
+          "scripts/prepare-npm.ts",
+          "--version",
+          "1.2.3",
+          "--dist",
+          distPath,
+          "--outdir",
+          outDir,
+        ],
+        { stdout: "ignore", stderr: "pipe" },
+      );
+      const [prepareStderr, prepareExitCode] = await Promise.all([
+        output(prepare.stderr),
+        prepare.exited,
+      ]);
+      expect(prepareExitCode).toBe(0);
+      expect(prepareStderr).toBe("");
+
+      const launcher = Bun.spawn(
+        ["node", join(outDir, "bin", "myboxctl.js"), "upload", localPath, "/report.txt", "--json"],
+        {
+          env: {
+            ...process.env,
+            MYBOX_PAT: "test-pat",
+            MYBOX_BASE_URL: server.baseUrl,
+            MYBOX_TIMEOUT_MS: "5000",
+            MYBOX_RATE_LIMIT_STATE_PATH: rateLimitStatePath,
+          },
+          stdout: "pipe",
+          stderr: "pipe",
+        },
+      );
+      const [stdout, stderr, exitCode] = await Promise.all([
+        output(launcher.stdout),
+        output(launcher.stderr),
+        launcher.exited,
+      ]);
+
+      expect(exitCode).toBe(0);
+      expect(stderr).toBe("");
+      expect(JSON.parse(stdout)).toMatchObject({
+        schemaVersion: 1,
+        ok: true,
+        command: "upload",
+        action: "uploaded",
+        data: { path: "/report.txt", resourceId: "file-1", sizeBytes: 7 },
+      });
+      expect(
+        server.requests.find((request) => request.path === "/storage/upload")?.bodyText,
+      ).toContain("content\r\n--");
+    } finally {
+      server?.close();
       await rm(directory, { recursive: true, force: true });
     }
   });

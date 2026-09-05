@@ -206,6 +206,7 @@ export class MyboxUploader {
         method: "POST",
         headers,
         body: multipart.body,
+        duplex: "half",
         signal: input.signal,
       });
     } catch (error) {

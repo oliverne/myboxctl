@@ -14,6 +14,10 @@ Phase 00~15의 구현과 로컬 검증을 완료했고 Phase 15 recursive folder
 - Phase 15: `complete`
 - 활성 구현 phase: 없음
 - npm latest: `v0.3.0` 게시 완료. publish workflow `33973851394`와 registry/npx smoke가 성공했다.
+- 2026-09-06 `v0.3.0` Node npm launcher upload 오류를 수정했다. Node의 ReadableStream request에
+  `duplex: "half"`를 추가했고, 실제 Node launcher upload 회귀가 통과했다. 전체 `bun run check`는
+  262 pass, 37 opt-in skip, 0 fail이며 별도 `bun run build`도 통과했다. 현재 수정은 uncommitted 상태로
+  commit/push/npm 재배포가 남아 있다.
 - 작업 브랜치: 없음 (PR #11은 `main`으로 merge 완료)
 - PR: [#11 feat: add Phase 13 observability and progress events](https://github.com/oliverne/myboxctl/pull/11) — 2026-08-31 merge됨
 - integration stderr 계약 수정 commit: `710cde214f93d7758b7cabe226b6d0d769c28bd4`

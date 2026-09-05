@@ -9,6 +9,10 @@
 - 상태: `complete`
 - 릴리스 상태: npm `latest`는 `v0.3.0`이다. standalone 실행파일 배포는 폐기했고 npm(Node 기반) 단독
   배포를 사용한다. `v0.1.0` draft Release/tag는 삭제했다.
+- 2026-09-06 `v0.3.0` Node npm launcher에서 ReadableStream upload 요청이 `duplex` 옵션 누락으로
+  실패하는 오류를 재현하고 `duplex: "half"`를 추가했다. 실제 Node launcher upload 회귀와 전체
+  `bun run check`(262 pass, 37 opt-in skip, 0 fail), 별도 `bun run build`가 통과했으며, 패치의
+  commit/push/npm 재배포는 아직 실행하지 않았다.
 - 활성 구현 phase: 없음
 - 다음 담당자: 다음 phase 또는 다음 릴리스 범위를 결정한다.
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
@@ -40,7 +44,7 @@
   반영하지 않은 stale 단언(기존 파일이 크기만 다를 때 `--force` 없이도 충돌이 아닌 덮어쓰기)을
   병합된 의미에 맞췄다. 권위 있는 acceptance는 `test/integration/put.test.ts`다. 특수문자 파일명
   검색 동작은 `docs/reference/mybox-api.md`의 API-12로 미확정 이슈로 기록했다.
-- 마지막 갱신: 2026-09-05
+- 마지막 갱신: 2026-09-06
 
 ## Phase 상태
 
