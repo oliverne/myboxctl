@@ -7,10 +7,10 @@
 
 - 현재 phase: `Phase 15 Recursive Folder Transfer`
 - 상태: `complete`
-- 릴리스 상태: npm `latest`는 `v0.2.3`, 다음 배포 승인 버전은 `v0.3.0`이다. standalone 실행파일 배포는 폐기했고 npm(Node 기반) 단독
+- 릴리스 상태: npm `latest`는 `v0.3.0`이다. standalone 실행파일 배포는 폐기했고 npm(Node 기반) 단독
   배포를 사용한다. `v0.1.0` draft Release/tag는 삭제했다.
 - 활성 구현 phase: 없음
-- 다음 담당자: 승인된 `v0.3.0` npm 배포 절차를 실행한다.
+- 다음 담당자: 다음 phase 또는 다음 릴리스 범위를 결정한다.
 - CLI 문서의 소비자는 특정 제품이 아닌 다양한 로컬 AI 에이전트로 정의한다.
 - Phase 14 command surface, destination semantics, human renderer와 versioned machine envelope 구현을
   완료했다. `list`, `info`, `mkdir`, `upload`, `download`, `delete`와 `ls` alias를 제공하며, 기존
@@ -660,7 +660,7 @@ macOS Gatekeeper가 미서명 standalone 실행파일(.tar.gz/.zip) 다운로드
 - 커밋 `4163669`를 `origin/main`에 푸시했고, GitHub Actions run
   [`33973516016`](https://github.com/oliverne/myboxctl/actions/runs/33973516016)에서 Ubuntu 일반 check와
   Ubuntu/macOS/Windows Phase 15 matrix가 모두 성공했다. Phase 15 완료 조건을 충족해 상태를 `complete`로
-  갱신한다. npm `v0.3.0` tag/publish는 별도 릴리스 실행이다.
+  갱신한다. npm `v0.3.0` tag/publish와 registry smoke는 완료됐다.
 
 ## 상태 변경 규칙
 

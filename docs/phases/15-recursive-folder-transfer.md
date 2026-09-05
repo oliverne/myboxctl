@@ -7,7 +7,7 @@
 
 - 상태: `complete`
 - 활성 phase: 없음
-- Phase 00~14와 npm `v0.2.3` 배포는 완료된 상태를 전제로 한다.
+- Phase 00~14와 npm `v0.3.0` 배포는 완료된 상태를 전제로 한다.
 - 구현 시작 시 `docs/PROGRESS.md`에서 Phase 15만 `in_progress`로 바꾼다.
 - 실제 MYBOX 검증은 기존 opt-in 정책과 `/myboxctl-integration-test/` 격리 규칙을 유지한다.
 

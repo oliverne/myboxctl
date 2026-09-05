@@ -13,6 +13,7 @@ Phase 00~15의 구현과 로컬 검증을 완료했고 Phase 15 recursive folder
 - Phase 14: `complete`
 - Phase 15: `complete`
 - 활성 구현 phase: 없음
+- npm latest: `v0.3.0` 게시 완료. publish workflow `33973851394`와 registry/npx smoke가 성공했다.
 - 작업 브랜치: 없음 (PR #11은 `main`으로 merge 완료)
 - PR: [#11 feat: add Phase 13 observability and progress events](https://github.com/oliverne/myboxctl/pull/11) — 2026-08-31 merge됨
 - integration stderr 계약 수정 commit: `710cde214f93d7758b7cabe226b6d0d769c28bd4`
@@ -280,7 +281,7 @@ macOS Gatekeeper 차단 문제와 미사용 판단으로 standalone 실행파일
 - 커밋 `4163669`를 `origin/main`에 푸시했고, GitHub Actions run
   [`33973516016`](https://github.com/oliverne/myboxctl/actions/runs/33973516016)에서 Ubuntu 일반 check와
   Ubuntu/macOS/Windows Phase 15 matrix가 모두 성공했다. Phase 15 완료 조건을 충족해 상태를 `complete`로
-  갱신한다. npm `v0.3.0` tag/publish는 별도 릴리스 실행이다.
+  갱신한다. npm `v0.3.0` tag/publish와 registry smoke는 완료됐다.
 
 ## 원격 검증
 
@@ -326,7 +327,8 @@ bucket을 완화하지 않고 GET 429 한 번 retry, `Retry-After` 우선, heade
   잔류. GitHub Release: 없음
 - `v0.2.3` tag: root help 수정 commit `fd36b3d`를 가리키며 생성·push 및 npm 게시 완료
 - 배포 방식: npm 단독(`@oliverne/myboxctl`), standalone 실행파일/Homebrew/Scoop/install.sh 폐기
-- npm publish: `@oliverne/myboxctl@0.2.3` 게시 완료, npm `latest`도 `0.2.3`. Homebrew tap/Scoop
+- `v0.3.0` tag: Phase 15 완료 commit `b4172c3`를 가리키며 생성·push 및 npm 게시 완료
+- npm publish: `@oliverne/myboxctl@0.3.0` 게시 완료, npm `latest`도 `0.3.0`. Homebrew tap/Scoop
   registry: 폐기
 
 PR #11 merge는 2026-08-31에 완료했다. 추가 package publish, tag 생성, credential 변경은 각각 별도
@@ -336,8 +338,8 @@ PR #11 merge는 2026-08-31에 완료했다. 추가 package publish, tag 생성, 
 
 1. 원격 중간 mutation failure와 Windows npm launcher diagnostic failure를 추가 검증한다.
 2. 모든 조건이 검증되면 phase 문서의 checklist와 `PROGRESS.md`/`HANDOFF.md`를 `complete`에 맞춰 갱신한다.
-3. 다음 npm 배포 version은 승인된 `v0.3.0`이다. Phase 15 완료 후 [`operations/npm-release.md`](operations/npm-release.md)를
-   따르며 tag/publish 실행은 별도 승인 대상이다.
+3. 다음 npm 배포는 새 version 승인 후 [`operations/npm-release.md`](operations/npm-release.md)를 따른다.
+   `v0.3.0` tag/publish와 registry smoke는 완료됐다.
 
 ## 로컬 시작 명령
 
