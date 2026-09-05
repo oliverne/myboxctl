@@ -46,6 +46,21 @@ myboxctl download /agents/output/report.md ./report.md
 myboxctl delete /agents/output/report.md
 ```
 
+Paths containing spaces must be quoted so that the shell passes each path as one argument. The
+quotes are shell syntax and are not part of the local or remote file name.
+
+PowerShell accepts single or double quotes:
+
+```powershell
+myboxctl download '/Team Files/big report.zip' '.\Local Files\big report.zip'
+```
+
+Use double quotes in Command Prompt (`cmd.exe`):
+
+```bat
+myboxctl download "/Team Files/big report.zip" ".\Local Files\big report.zip"
+```
+
 Important behavior:
 
 - `upload` compares size and modification time, not content hashes. It skips matching files and

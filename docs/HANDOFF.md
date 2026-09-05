@@ -163,6 +163,17 @@ macOS Gatekeeper 차단 문제와 미사용 판단으로 standalone 실행파일
   `bun run build`가 통과했다.
 - 구현, 실제 MYBOX 검증, commit/push는 실행하지 않았다.
 
+### 2026-09-05 download progress 및 공백 경로 문서화
+
+- Windows 대용량 download에서 진행 상태가 보이지 않는다는 사용자 피드백에 따라, 현재 구현에 없는
+  download byte progress를 Phase 15 구현 범위로 명시했다.
+- 단일 파일과 recursive download 모두 실제로 기록한 byte 기반 `download.transfer-*` event를 내고,
+  기존 500ms TTY 표시 및 verbose non-TTY/JSONL 정책을 따르도록 계획·완료 조건을 구체화했다.
+- `README.md`와 `README.ko.md`에 공백이 있는 local/remote 경로를 각각 quote하는 PowerShell 및
+  `cmd.exe` 예시를 추가했다. 구현과 live MYBOX 검증은 실행하지 않았다.
+- 검증은 `bun run check` 233 pass/35 opt-in skip/0 fail, 별도 `bun run build`와
+  `git diff --check` 통과다.
+
 ## 원격 검증
 
 - PR CI run [`33388258127`](https://github.com/oliverne/myboxctl/actions/runs/33388258127): 성공

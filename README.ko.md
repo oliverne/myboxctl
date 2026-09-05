@@ -46,6 +46,21 @@ myboxctl download /agents/output/report.md ./report.md
 myboxctl delete /agents/output/report.md
 ```
 
+로컬 또는 원격 경로에 공백이 있으면 셸이 경로 하나를 인자 하나로 전달하도록 각 경로를 따옴표로
+감싸야 합니다. 따옴표는 셸 문법이며 실제 파일명에는 포함되지 않습니다.
+
+PowerShell에서는 작은따옴표와 큰따옴표를 모두 사용할 수 있습니다.
+
+```powershell
+myboxctl download '/Team Files/big report.zip' '.\Local Files\big report.zip'
+```
+
+명령 프롬프트(`cmd.exe`)에서는 큰따옴표를 사용하세요.
+
+```bat
+myboxctl download "/Team Files/big report.zip" ".\Local Files\big report.zip"
+```
+
 꼭 알아둘 동작:
 
 - `upload`는 content hash가 아니라 크기와 수정 시각을 비교합니다. 같은 파일은 건너뛰고 원격 파일이

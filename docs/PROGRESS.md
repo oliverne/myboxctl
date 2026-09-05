@@ -540,6 +540,13 @@ macOS Gatekeeper가 미서명 standalone 실행파일(.tar.gz/.zip) 다운로드
 - 계획 문서 수정 후 Prettier와 `git diff --check`, `bun run check` 234 pass/34 opt-in skip/0 fail 및 별도
   `bun run build`가 통과했다.
 - 상태는 `pending`이며 구현, 실제 MYBOX mutation, commit/push는 실행하지 않았다.
+- 사용자 확인으로 Windows 대용량 download에서 byte progress가 없는 현재 동작을 개선 대상으로
+  확정했다. Phase 15 범위에 단일 파일 및 recursive download의 실제 기록 byte 기반
+  `download.transfer-*` event, TTY/non-TTY/JSONL renderer와 교차 운영체제 검증을 추가했다.
+- 영문·국문 README에 공백이 포함된 local/remote 경로는 경로별로 quote해야 한다는 셸 규칙과
+  PowerShell/`cmd.exe` 예시를 추가했다. quote 문자는 파일명의 일부가 아니다.
+- 문서 변경 후 `bun run check`는 233 pass/35 opt-in skip/0 fail, 별도 `bun run build`와
+  `git diff --check`가 통과했다. MYBOX live test는 실행하지 않았다.
 
 ## 상태 변경 규칙
 

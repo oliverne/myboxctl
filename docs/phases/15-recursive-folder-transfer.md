@@ -22,6 +22,10 @@ myboxctl download /reports ./backup --recursive
 myboxctl download /reports --recursive --json
 ```
 
+Phase 13에서 제외했던 download byte progress도 이 phase에 포함한다. 현재 단일 파일과 새 recursive
+folder download 모두 실제 response body에서 기록한 byte를 기준으로 진행 상태를 제공하며, Windows를
+포함한 지원 운영체제에서 같은 event와 표시 계약을 사용한다.
+
 기존 단일 파일 upload의 metadata 정책, mutation reconcile/resume과 로컬 변경 감지, download의
 bounded-memory streaming, signed URL 보호, 전송 전후 metadata 검증과 파일별 atomic commit 계약을
 그대로 재사용한다.
@@ -166,8 +170,15 @@ byte 0이며 byte count는 완료된 모든 regular file의 합이다. upload의
 속한 transfer root와 child folder만 세며, `--mkdir`로 만든 destination parent/container는 제외한다.
 human output은 source/destination, file/folder 수와 총 byte를 한 번 요약한다.
 
-`--json --verbose`의 진행 event에는 현재 relative path와 누적 file/byte만 허용하며 PAT,
-Authorization header와 signed URL은 포함하지 않는다.
+download는 `download.transfer-started`, `download.transfer-progress`,
+`download.transfer-completed` event를 사용한다. 단일 파일에서는 response body에서 실제로 기록한 byte와
+remote metadata의 전체 byte를 제공한다. recursive download에서는 현재 relative path, 현재 파일 byte와
+전체 tree의 누적 file/byte를 함께 제공한다. byte는 단조 증가하고 완료 event는 검증된 최종 크기와
+일치해야 한다. 기존 event 출력 정책에 따라 기본 human TTY에서는 500ms 이상 걸리는 전송을 한 줄로
+갱신하고, non-TTY와 `--json`은 `--verbose`일 때만 line event를 출력한다.
+
+`--json --verbose`의 진행 event에는 위 byte/count와 현재 relative path만 허용하며 PAT, Authorization
+header와 signed URL은 포함하지 않는다.
 
 mutation 전에 실패한 경우 기존 failure envelope를 그대로 사용한다. 하나 이상의 local/remote entry가
 완료됐거나 mutation 응답 유실로 결과가 불확실한 경우에는 기존 `error.kind`, `code`와 exit code를
@@ -267,6 +278,8 @@ mutation을 구분해 한 번 알린다.
 
 - `src/features/download-command.ts`
 - `src/features/download.ts`
+- `src/mybox/download.ts`
+- `src/observability.ts`
 - `src/local/`의 folder destination helper와 test
 - `src/runtime.ts`
 
@@ -280,6 +293,8 @@ mutation을 구분해 한 번 알린다.
   metadata manifest를 다시 조회한다.
 - file별 temp cleanup, manifest 이후 ancestor symlink 교체, 먼저 완료한 remote file의 후속 변경,
   SIGINT, remote-changed와 local conflict에서 부분 tree 정책을 검증한다.
+- download stream에 실제 기록 byte 기반 progress callback을 추가하고 단일 파일과 recursive folder에서
+  시작·중간·완료 event가 단조 증가하며 최종 metadata 크기와 일치하는지 검증한다.
 - 전체 manifest를 메모리에 유지하되 file content는 기존 streaming으로 처리한다. 매우 큰 manifest의
   상한이 필요하다는 실제 증거가 생기기 전에는 임의 제한을 추가하지 않는다.
 
@@ -305,6 +320,8 @@ mutation을 구분해 한 번 알린다.
 작업:
 
 - upload/download `--recursive`, folder summary JSON/human output과 safe progress event를 추가한다.
+- `download.transfer-*`를 TTY 단일 progress line과 verbose non-TTY/JSONL event로 렌더링하고 Windows에서도
+  cursor 제어 문자나 줄바꿈이 깨지지 않는지 fake writer 및 subprocess test로 검증한다.
 - 기존 single-file destination/options/JSON shape와 exit code가 바뀌지 않게 한다.
 - 간결한 folder transfer 예시, portable name 규칙과 양방향 structured partial failure 정책을
   문서화한다.
@@ -340,6 +357,8 @@ MYBOX_INTEGRATION=1 bun test test/integration
       읽거나 쓰기 전에 실패한다.
 - [ ] file content는 bounded-memory로 전송되고 기존 upload resume/postcondition과 download atomic
       commit/metadata 검증을 유지한다.
+- [ ] 단일 파일과 recursive download가 실제 기록 byte 기반의 단조 증가 progress를 제공하고 완료 값이
+      remote metadata 및 최종 다운로드 byte와 일치한다.
 - [ ] traversal 중 local identity, remote topology 또는 file metadata 변경을 감지해 실패한다.
 - [ ] 실패/SIGINT에서 temp file이 남지 않고 pre-mutation failure와 confirmed/unknown partial transfer가
       human 및 `error.partialTransfer` JSON 계약으로 구분된다.
