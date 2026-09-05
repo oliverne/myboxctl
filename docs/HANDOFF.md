@@ -2,8 +2,8 @@
 
 ## 인수 목적
 
-Phase 00~14의 구현과 로컬 검증을 완료했고 Phase 15 recursive folder transfer의 로컬 구현, 3-OS matrix와
-전용 recursive MYBOX acceptance를 완료했다. 세부 failure-path 완료 조건을 확인 중이라 상태는 `in_progress`이다.
+Phase 00~15의 구현과 로컬 검증을 완료했고 Phase 15 recursive folder transfer의 로컬 구현, 3-OS matrix,
+전용 recursive MYBOX acceptance와 세부 failure-path 회귀를 완료했다. 상태는 `complete`이다.
 인자 없는 실행의 root help 수정은 commit `fd36b3d`와 `v0.2.3` tag로 push했고 npm `latest`로 게시했다. 실행 절차는
 [`operations/npm-release.md`](operations/npm-release.md)에 있다.
 
@@ -11,8 +11,8 @@ Phase 00~14의 구현과 로컬 검증을 완료했고 Phase 15 recursive folder
 
 - Phase 00~13: `complete`
 - Phase 14: `complete`
-- Phase 15: `in_progress`
-- 활성 구현 phase: Phase 15
+- Phase 15: `complete`
+- 활성 구현 phase: 없음
 - 작업 브랜치: 없음 (PR #11은 `main`으로 merge 완료)
 - PR: [#11 feat: add Phase 13 observability and progress events](https://github.com/oliverne/myboxctl/pull/11) — 2026-08-31 merge됨
 - integration stderr 계약 수정 commit: `710cde214f93d7758b7cabe226b6d0d769c28bd4`
@@ -277,8 +277,10 @@ macOS Gatekeeper 차단 문제와 미사용 판단으로 standalone 실행파일
   Windows CI에서도 같은 경로로 실행된다.
 - 대상 회귀는 22 pass, 0 fail이다. 현재 checkout의 `bun run check`는 261 pass, 37 opt-in skip, 0 fail이며
   별도 `bun run build`와 `git diff --check`도 통과했다.
-- 아직 커밋·푸시하지 않았으므로 Windows/macOS/Ubuntu 원격 CI 증거는 없다. Phase 15는 CI 확인과 나머지
-  완료 조건 확인 전까지 `in_progress`로 유지한다.
+- 커밋 `4163669`를 `origin/main`에 푸시했고, GitHub Actions run
+  [`33973516016`](https://github.com/oliverne/myboxctl/actions/runs/33973516016)에서 Ubuntu 일반 check와
+  Ubuntu/macOS/Windows Phase 15 matrix가 모두 성공했다. Phase 15 완료 조건을 충족해 상태를 `complete`로
+  갱신한다. npm `v0.3.0` tag/publish는 별도 릴리스 실행이다.
 
 ## 원격 검증
 

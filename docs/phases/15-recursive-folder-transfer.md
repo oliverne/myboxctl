@@ -5,8 +5,8 @@
 
 ## 상태와 진입 조건
 
-- 상태: `in_progress`
-- 활성 phase: Phase 15
+- 상태: `complete`
+- 활성 phase: 없음
 - Phase 00~14와 npm `v0.2.3` 배포는 완료된 상태를 전제로 한다.
 - 구현 시작 시 `docs/PROGRESS.md`에서 Phase 15만 `in_progress`로 바꾼다.
 - 실제 MYBOX 검증은 기존 opt-in 정책과 `/myboxctl-integration-test/` 격리 규칙을 유지한다.
@@ -566,33 +566,33 @@ MYBOX_INTEGRATION=1 bun test test/integration
 
 ## 완료 조건
 
-- [ ] upload/download folder는 `--recursive`가 있을 때만 전송된다.
-- [ ] 양방향 nested file과 empty folder가 정확한 relative path에 생성된다.
-- [ ] missing parent와 `--mkdir`, 기존 destination, portable invalid name과 cross-platform collision이
+- [x] upload/download folder는 `--recursive`가 있을 때만 전송된다.
+- [x] 양방향 nested file과 empty folder가 정확한 relative path에 생성된다.
+- [x] missing parent와 `--mkdir`, 기존 destination, portable invalid name과 cross-platform collision이
       mutation 전에 결정적으로 처리된다.
-- [ ] transfer root/child folder는 direct create 성공일 때만 소유권을 확정하며, 409와 response-loss
+- [x] transfer root/child folder는 direct create 성공일 때만 소유권을 확정하며, 409와 response-loss
       uncertain 결과에서 기존 tree에 merge하거나 POST를 반복하지 않는다.
-- [ ] symlink/non-regular entry와 manifest 이후 file/directory/ancestor 교체에서 tree 밖 content를
+- [x] symlink/non-regular entry와 manifest 이후 file/directory/ancestor 교체에서 tree 밖 content를
       읽거나 쓰기 전에 실패한다.
-- [ ] file content는 bounded-memory로 전송되고 기존 upload resume/postcondition과 download atomic
+- [x] file content는 bounded-memory로 전송되고 기존 upload resume/postcondition과 download atomic
       commit/metadata 검증을 유지한다.
-- [ ] 단일 파일과 recursive download가 실제 기록 byte 기반의 단조 증가 progress를 제공하고 완료 값이
+- [x] 단일 파일과 recursive download가 실제 기록 byte 기반의 단조 증가 progress를 제공하고 완료 값이
       remote metadata 및 최종 다운로드 byte와 일치한다.
-- [ ] traversal 중 local identity, remote topology 또는 file metadata 변경을 감지해 실패한다.
-- [ ] 실패/SIGINT에서 temp file이 남지 않고 pre-mutation failure와 confirmed/unknown partial transfer가
+- [x] traversal 중 local identity, remote topology 또는 file metadata 변경을 감지해 실패한다.
+- [x] 실패/SIGINT에서 temp file이 남지 않고 pre-mutation failure와 confirmed/unknown partial transfer가
       human 및 `error.partialTransfer` JSON 계약으로 구분된다.
-- [ ] 기존 단일 file upload/download 회귀와 JSON schema version 1이 유지된다.
-- [ ] 요금제 preset, 설정 우선순위와 보수적 기본값이 적용되고 기존 공유 호출 이력·cooldown을 보존한다.
-- [ ] 정상 전송에 파일별 search가 없고 upload/download API 호출량 기준을 fake HTTP로 검증한다.
-- [ ] 일 한도 안내는 실제 잔여 quota로 표시하지 않으며, 한도 오류와 부분 실패 후 수동 처리 절차를 검증한다.
-- [ ] `--diagnostic-log`는 기존 file/symlink를 덮어쓰지 않고 command 실행 전 시작되며, 모든 typed event와
+- [x] 기존 단일 file upload/download 회귀와 JSON schema version 1이 유지된다.
+- [x] 요금제 preset, 설정 우선순위와 보수적 기본값이 적용되고 기존 공유 호출 이력·cooldown을 보존한다.
+- [x] 정상 전송에 파일별 search가 없고 upload/download API 호출량 기준을 fake HTTP로 검증한다.
+- [x] 일 한도 안내는 실제 잔여 quota로 표시하지 않으며, 한도 오류와 부분 실패 후 수동 처리 절차를 검증한다.
+- [x] `--diagnostic-log`는 기존 file/symlink를 덮어쓰지 않고 command 실행 전 시작되며, 모든 typed event와
       최종 envelope/exit code 및 allowlist된 OS 오류 정보를 presentation mode와 무관하게 JSONL로 기록한다.
-- [ ] 진단 record와 write failure warning에 PAT, Authorization, credentials, signed URL 및 raw HTTP
+- [x] 진단 record와 write failure warning에 PAT, Authorization, credentials, signed URL 및 raw HTTP
       request/response가 없고, 로그 실패가 진행 중 mutation을 재시도하거나 원래 결과를 바꾸지 않는다.
-- [ ] Windows npm launcher 실패에서 terminal message와 diagnostic file을 모두 회귀 검증한다.
-- [ ] 일반 검사와 세 운영체제 local filesystem 검증이 통과한다.
-- [ ] 승인된 실제 MYBOX folder round-trip acceptance와 unique resource cleanup이 통과한다.
-- [ ] README, CLI contract, reliability, PROGRESS와 HANDOFF가 구현 사실과 일치한다.
+- [x] Windows npm launcher 실패에서 terminal message와 diagnostic file을 모두 회귀 검증한다.
+- [x] 일반 검사와 세 운영체제 local filesystem 검증이 통과한다.
+- [x] 승인된 실제 MYBOX folder round-trip acceptance와 unique resource cleanup이 통과한다.
+- [x] README, CLI contract, reliability, PROGRESS와 HANDOFF가 구현 사실과 일치한다.
 
 ## 중단 조건
 
