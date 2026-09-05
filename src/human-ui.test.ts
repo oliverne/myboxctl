@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
+import { DomainError } from "./errors.ts";
 import { createEventPresentation, type EventWriter } from "./human-ui.ts";
 import type { ObservabilityEventInput } from "./observability.ts";
-import { DomainError } from "./errors.ts";
 
 function capture(isTTY: boolean, columns = 80) {
   let output = "";
