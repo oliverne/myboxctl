@@ -638,11 +638,15 @@ macOS Gatekeeper가 미서명 standalone 실행파일(.tar.gz/.zip) 다운로드
 - diagnostic file I/O를 injectable boundary로 분리하고 first-write, mid-write와 close failure를 검증했다.
   mid-write 이후 diagnostic sink만 비활성화하고 warning을 한 번 출력하며, command result/exit code와
   mutation retry 정책은 바꾸지 않는다. JSON warning과 secret redaction도 함께 확인했다.
-- partial transfer human/JSON envelope 회귀를 추가했다. 대상 회귀 묶음은 32 pass, 0 fail이고 전체
-  `bun run check`는 255 pass, 37 opt-in skip, 0 fail, 별도 `bun run build`와 `git diff --check`도 통과했다.
-- 이번 변경 후 새 3-OS CI 실행과 전체 `test/integration` suite 재실행은 하지 않았다. Phase 15는 원격
-  중간 mutation failure, Windows npm launcher failure 진단과 나머지 완료 조건 확인 전까지 `in_progress`로
-  유지한다.
+- partial transfer human/JSON envelope 회귀를 추가했다. 대상 회귀 묶음은 32 pass, 0 fail이고 import 정렬
+  수정 후 전체 `bun run check`는 258 pass, 37 opt-in skip, 0 fail, 별도 `bun run build`와
+  `git diff --check`도 통과했다.
+- follow-up commit `d81e189`의 GitHub Actions run
+  [`33972625509`](https://github.com/oliverne/myboxctl/actions/runs/33972625509)에서 Ubuntu 일반 check와
+  Ubuntu/macOS/Windows Phase 15 matrix가 모두 성공했다. push 실행에서는 live MYBOX acceptance가 skip됐다.
+- 첫 run `33972523212`에서 발견된 import 정렬과 Windows npm launcher 일시 timeout은 follow-up 후 재실행에서
+  통과했다. 전체 `test/integration` suite 재실행은 하지 않았다. Phase 15는 원격 중간 mutation failure,
+  Windows npm launcher diagnostic failure와 나머지 완료 조건 확인 전까지 `in_progress`로 유지한다.
 
 ## 상태 변경 규칙
 

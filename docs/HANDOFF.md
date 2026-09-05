@@ -17,7 +17,7 @@ Phase 00~14의 구현과 로컬 검증을 완료했고 Phase 15 recursive folder
 - PR: [#11 feat: add Phase 13 observability and progress events](https://github.com/oliverne/myboxctl/pull/11) — 2026-08-31 merge됨
 - integration stderr 계약 수정 commit: `710cde214f93d7758b7cabe226b6d0d769c28bd4`
 - 로컬 검증: Phase 15 구현 기준 `bun run check` 248 pass, 37 opt-in skip, 0 fail에서 세부 failure-path
-  회귀 추가 후 255 pass, 37 opt-in skip, 0 fail로 갱신됐다. 별도 `bun run build` 결과는 아래 Phase 15 기록에
+  회귀 추가 후 258 pass, 37 opt-in skip, 0 fail로 갱신됐다. 별도 `bun run build` 결과는 아래 Phase 15 기록에
   남긴다.
 - Phase 14 계획: [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)
 - Phase 14 구현·검증: P14-A~E 완료
@@ -257,10 +257,14 @@ macOS Gatekeeper 차단 문제와 미사용 판단으로 standalone 실행파일
 - diagnostic file I/O 주입 경계와 first/mid/close failure 회귀를 추가했다. 첫 write 실패는 command 시작
   전에 종료하고, 중간 write 실패는 diagnostic sink만 끄며, warning은 한 번만 남긴다. close failure에서도
   완료 envelope와 exit code는 변경하지 않는다. JSON warning 및 secret redaction도 확인했다.
-- human/JSON partial transfer output 회귀를 포함한 대상 테스트는 32 pass, 0 fail이다. 전체
-  `bun run check`는 255 pass, 37 opt-in skip, 0 fail, 별도 `bun run build`도 통과했다.
-- 이 변경 후 새 3-OS CI 실행과 전체 `test/integration` suite 재실행은 아직 하지 않았다. 이번 slice의
-  commit/push도 아직 하지 않은 상태다.
+- human/JSON partial transfer output 회귀를 포함한 대상 테스트는 32 pass, 0 fail이다. import 정렬 수정 후
+  전체 `bun run check`는 258 pass, 37 opt-in skip, 0 fail, 별도 `bun run build`도 통과했다.
+- follow-up commit `d81e189`의 GitHub Actions run
+  [`33972625509`](https://github.com/oliverne/myboxctl/actions/runs/33972625509)에서 Ubuntu 일반 check와
+  Ubuntu/macOS/Windows Phase 15 matrix가 모두 성공했다. push 실행 live MYBOX acceptance는 skip됐다.
+  첫 run `33972523212`의 import 정렬 및 Windows npm launcher timeout은 follow-up 재실행에서 통과했다.
+- 전체 `test/integration` suite는 재실행하지 않았다. 원격 중간 mutation failure와 Windows npm launcher
+  diagnostic failure는 별도 검증 대상으로 남아 있다.
 - 전체 `test/integration` suite는 재실행하지 않았다.
 
 ## 원격 검증
@@ -315,8 +319,7 @@ PR #11 merge는 2026-08-31에 완료했다. 추가 package publish, tag 생성, 
 
 ## 다음 실행 범위
 
-1. 이번 failure-path 회귀를 commit 후 3-OS CI에서 확인하고, 원격 중간 mutation failure와 Windows npm
-   launcher diagnostic failure를 추가 검증한다.
+1. 원격 중간 mutation failure와 Windows npm launcher diagnostic failure를 추가 검증한다.
 2. 모든 조건이 검증되면 phase 문서의 checklist와 `PROGRESS.md`/`HANDOFF.md`를 `complete`에 맞춰 갱신한다.
 3. 다음 npm 배포가 필요하면 version을 정한 뒤 [`operations/npm-release.md`](operations/npm-release.md)를
    따른다. tag/publish는 별도 승인 대상이다.
