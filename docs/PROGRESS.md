@@ -14,7 +14,7 @@
 - 문서 윤문: `README.ko.md`, `CONTRIBUTING.md` 보수적 윤문 완료; `git diff --check` 통과
 - 최신 배포 검증: `v0.3.1` Node launcher upload 회귀, tag와 npm publish workflow
   [`33975001755`](https://github.com/oliverne/myboxctl/actions/runs/33975001755) 성공
-- 사용자 확인 대기: registry 설치 smoke와 실제 global install 여부
+- 사용자 확인: `v0.3.1` registry 설치 smoke와 global install 확인 완료, 사용 중 이상 없음 (2026-09-06)
 
 ## Phase 상태
 
@@ -48,8 +48,7 @@
 
 ## 다음 작업
 
-1. 사용자가 `v0.3.1` registry 설치 smoke와 실제 global install을 확인한다.
-2. 다음 phase 또는 npm release 범위를 새로 정할 때 `PLAN.md`와 해당 phase 문서를 갱신한다.
+1. 다음 phase 또는 npm release 범위를 새로 정할 때 `PLAN.md`와 해당 phase 문서를 갱신한다.
 
 ## 상태 변경 규칙
 

@@ -14,7 +14,7 @@ Phase 00~15의 구현과 필수 로컬/CI/live 검증을 완료했다. 현재 �
 - standalone/Homebrew/Scoop/install script 경로: 폐기
 - 최신 로컬 검사: `bun run check` 262 pass, 37 opt-in skip, 0 fail; `bun run build` 통과
 - 최신 publish workflow: [`33975001755`](https://github.com/oliverne/myboxctl/actions/runs/33975001755) 성공
-- 남은 확인: 사용자의 `v0.3.1` registry 설치 smoke와 global install
+- 사용자 확인: `v0.3.1` registry 설치 smoke와 global install 확인 완료, 사용 중 이상 없음 (2026-09-06)
 - 현재 문서 정리 변경: `README.ko.md`, `CONTRIBUTING.md` 윤문 완료; commit/push 전
 
 ## 구현된 현재 계약
