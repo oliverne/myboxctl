@@ -4,10 +4,10 @@
 
 `myboxctl`은 NAVER MYBOX Open API를 얇게 감싼 작고 예측 가능한 파일 관리 CLI입니다.
 
-AI 에이전트가 MYBOX에 파일을 올리고, 확인하고, 내려받고, 필요할 때 삭제하는 데 필요한 명령만
-제공합니다. sync 도구, SDK, MCP 서버, MYBOX 전체 API wrapper가 목표는 아닙니다.
+AI 에이전트가 MYBOX에 파일을 올리고 확인하고 내려받고, 필요할 때 삭제할 수 있도록 필요한 명령만
+제공합니다. sync 도구, SDK, MCP 서버, MYBOX 전체 API wrapper를 목표로 하지는 않습니다.
 
-사실, 제가 Hermes Agent와 Codex CLI 등에서 쓰려고 만들었습니다만, 사람이 터미널에서 직접 사용해도 이해할 수
+제가 Hermes Agent와 Codex CLI 등에서 사용하려고 만들었지만, 사람이 터미널에서 직접 사용해도 이해할 수
 있는 CLI를 목표로 합니다. NAVER의 공식 제품은 아닙니다.
 
 ## 명령
@@ -30,7 +30,7 @@ npm install -g @oliverne/myboxctl
 myboxctl --version
 ```
 
-MYBOX PAT는 `MYBOX_PAT` 환경 변수로 설정하거나, PAT 한줄을 `~/.config/myboxctl/credentials`에 저장하세요.
+MYBOX PAT는 `MYBOX_PAT` 환경 변수로 설정하거나, PAT 한 줄을 `~/.config/myboxctl/credentials`에 저장하세요.
 credentials 파일은 `chmod 600`으로 보호하세요. PAT를 명령 인자·소스·로그·Git에 넣으면 안 됩니다.
 
 ## 빠른 시작
@@ -48,7 +48,7 @@ myboxctl download /agents/reports ./reports-copy --recursive
 myboxctl delete /agents/output/report.md
 ```
 
-로컬 또는 원격 경로에 공백이 있으면 셸이 경로 하나를 인자 하나로 전달하도록 각 경로를 따옴표로
+로컬 또는 원격 경로에 공백이 있으면 셸이 각 경로를 하나의 인자로 전달하도록 따옴표로
 감싸야 합니다. 따옴표는 셸 문법이며 실제 파일명에는 포함되지 않습니다.
 
 PowerShell에서는 작은따옴표와 큰따옴표를 모두 사용할 수 있습니다.
@@ -65,13 +65,13 @@ myboxctl download "/Team Files/big report.zip" ".\Local Files\big report.zip"
 
 꼭 알아둘 동작:
 
-- `upload`는 content hash가 아니라 크기와 수정 시각을 비교합니다. 같은 파일은 건너뛰고 원격 파일이
+- `upload`는 content hash가 아니라 크기와 수정 시각으로 비교합니다. 같은 파일은 건너뛰고 원격 파일이
   명백하게 더 최신 파일이면 중단합니다. 의도적으로 덮어쓸 때만 `--force`를 사용하세요.
 - `download`는 `--overwrite`를 지정하지 않으면 기존 로컬 파일을 덮어 쓰지 않습니다.
-- 폴더 전송에는 `--recursive`가 필요합니다. 기존 destination tree와 병합하지 않으며 symlink와 macOS,
+- 폴더 전송에는 `--recursive`가 필요합니다. 기존 destination tree와 병합하지 않습니다. symlink와 macOS,
   Linux, Windows에서 이식할 수 없는 이름은 거부합니다.
 - `delete`는 대상 파일을 MYBOX 휴지통으로 이동합니다. 암호 폴더, 공유 폴더는 지원하지 않습니다.
-- 원격 파일명은 NFC(윈도우, 리눅스 방식)로 저장하며, NFD(macOS 방식)와 파일명이 충돌할 경우 파일을 변경하지 않습니다.
+- 원격 파일명은 NFC(윈도우, 리눅스 방식)로 저장합니다. NFD(macOS 방식)와 파일명이 충돌하면 파일을 변경하지 않습니다.
 
 ## AGENT Rules
 
@@ -88,7 +88,7 @@ myboxctl upload ./report.md /agents/output/ --mkdir --json
 `~/.config/myboxctl/config.json`의 `{"plan":"180GB"}` 형식을 사용합니다. 저장 용량만으로 요금제를
 안전하게 판별할 수 없어 자동 감지는 하지 않습니다.
 
-지원용 로그가 필요하면 `--diagnostic-log <새-파일>`을 추가하세요. 기존 파일은 덮어쓰지 않고 JSONL
+지원용 로그가 필요하면 `--diagnostic-log <새-파일>`을 추가하세요. 기존 파일은 덮어쓰지 않으며 JSONL
 event와 최종 결과를 기록합니다. 로컬 경로와 redaction된 stack이 포함될 수 있으므로 공유 전에 내용을
 검토하세요.
 
@@ -112,7 +112,7 @@ bun run check
 bun run build
 ```
 
-실제 MYBOX를 변경하는 테스트는 PAT를 설정하고 선택적으로 실행할 수 있습니다.
+실제 MYBOX를 변경하는 테스트는 PAT를 설정하면 선택적으로 실행할 수 있습니다.
 
 ```bash
 MYBOX_PAT=<YOUR_PAT> bun run test:integration

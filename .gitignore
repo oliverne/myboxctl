@@ -10,3 +10,5 @@ coverage/
 
 *.log
 .vscode/settings.json
+
+_workspace/

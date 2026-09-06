@@ -11,6 +11,7 @@
 - 배포: standalone 실행파일은 폐기했고 npm(Node 기반) 단독 배포를 사용한다. 현재 npm `latest`는
   `v0.3.1`이다.
 - 최신 로컬 검사: `bun run check` 262 pass, 37 opt-in skip, 0 fail; 별도 `bun run build` 통과
+- 문서 윤문: `README.ko.md`, `CONTRIBUTING.md` 보수적 윤문 완료; `git diff --check` 통과
 - 최신 배포 검증: `v0.3.1` Node launcher upload 회귀, tag와 npm publish workflow
   [`33975001755`](https://github.com/oliverne/myboxctl/actions/runs/33975001755) 성공
 - 사용자 확인 대기: registry 설치 smoke와 실제 global install 여부
