@@ -33,6 +33,9 @@
   현재 구현 coverage, 의도적 비범위와 후속 과제
 - [`reference/php-implementation-audit.md`](reference/php-implementation-audit.md): PHP SDK/Flysystem
   구현과의 소스 교차 감사, 도입 후보·비도입 항목·후속 검증 순서
+- [`reference/bun-1.4.md`](reference/bun-1.4.md): 필요할 때만 확인하는 Bun 1.4 내장 API와 CLI reference
+- [`reference/project-history.md`](reference/project-history.md): 완료 phase와 주요 배포 전환을 찾기 위한
+  축약 이력 색인. 현재 상태의 기준은 아님
 
 ### 운영
 
@@ -49,3 +52,5 @@
 - 공식 API endpoint inventory나 coverage가 바뀌면 `reference/official-api-audit.md`를 갱신한다.
 - 기존 설계를 바꾸면 해당 architecture 문서에 이유와 영향을 기록한다.
 - phase 범위가 바뀌면 `PLAN.md`, 해당 phase 문서, `PROGRESS.md`를 함께 갱신한다.
+- 완료된 phase의 상세 실행 이력은 `PROGRESS.md`나 `HANDOFF.md`에 누적하지 않고 해당 phase 문서와
+  `reference/project-history.md`에 링크로 남긴다.

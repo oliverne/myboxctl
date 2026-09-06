@@ -1,14 +1,14 @@
 # Phase 15 — Recursive Folder Transfer
 
 상태는 `docs/PROGRESS.md`가 소유한다. 이 문서는 현재 단일 파일 전용인 `upload`와 `download`를
-명시적인 폴더 재귀 전송까지 확장하는 실행 계획이다.
+명시적인 폴더 재귀 전송까지 확장한 실행 계획과 완료 기준을 기록한다.
 
 ## 상태와 진입 조건
 
 - 상태: `complete`
 - 활성 phase: 없음
-- Phase 00~14와 npm `v0.3.0` 배포는 완료된 상태를 전제로 한다.
-- 구현 시작 시 `docs/PROGRESS.md`에서 Phase 15만 `in_progress`로 바꾼다.
+- Phase 00~14와 npm `v0.3.0` 배포는 완료된 상태에서 시작했으며, 현재 Phase 15도 `complete`다.
+- 구현 당시 `docs/PROGRESS.md`에서 Phase 15만 `in_progress`로 바꿨다.
 - 실제 MYBOX 검증은 기존 opt-in 정책과 `/myboxctl-integration-test/` 격리 규칙을 유지한다.
 
 ## 목표
@@ -45,7 +45,7 @@ download <remote-path> [local-destination] [--recursive] [--overwrite]
 `--diagnostic-log`는 `list`, `info`, `mkdir`, `upload`, `download`, `delete`에 공통 적용하며 기존
 presentation option처럼 root 또는 subcommand 앞뒤에 둘 수 있다.
 
-기능 구현 전에는 PowerShell에서 기존 stream을 다음처럼 분리해 보존할 수 있다. `result.json`에는 최종
+실행 결과를 확인할 때 PowerShell에서는 기존 stream을 다음처럼 분리해 보존할 수 있다. `result.json`에는 최종
 성공/실패 envelope, `events.jsonl`에는 `--verbose` typed event가 남고 실제 exit code는
 `$LASTEXITCODE`로 확인한다.
 
@@ -228,8 +228,8 @@ reader는 newline으로 끝나지 않는 마지막 record를 무시한다. 첫 w
 
 ## 요금제 설정과 API 호출량
 
-이 절은 Phase 15에서 구현할 계약이다. 현재 production limiter는 보수적인 고정 한도를 사용하며,
-사용자용 `plan` 설정이나 `MYBOX_PLAN`은 아직 지원하지 않는다.
+이 절은 Phase 15에서 구현한 계약이다. production limiter는 사용자가 선언한 plan preset을 적용하며,
+설정이 없을 때는 보수적인 기본값을 사용한다.
 
 ### 사용자 설정
 
@@ -308,7 +308,7 @@ storage/root-list/folder-list/resource-detail/folder-create/upload-reservation�
 전체 manifest를 만든 뒤 최초 local mutation 전에 예상 download URL 발급 횟수(`N`)와 설정된 일 한도를
 안내한다. 미설정이면 기본 참고값임을 밝힌다. 다른 도구·기기의 사용량을 알 수 없으므로 이 값을 실제
 남은 횟수로 표시하거나 완료 가능성을 보장하지 않는다. 초기 구현에서는 일일 사용량 장부, 남은 quota
-추정이나 다음 날까지 자동 대기하는 기능을 추가하지 않는다.
+추정이나 다음 날까지 자동 대기하는 기능은 제공하지 않는다.
 
 예상 횟수가 일 한도보다 많으면 중도 중단 가능성을 warning event로 알리되 이 비교만으로 전송을
 차단하지 않는다. 다운로드 URL 발급이나 content 전송이 거부되면 기존 operation 정책대로 실패하고,
@@ -400,14 +400,14 @@ mutation을 구분해 한 번 알린다.
 - 여러 remote source를 한 번에 받는 문법
 - include/exclude glob, depth/file-count/size filter
 - parallel transfer와 concurrency option
-- 자동 진단 로그, 기존 로그 append/overwrite, rotation, 원격 전송과 support bundle 생성
+- 자동 기본 진단 로그, 기존 로그 append/overwrite, rotation, 원격 전송과 support bundle 생성
 - 요금제 자동 감지, 임의 rate override, limiter 해제, 일일 잔여 quota 추정과 다음 날 자동 재개
 - archive 생성 또는 stdout streaming
 - 양방향 sync, remote 변경 감시와 local 삭제 전파
 - symlink 생성, 권한·소유자·확장 attribute 보존
 - 폴더 tree 전체의 atomic commit 또는 실패 시 recursive rollback
 
-## 구현 순서
+## 구현 순서와 결과
 
 ### P15-A — 공통 계약과 manifest
 
@@ -558,11 +558,19 @@ bun run check
 bun run build
 ```
 
-실제 MYBOX 검증은 구현 후 별도 승인을 받아 실행한다.
+실제 MYBOX 검증은 별도 승인을 받아 실행하며, Phase 15의 승인된 recursive round-trip 결과는 아래와 같다.
 
 ```bash
 MYBOX_INTEGRATION=1 bun test test/integration
 ```
+
+완료 결과:
+
+- `bun run check`: 262 pass, 37 opt-in skip, 0 fail
+- 별도 `bun run build`: 통과
+- Ubuntu/macOS/Windows local matrix와 일반 CI: 통과
+- recursive live round-trip: 1 pass, 0 fail, unique child cleanup 확인
+- failure-path 회귀와 Node npm launcher upload 회귀: 통과
 
 ## 완료 조건
 

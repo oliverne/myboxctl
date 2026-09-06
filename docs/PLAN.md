@@ -306,7 +306,8 @@ Phase 14는 새 MYBOX API나 동기화 기능을 추가하지 않는다. 구현 
 
 문서: [`phases/15-recursive-folder-transfer.md`](phases/15-recursive-folder-transfer.md)
 
-단일 파일 전용 `upload`와 `download`를 명시적인 `--recursive` folder transfer로 확장한다.
+단일 파일 전용 `upload`와 `download`를 명시적인 `--recursive` folder transfer로 확장한다. Phase 15는
+완료됐으며 구현·검증 결과는 phase 문서와 [`PROGRESS.md`](PROGRESS.md)에 둔다.
 
 - folder 입력은 `--recursive`가 있을 때만 허용하고 MYBOX root `/` 전체 다운로드는 거부
 - local walk와 remote direct-child pagination으로 deterministic manifest를 만든 뒤 파일을 순차 전송
@@ -327,8 +328,8 @@ Phase 15는 one-shot transfer이며 directory sync, remote watch 또는 local �
 
 ## 6. 전체 MVP 완료 조건
 
-이 절은 Phase 00~08에서 판정한 MVP 완료 기준을 기록한다. 이후 추가된 기능과 첫 public contract의
-완료 조건은 각 후속 phase 문서를 따르며, 현재 공개 Release 전 최종 경계는 Phase 14 완료 조건이다.
+이 절은 Phase 00~08에서 판정한 MVP 완료 기준을 기록한다. 이후 추가된 기능의 완료 조건은 각 후속
+phase 문서를 따르며, 현재 구현된 public CLI와 recursive transfer의 최종 경계는 Phase 15 문서를 따른다.
 
 다음 조건을 모두 충족해야 MVP를 완료할 수 있다.
 
