@@ -298,6 +298,17 @@ macOS Gatekeeper 차단 문제와 미사용 판단으로 standalone 실행파일
   package verify와 npm publish를 모두 성공했다.
 - registry `npm view`와 설치 smoke는 이 세션에서 실행하지 않으며 사용자가 확인한다.
 
+### 2026-09-06 CI 중복 실행 정리
+
+- 일반 Ubuntu job은 build와 전체 test를 포함하는 `bun run check`만 실행하며 별도 build step을 제거했다.
+- Phase 15 local contract matrix는 macOS/Windows만 실행한다. Ubuntu 검증은 일반 job이 담당하므로 전체
+  3-OS 범위는 유지된다.
+- 선행 일반 job에 의존하는 live acceptance에서도 중복 build step을 제거했다.
+- `mvp-acceptance.test.ts`는 live `info` 검증 이관 전까지 유지한다. `test:contract`, upload/download probe,
+  Unicode/server-semantics probe는 opt-in API 계약 관찰 도구로 계속 유지한다.
+- workflow YAML parsing, Prettier와 `git diff --check`가 통과했다. `bun run check`는 build를 포함해 262 pass,
+  37 opt-in skip, 0 fail이다. 실제 MYBOX test와 원격 CI는 실행하지 않았다.
+
 ## 원격 검증
 
 - PR CI run [`33388258127`](https://github.com/oliverne/myboxctl/actions/runs/33388258127): 성공

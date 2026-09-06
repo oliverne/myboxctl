@@ -666,6 +666,19 @@ macOS Gatekeeper가 미서명 standalone 실행파일(.tar.gz/.zip) 다운로드
   Ubuntu/macOS/Windows Phase 15 matrix가 모두 성공했다. Phase 15 완료 조건을 충족해 상태를 `complete`로
   갱신한다. npm `v0.3.0` tag/publish와 registry smoke는 완료됐다.
 
+## 2026-09-06 CI 중복 실행 정리
+
+- 일반 Ubuntu job의 `bun run check`가 build와 전체 `bun test`를 포함하므로 별도 build step을 제거했다.
+- local transfer contract matrix는 일반 job과 중복되는 Ubuntu를 제외하고 macOS/Windows만 유지한다. 일반
+  Ubuntu job과 합쳐 세 운영체제 검증 범위는 그대로다.
+- live acceptance는 `src/cli.ts`를 직접 실행하고 선행 일반 job이 build를 검증하므로 별도 build step을
+  제거했다.
+- `mvp-acceptance.test.ts`는 live `info`와 전체 workflow smoke를 포함하므로 이번 변경에서는 유지한다.
+  `info` 검증을 다른 acceptance로 옮긴 뒤 폐기 여부를 판단한다. `test:contract`, upload/download probe,
+  Unicode/server-semantics probe도 API 계약 관찰 도구로 유지한다.
+- workflow YAML parsing, Prettier와 `git diff --check`가 통과했다. `bun run check`는 build를 포함해 262 pass,
+  37 opt-in skip, 0 fail이다. 실제 MYBOX test와 원격 CI는 실행하지 않았다.
+
 ## 상태 변경 규칙
 
 - phase를 시작할 때만 `pending → in_progress`로 변경한다.

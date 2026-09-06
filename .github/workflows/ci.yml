@@ -55,9 +55,6 @@ jobs:
       - name: Check
         run: bun run check
 
-      - name: Build
-        run: bun run build
-
       - name: Git diff check
         run: git diff --check
 
@@ -93,9 +90,6 @@ jobs:
             exit 1
           fi
 
-      - name: Build
-        run: bun run build
-
       - name: Run live integration acceptance
         if: inputs.live_acceptance
         run: bun test test/integration
@@ -124,7 +118,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-latest, windows-latest]
+        os: [macos-latest, windows-latest]
 
     steps:
       - name: Checkout
