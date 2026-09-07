@@ -15,7 +15,9 @@ Phase 00~15의 구현과 필수 로컬/CI/live 검증을 완료했다. 현재 �
 - 최신 로컬 검사: `bun run check` 262 pass, 37 opt-in skip, 0 fail; `bun run build` 통과
 - 최신 publish workflow: [`33975001755`](https://github.com/oliverne/myboxctl/actions/runs/33975001755) 성공
 - 사용자 확인: `v0.3.1` registry 설치 smoke와 global install 확인 완료, 사용 중 이상 없음 (2026-09-06)
-- 현재 문서 정리 변경: `README.ko.md`, `CONTRIBUTING.md` 윤문 완료; commit/push 전
+- Agent Skill: `.agents/skills/myboxctl/`에 설치와 대표 명령 예제 중심의 교차 호스트 절차 및 독립 CLI
+  contract reference를 추가하고 영문·국문 README에서 안내; Hermes 사용자 스킬 형식 및 정적 검증
+  완료, 실제 호출은 미검증
 
 ## 구현된 현재 계약
 

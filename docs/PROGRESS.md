@@ -15,6 +15,8 @@
 - 최신 배포 검증: `v0.3.1` Node launcher upload 회귀, tag와 npm publish workflow
   [`33975001755`](https://github.com/oliverne/myboxctl/actions/runs/33975001755) 성공
 - 사용자 확인: `v0.3.1` registry 설치 smoke와 global install 확인 완료, 사용 중 이상 없음 (2026-09-06)
+- Agent Skill: Hermes 등 셸 실행이 가능한 에이전트 호스트용 `.agents/skills/myboxctl/`을 설치와
+  대표 명령 예제 중심으로 작성하고 영문·국문 README에 사용 경로 소개; 정적 검증 완료
 
 ## Phase 상태
 
@@ -44,7 +46,7 @@
   GitHub Actions history에 둔다.
 - live: recursive transfer는 `/myboxctl-integration-test/` 아래 unique child만 사용한 왕복 acceptance와
   cleanup을 통과했다. 추가 live mutation은 별도 승인 대상이다.
-- release: tag/workflow와 package 검증은 완료됐고 registry 설치 smoke만 사용자 확인 대기다.
+- release: tag/workflow와 package 검증 및 사용자 registry 설치 smoke를 완료했다.
 
 ## 다음 작업
 

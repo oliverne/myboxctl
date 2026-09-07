@@ -103,6 +103,13 @@ review it before sharing. Existing files are never overwritten.
 See the [versioned CLI contract](docs/reference/cli-contract.md) for exact JSON fields, actions,
 options, and exit-code semantics.
 
+## Agent Skill
+
+The repository includes a reusable
+[Agent Skill](https://github.com/oliverne/myboxctl/tree/main/.agents/skills/myboxctl) with CLI
+installation, command examples, and the essential safety rules. Copy the entire skill directory to
+your agent's skill location; for Hermes user skills, use `~/.hermes/skills/myboxctl/`.
+
 ## Development
 
 Source development requires Bun 1.4 or later.

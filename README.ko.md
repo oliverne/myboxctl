@@ -102,6 +102,13 @@ event와 최종 결과를 기록합니다. 로컬 경로와 redaction된 stack�
 정확한 JSON 필드, action, option과 exit code 의미는
 [versioned CLI contract](docs/reference/cli-contract.md)를 기준으로 합니다.
 
+## Agent Skill
+
+CLI 설치법과 명령 예제, 꼭 필요한 안전 규칙을 담은
+[Agent Skill](https://github.com/oliverne/myboxctl/tree/main/.agents/skills/myboxctl)을 제공합니다.
+스킬 폴더 전체를 사용하는 에이전트의 skill 경로에 복사하세요. Hermes 사용자 스킬 경로는
+`~/.hermes/skills/myboxctl/`입니다.
+
 ## 개발
 
 소스 개발에는 Bun 1.4 이상이 필요합니다.
