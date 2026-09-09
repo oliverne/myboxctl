@@ -12,3 +12,4 @@ coverage/
 .vscode/settings.json
 
 _workspace/
+.zvec-grep/
