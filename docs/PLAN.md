@@ -326,6 +326,24 @@ Phase 14는 새 MYBOX API나 동기화 기능을 추가하지 않는다. 구현 
 
 Phase 15는 one-shot transfer이며 directory sync, remote watch 또는 local 삭제 전파를 추가하지 않는다.
 
+### Phase 16 — npm Trusted Publishing
+
+문서: [`phases/16-npm-trusted-publishing.md`](phases/16-npm-trusted-publishing.md)
+
+기존 `NPM_TOKEN` 기반 npm 배포를 GitHub Actions OIDC Trusted Publishing으로 전환한다.
+
+- publish workflow에 최소 `contents: read`와 `id-token: write` 권한을 선언
+- npm Trusted Publishing이 요구하는 Node.js 22.14.0 이상 및 npm CLI 11.5.1 이상을 충족하도록 Node 24
+  런타임을 명시
+- token, `NODE_AUTH_TOKEN`, 임시 인증용 `.npmrc` 없이 `npm publish --access public` 실행
+- GitHub Actions OIDC publish에서 npm provenance가 자동 생성되는 현재 계약을 운영 문서에 반영
+- npm 웹사이트의 Trusted Publisher 등록, 첫 OIDC publish와 registry smoke, 기존 publish token 폐기를
+  서로 다른 운영 단계로 문서화
+- 실제 npm package 설정 변경, token 폐기와 publish 실행은 자격 증명 및 release 승인 이후 수행하며,
+  로컬 구현 검증 범위에는 포함하지 않음
+
+Phase 16은 npm package 내용이나 CLI 기능을 변경하지 않는다.
+
 ## 6. 전체 MVP 완료 조건
 
 이 절은 Phase 00~08에서 판정한 MVP 완료 기준을 기록한다. 이후 추가된 기능의 완료 조건은 각 후속

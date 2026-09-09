@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: publish-npm-${{ inputs.tag }}
@@ -49,6 +50,17 @@ jobs:
           TAG: ${{ inputs.tag }}
         run: bun run prepare:npm -- --version "${TAG#v}"
 
+      - name: Setup Node for npm Trusted Publishing
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.x
+          package-manager-cache: false
+
+      - name: Verify npm Trusted Publishing runtime
+        run: |
+          node --version
+          npm --version
+
       - name: Verify npm package
         env:
           TAG: ${{ inputs.tag }}
@@ -57,15 +69,5 @@ jobs:
           node release/npm/bin/myboxctl.js --help >/dev/null
           npm pack --dry-run ./release/npm
 
-      - name: Configure npm authentication
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          test -n "$NPM_TOKEN"
-          printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN" > "$RUNNER_TEMP/myboxctl.npmrc"
-          chmod 600 "$RUNNER_TEMP/myboxctl.npmrc"
-
       - name: Publish
-        env:
-          NPM_CONFIG_USERCONFIG: ${{ runner.temp }}/myboxctl.npmrc
         run: bun run publish:npm

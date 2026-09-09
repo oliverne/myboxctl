@@ -5,11 +5,13 @@
 
 ## 현재 상태
 
-- 마지막 완료 phase: `Phase 15 Recursive Folder Transfer`
+- 마지막 완료 phase: `Phase 16 npm Trusted Publishing`
 - 활성 구현 phase: 없음
 - 전체 상태: `complete`
 - 배포: standalone 실행파일은 폐기했고 npm(Node 기반) 단독 배포를 사용한다. 현재 npm `latest`는
   `v0.3.1`이다.
+- npm 배포 인증: Phase 16에서 GitHub Actions OIDC Trusted Publishing으로 전환했으며, 기존
+  `NPM_TOKEN` 폐기는 첫 OIDC publish와 registry smoke 뒤에 수행한다.
 - 최신 로컬 검사: `bun run check` 262 pass, 37 opt-in skip, 0 fail; 별도 `bun run build` 통과
 - 문서 윤문: `README.ko.md`, `CONTRIBUTING.md` 보수적 윤문 완료; `git diff --check` 통과
 - 최신 배포 검증: `v0.3.1` Node launcher upload 회귀, tag와 npm publish workflow
@@ -38,6 +40,7 @@
 | 13 Observability & test latency   | complete | event 출력, limiter 계측과 live acceptance 완료                   | [`phases/13-observability-and-test-latency.md`](phases/13-observability-and-test-latency.md)     |
 | 14 CLI UX & Agent Contract        | complete | canonical surface와 versioned output contract 완료                | [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)               |
 | 15 Recursive folder transfer      | complete | local 구현, 3-OS matrix, live round-trip과 failure-path 회귀 완료 | [`phases/15-recursive-folder-transfer.md`](phases/15-recursive-folder-transfer.md)               |
+| 16 npm Trusted Publishing         | complete | workflow OIDC 권한·Node 24 런타임·token 없는 배포 문서 반영 완료; 외부 publisher 등록·첫 publish·token 폐기는 사용자 release 절차 | [`phases/16-npm-trusted-publishing.md`](phases/16-npm-trusted-publishing.md) |
 
 ## 검증 경계
 
@@ -47,6 +50,8 @@
 - live: recursive transfer는 `/myboxctl-integration-test/` 아래 unique child만 사용한 왕복 acceptance와
   cleanup을 통과했다. 추가 live mutation은 별도 승인 대상이다.
 - release: tag/workflow와 package 검증 및 사용자 registry 설치 smoke를 완료했다.
+- npm Trusted Publishing: 저장소 workflow와 운영 문서 변경은 로컬 검증 대상이며, npm package 설정·실제
+  publish·기존 token 폐기는 별도 외부 운영 단계다.
 
 ## 다음 작업
 

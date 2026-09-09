@@ -2,14 +2,15 @@
 
 ## 인수 목적
 
-Phase 00~15의 구현과 필수 로컬/CI/live 검증을 완료했다. 현재 활성 구현 phase는 없으며, 다음 담당자는
+Phase 00~15의 구현과 필수 로컬/CI/live 검증, Phase 16의 repository workflow·운영 문서 전환을 완료했다.
+현재 활성 구현 phase는 없으며, 다음 담당자는
 새 phase 또는 release 범위를 정하면 된다. 전체 phase 상태와 최신 검증 수치는
 [`PROGRESS.md`](PROGRESS.md)가 소유한다.
 
 ## 현재 상태
 
 - 작업 브랜치: `main`
-- Phase 00~15: 모두 `complete`
+- Phase 00~16: 모두 `complete`
 - 현재 배포: `@oliverne/myboxctl@0.3.1`, npm 단독 배포
 - standalone/Homebrew/Scoop/install script 경로: 폐기
 - 최신 로컬 검사: `bun run check` 262 pass, 37 opt-in skip, 0 fail; `bun run build` 통과
@@ -51,6 +52,9 @@ versioned envelope를 stdout에 내고, event는 stderr 정책을 따른다. 상
   `/myboxctl-integration-test/` 아래 unique child로 제한한다.
 - live mutation, credential 변경, commit, push, tag와 publish는 서로 다른 승인 범위로 취급한다.
 - PAT, Authorization header, upload/download URL과 token은 출력·로그·문서에 남기지 않는다.
+- npm publish는 `id-token: write`를 사용하는 Trusted Publishing(OIDC) 방식으로 전환했다. npm package의
+  Trusted Publisher 등록, 첫 OIDC publish/registry smoke 후 기존 npm token과 `NPM_TOKEN` secret을
+  폐기한다.
 
 ## 기준 문서
 
@@ -61,6 +65,7 @@ versioned envelope를 stdout에 내고, event는 stderr 정책을 따른다. 상
 - MYBOX API 관찰: [`reference/mybox-api.md`](reference/mybox-api.md)
 - 공식 API coverage: [`reference/official-api-audit.md`](reference/official-api-audit.md)
 - 배포 절차: [`operations/npm-release.md`](operations/npm-release.md)
+- npm Trusted Publishing 전환: [`phases/16-npm-trusted-publishing.md`](phases/16-npm-trusted-publishing.md)
 - 과거 결정/완료 phase 색인: [`reference/project-history.md`](reference/project-history.md)
 
 ## 로컬 시작

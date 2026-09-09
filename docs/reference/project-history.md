@@ -15,6 +15,7 @@
 | Phase 13    | observability, human/JSONL 출력과 rate-limit 지연 분석 완료                       | [`phases/13-observability-and-test-latency.md`](../phases/13-observability-and-test-latency.md), [`test-latency-investigation.md`](test-latency-investigation.md)                |
 | Phase 14    | canonical CLI surface, destination semantics와 versioned JSON contract 완료       | [`phases/14-cli-ux-and-agent-contract.md`](../phases/14-cli-ux-and-agent-contract.md), [`cli-contract.md`](cli-contract.md)                                                      |
 | Phase 15    | recursive folder transfer, partial failure, plan preset과 diagnostic log 완료     | [`phases/15-recursive-folder-transfer.md`](../phases/15-recursive-folder-transfer.md), [`architecture/reliability.md`](../architecture/reliability.md)                           |
+| Phase 16    | npm `NPM_TOKEN` 배포를 GitHub Actions OIDC Trusted Publishing으로 전환             | [`phases/16-npm-trusted-publishing.md`](../phases/16-npm-trusted-publishing.md), [`operations/npm-release.md`](../operations/npm-release.md)                          |
 
 ## 주요 배포 전환
 
