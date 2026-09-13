@@ -25,7 +25,9 @@ Failure Diagnostics다. 전체 phase 상태와 최신 검증 수치는 [`PROGRES
   exit 0, `--help`의 `rename`/`move` 포함, 임시 prefix global install의 `--version`/`--help` exit 0 확인
 - registry 전파 관찰: publish 성공 직후 약 1–2분간 registry read가 `0.3.2`를 반환했고 그 뒤 `0.4.0`이
   반영됐다. publish 직후의 `npm view` E404를 publish 실패로 단정하지 않는다
-- 사용자 확인: 기존 npm publish token와 GitHub `NPM_TOKEN` secret 폐기 완료 (2026-09-13)
+- 사용자 확인: 기존 npm publish token와 GitHub `NPM_TOKEN` secret 폐기 완료 (2026-09-13). 로컬
+  `~/.npmrc`의 잔여 `_authToken` 항목도 제거했고, 이제 로컬에서 임의로 수행하는 `npm publish`는
+  ENEEDAUTH로 실패한다. 배포는 `publish-npm.yml`의 OIDC 경로로만 수행한다.
 - Agent Skill: `.agents/skills/myboxctl/`에 설치와 대표 명령 예제 중심의 교차 호스트 절차 및 독립 CLI
   contract reference를 추가하고 영문·국문 README에서 안내; Hermes 사용자 스킬 형식 및 정적 검증
   완료, 실제 호출은 미검증
@@ -138,7 +140,9 @@ test/integration/rename-move.test.ts`(live acceptance, 6 pass)로 검증한다.
 - PAT, Authorization header, upload/download URL과 token은 출력·로그·문서에 남기지 않는다.
 - npm publish는 `id-token: write`를 사용하는 Trusted Publishing(OIDC) 방식이다. npm package의
   Trusted Publisher 등록, 첫 OIDC publish와 registry/provenance 및 설치 smoke 확인, 기존 npm publish
-  token과 GitHub `NPM_TOKEN` secret 폐기를 완료했다. `v0.4.0`도 같은 OIDC 경로로 배포했다.
+  token과 GitHub `NPM_TOKEN` secret 폐기를 완료했다. `v0.4.0`도 같은 OIDC 경로로 배포했다. 저장소
+  secret에는 credential이 아닌 `MYBOX_PAT`만 남아 있고 workflow는 `NPM_TOKEN`/`NODE_AUTH_TOKEN`을
+  참조하지 않는다.
 - `v0.4.0` 배포 검증은 배포 commit push와 CI success, tag push, `publish-npm.yml` dispatch,
   `gh run watch` success, registry/provenance/GitHub Release 확인과 설치 smoke로 구성했다.
 

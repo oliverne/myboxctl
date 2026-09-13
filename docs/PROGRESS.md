@@ -13,7 +13,8 @@
   `v0.4.0`다. Phase 22에서 standalone 부활 없이 Node 기반 Homebrew tap을 계획한다.
 - npm 배포 인증: Phase 16에서 GitHub Actions OIDC Trusted Publishing으로 전환했다. 첫 OIDC publish와
   registry/provenance 및 설치 smoke를 확인했고, 기존 npm publish token과 GitHub `NPM_TOKEN` secret을
-  폐기했다 (2026-09-13 사용자 확인).
+  폐기했다 (2026-09-13 사용자 확인). 로컬 `~/.npmrc`의 잔여 `_authToken` 항목도 같은 날 제거해 로컬
+  npm publish는 ENEEDAUTH가 되고, 배포는 workflow OIDC로만 수행된다.
 - 최신 로컬 검사: `bun run check` 305 pass, 57 skip, 0 fail; 별도 `bun run build` 통과
 - 문서 윤문: `README.ko.md`, `CONTRIBUTING.md` 보수적 윤문 완료; `git diff --check` 통과
 - 최신 배포 검증: `v0.4.0` OIDC publish workflow의 `publish`·`release` job 성공, npm registry
