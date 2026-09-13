@@ -7,9 +7,10 @@
 
 - 마지막 완료 phase: `Phase 16 npm Trusted Publishing`
 - 활성 구현 phase: 없음
-- 전체 상태: `complete`
+- 다음 phase: `Phase 17 GitHub Release Notes` (`pending`)
+- 전체 상태: `pending`
 - 배포: standalone 실행파일은 폐기했고 npm(Node 기반) 단독 배포를 사용한다. 현재 npm `latest`는
-  `v0.3.2`다.
+  `v0.3.2`다. Phase 22에서 standalone 부활 없이 Node 기반 Homebrew tap을 계획한다.
 - npm 배포 인증: Phase 16에서 GitHub Actions OIDC Trusted Publishing으로 전환했다. 첫 OIDC publish와
   registry/provenance 및 설치 smoke를 확인했고, 기존 npm publish token과 GitHub `NPM_TOKEN` secret을
   폐기했다 (2026-09-13 사용자 확인).
@@ -19,6 +20,9 @@
 - 사용자 확인: `v0.3.2` npx/global install smoke 확인 완료 (2026-09-13)
 - Agent Skill: Hermes 등 셸 실행이 가능한 에이전트 호스트용 `.agents/skills/myboxctl/`을 설치와
   대표 명령 예제 중심으로 작성하고 영문·국문 README에 사용 경로 소개; 정적 검증 완료
+- 후속 로드맵: Phase 17–22와 recursive upload checkpoint Decision을 `pending` 계획으로 추가했다.
+  변경된 Markdown의 Prettier, local link와 `git diff --check` 검증을 통과했으며 코드 test, live mutation과
+  release 검증은 실행하지 않았다.
 
 ## Phase 상태
 
@@ -41,6 +45,12 @@
 | 14 CLI UX & Agent Contract        | complete | canonical surface와 versioned output contract 완료                                    | [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)               |
 | 15 Recursive folder transfer      | complete | local 구현, 3-OS matrix, live round-trip과 failure-path 회귀 완료                     | [`phases/15-recursive-folder-transfer.md`](phases/15-recursive-folder-transfer.md)               |
 | 16 npm Trusted Publishing         | complete | Trusted Publisher 등록, 첫 OIDC publish·provenance·설치 smoke 및 기존 token 폐기 완료 | [`phases/16-npm-trusted-publishing.md`](phases/16-npm-trusted-publishing.md)                     |
+| 17 GitHub Release Notes           | pending  | version별 변경 사항과 npm publish 뒤 GitHub Release 생성 계획                         | [`phases/17-github-release-notes.md`](phases/17-github-release-notes.md)                         |
+| 18 Remote Rename & Move           | pending  | 한 endpoint당 한 command와 resource ID 기반 reconcile 계획                            | [`phases/18-remote-rename-move.md`](phases/18-remote-rename-move.md)                             |
+| 19 Automatic Failure Diagnostics  | pending  | opt-in config, bounded buffer와 실패 시 자동 JSONL 계획                               | [`phases/19-automatic-failure-diagnostics.md`](phases/19-automatic-failure-diagnostics.md)       |
+| 20 Recursive Upload Resume        | pending  | explicit checkpoint, atomic state와 fail-closed 재개 계획                             | [`phases/20-recursive-upload-resume.md`](phases/20-recursive-upload-resume.md)                   |
+| 21 stdin Upload                   | pending  | unknown-size stdin의 secure temp spool과 기존 uploader 재사용 계획                    | [`phases/21-stdin-upload.md`](phases/21-stdin-upload.md)                                         |
+| 22 Homebrew Tap                   | pending  | standalone 없는 npm tarball 기반 Node formula 계획                                    | [`phases/22-homebrew-tap.md`](phases/22-homebrew-tap.md)                                         |
 
 ## 검증 경계
 
@@ -55,7 +65,10 @@
 
 ## 다음 작업
 
-1. 다음 phase 또는 npm release 범위를 새로 정할 때 `PLAN.md`와 해당 phase 문서를 갱신한다.
+1. Phase 17 구현을 시작할 때 해당 phase만 `in_progress`로 변경한다.
+2. version별 release note source와 npm/GitHub job 권한 경계를 구현하고 로컬 검증한다.
+3. 실제 tag와 npm/GitHub publish는 별도 승인을 받은 다음 version에서 검증한다.
+4. Phase 18–22는 앞선 phase가 완료된 뒤 순서대로 시작한다.
 
 ## 상태 변경 규칙
 

@@ -24,6 +24,8 @@
 
 - [`architecture/overview.md`](architecture/overview.md): 구조, 책임, 의존성 방향
 - [`architecture/reliability.md`](architecture/reliability.md): overwrite, retry, race, 파일 안정성
+- [`architecture/recursive-upload-resume.md`](architecture/recursive-upload-resume.md): Phase 20 checkpoint
+  저장 모델과 transaction/idempotency 경계
 
 ### 계약 reference
 

@@ -88,8 +88,8 @@
 |   9 | 폴더 생성                  | `POST /v1/drive/folders`                           | implemented | `ensure-dir`, `--mkdir`에서 사용                                               |
 |  10 | 업로드 URL 생성            | `POST /v1/drive/files`                             | implemented | `upload`, `put`에서 reservation에 사용                                         |
 |  11 | 다운로드 URL 생성          | `GET /v1/drive/files/{fileId}/download`            | implemented | `download`에서 사용. URL은 1회용이며 PAT 없는 signed GET에만 전달              |
-|  12 | 이름 변경                  | `POST /v1/drive/resources/{resourceId}/rename`     | future      | 필요 사례가 확인될 때 command 후보                                             |
-|  13 | 이동                       | `POST /v1/drive/resources/{resourceId}/move`       | future      | 필요 사례가 확인될 때 command 후보                                             |
+|  12 | 이름 변경                  | `POST /v1/drive/resources/{resourceId}/rename`     | planned     | Phase 18의 독립 `rename` command로 선택                                        |
+|  13 | 이동                       | `POST /v1/drive/resources/{resourceId}/move`       | planned     | Phase 18의 destination-directory 전용 `move` command로 선택                    |
 |  14 | 복사                       | `POST /v1/drive/resources/{resourceId}/copy`       | future      | 필요 사례가 확인될 때 command 후보                                             |
 |  15 | 삭제(휴지통 이동)          | `DELETE /v1/drive/resources/{resourceId}`          | implemented | `delete`에서 사용                                                              |
 |  16 | 휴지통 목록                | `GET /v1/drive/trash`                              | future      | 현재 delete는 휴지통 이동까지만 책임짐                                         |
@@ -190,14 +190,15 @@ mutation 재전송은 계속 금지한다.
 PAT 만료, 계정 용량 초과, 암호 폴더/공유 받은 폴더 미지원은 사용자 문서에 명시하고 코드에서 임의로
 우회하지 않는다.
 
-## 5. 의도적으로 구현하지 않는 API와 향후 후보
+## 5. 선택한 planned API와 향후 후보
+
+rename/move는 실제 원격 재배치 요구가 확인되어 Phase 18로 선택했다. 아직 production code에서 사용하지
+않으므로 `planned`이며 Phase 18의 필수 검증을 완료한 뒤에만 `implemented`로 변경한다.
 
 다음 항목은 **누락 버그가 아니라 현재 비범위**다. 사용 사례가 확인되기 전에는 구현하지 않는다.
 
 | 후보             | 관련 공식 API       | 검토 조건                                                |
 | ---------------- | ------------------- | -------------------------------------------------------- |
-| `rename`         | 이름 변경           | 별도 rename이 upload/put보다 명확한 사용 사례를 가질 때  |
-| `move`           | 이동                | 원격 파일 재배치 요구가 확인될 때                        |
 | `copy`           | 복사                | 서버 측 복사가 upload보다 유리한 실제 workflow가 있을 때 |
 | favorite 제어    | favorite/unfavorite | 에이전트 workflow에서 favorite가 의미 있는 상태가 될 때  |
 | trash 조회/복원  | trash list/restore  | delete undo가 제품 요구가 될 때                          |

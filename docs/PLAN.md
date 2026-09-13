@@ -15,6 +15,9 @@ NAVER MYBOX Open API를 이용하여 다음 작업을 결정적으로 수행하�
 4. 원격 파일과 폴더를 MYBOX 휴지통으로 이동
 5. 원격 파일과 폴더 tree를 로컬에 안전하게 다운로드
 6. 다양한 AI 에이전트가 파싱할 수 있는 안정적인 JSON과 exit code 제공
+7. 원격 파일과 폴더의 이름과 위치를 server-side mutation으로 안전하게 변경
+8. 중단된 폴더 업로드를 명시적인 checkpoint로 재개하고 stdin을 단일 파일로 업로드
+9. npm release의 변경 사항을 GitHub에 게시하고 Node 기반 Homebrew 설치 경로 제공
 
 예상 사용 방식:
 
@@ -39,6 +42,8 @@ myboxctl delete /agents/output/old-report.md --json
 - MVP 이전 daemon/watch 모드
 - 완전한 rclone 호환
 - MYBOX Open API 전체 기능의 wrapper
+- built-in tar/zip 생성 또는 MYBOX에서의 archive 자동 해제
+- Homebrew를 위한 Bun standalone 실행파일 부활
 
 ## 3. 핵심 결정
 
@@ -344,10 +349,92 @@ Phase 15는 one-shot transfer이며 directory sync, remote watch 또는 local �
 
 Phase 16은 npm package 내용이나 CLI 기능을 변경하지 않는다.
 
+### Phase 17 — GitHub Release Notes
+
+문서: [`phases/17-github-release-notes.md`](phases/17-github-release-notes.md)
+
+npm version을 게시할 때 같은 tag의 GitHub Release에 사용자 관점의 짧은 변경 사항을 함께 게시한다.
+
+- `docs/releases/vX.Y.Z.md`의 검토된 3~6개 bullet을 release note source로 사용
+- tag, npm version과 note version 일치 여부를 publish 전에 검증
+- npm publish 성공 뒤 별도 GitHub Release job 실행
+- npm OIDC job과 contents write job의 최소 권한 분리
+- binary asset, standalone build와 Homebrew 갱신은 포함하지 않음
+
+commit/push, tag push와 npm/GitHub publish의 기존 승인 경계는 유지한다.
+
+### Phase 18 — Remote Rename & Move
+
+문서: [`phases/18-remote-rename-move.md`](phases/18-remote-rename-move.md)
+
+공식 rename/move endpoint를 각각 하나의 command vertical slice로 노출한다.
+
+- `rename <remote-path> <new-name>`은 같은 parent 안의 basename만 변경
+- `move <remote-path> <destination-directory>`는 basename을 유지하고 위치만 변경
+- 한 command에서 move와 rename을 연속 수행하지 않음
+- source/destination conflict, root와 descendant 이동을 mutation 전에 검증
+- POST를 generic retry하지 않고 original resource ID로 old/new path를 reconcile
+- 첫 version에서는 overwrite, copy, 여러 source와 glob을 제외
+
+### Phase 19 — Automatic Failure Diagnostics
+
+문서: [`phases/19-automatic-failure-diagnostics.md`](phases/19-automatic-failure-diagnostics.md)
+
+기존 `--diagnostic-log`를 유지하면서 사용자가 config로 활성화한 경우 실패한 실행에만 자동 진단 파일을
+남긴다.
+
+- 기본값은 off이며 `diagnostics.onError: true`에서만 활성화
+- 성공 실행은 disk file을 만들지 않고 bounded sanitized event buffer만 폐기
+- 실패 시 XDG/default state directory에 exclusive JSONL 생성
+- 최근 event 256개/1 MiB와 로그 20개로 memory 및 disk 사용을 제한
+- 명시적 `--diagnostic-log` 우선, secret/raw argv/HTTP redaction과 원래 exit code 보존
+
+### Phase 20 — Recursive Upload Resume
+
+문서: [`phases/20-recursive-upload-resume.md`](phases/20-recursive-upload-resume.md)
+
+설계 결정: [`architecture/recursive-upload-resume.md`](architecture/recursive-upload-resume.md)
+
+현재 one-shot recursive upload를 명시적인 local checkpoint 기반 재개로 확장한다.
+
+- local manifest와 remote root ownership을 versioned checkpoint에 기록
+- mutation 전 `inFlight` intent와 완료 후 resource ID/metadata를 atomic commit
+- completed entry를 local/remote 양쪽에서 다시 확인한 뒤에만 skip
+- checkpoint 없는 기존 remote tree는 merge하거나 재개하지 않음
+- 불확실한 in-flight mutation은 POST를 반복하지 않고 `api-unavailable`/`RESUME_UNCERTAIN`으로 중단
+- recursive download resume, 병렬 전송, tree rollback과 sync는 제외
+
+### Phase 21 — stdin Upload
+
+문서: [`phases/21-stdin-upload.md`](phases/21-stdin-upload.md)
+
+stdin의 unknown-size byte stream을 임시 regular file에 bounded-memory로 spool한 뒤 기존 upload core로
+단일 remote file에 전송한다.
+
+- `upload - <remote-file>`의 명시적인 exact destination
+- interactive TTY, destination 생략/directory와 `--recursive` 조합 거부
+- `maxFileBytes` 초과, disk failure와 SIGINT에서 temp file 정리
+- spool file로 같은 실행 안의 기존 upload resume/retry 재사용
+- unknown-size direct upload, command 간 stdin resume와 built-in archive는 제외
+- `tar -czf - ... | myboxctl upload - ...`는 문서 recipe로만 제공
+
+### Phase 22 — Homebrew Tap
+
+문서: [`phases/22-homebrew-tap.md`](phases/22-homebrew-tap.md)
+
+standalone binary를 부활시키지 않고 npm registry tarball을 사용하는 Node 기반 personal tap을 제공한다.
+
+- 목표 설치 명령은 `brew install oliverne/tap/myboxctl`
+- npm tarball과 checksum을 고정하고 Homebrew `std_npm_args`로 `libexec`에 설치
+- `depends_on "node"`, version/help와 macOS 지원 architecture install smoke 검증
+- 첫 formula 갱신과 tap commit/push는 수동 검토 및 별도 승인
+- Homebrew core, Scoop, Linux installer와 standalone bottle은 제외
+
 ## 6. 전체 MVP 완료 조건
 
-이 절은 Phase 00~08에서 판정한 MVP 완료 기준을 기록한다. 이후 추가된 기능의 완료 조건은 각 후속
-phase 문서를 따르며, 현재 구현된 public CLI와 recursive transfer의 최종 경계는 Phase 15 문서를 따른다.
+이 절은 Phase 00–08에서 판정한 MVP 완료 기준을 기록한다. 이후 추가된 기능의 완료 조건은 각 후속
+phase 문서를 따른다. 현재 구현된 public CLI와 recursive transfer의 최종 경계는 Phase 15 문서이며,
+Phase 17–22는 아직 구현되지 않은 후속 계획이다.
 
 다음 조건을 모두 충족해야 MVP를 완료할 수 있다.
 
@@ -383,15 +470,16 @@ probe 결과는 API ledger와 handoff에 이미 남아 있어야 한다.
 
 ## 7. 이후 후보
 
-MVP 완료 후 실제 요구가 확인된 경우에만 검토한다.
+Phase 17–22로 선택하지 않은 후보는 실제 요구가 확인된 경우에만 검토한다.
 
 - local state/cache 및 SHA-256 기록
-- resumable upload 고도화
 - watch daemon
 - systemd unit
-- rename/move/copy
+- copy
 - favorite/unfavorite
 - trash list/restore
+- standalone binary, Scoop와 Linux install script 재도입
+- built-in tar/zip archive 생성 또는 자동 해제
 
 휴지통 영구 삭제, 휴지통 전체 비우기, 계정 수준의 휴지통 보존 설정은 특히 파괴적이거나 전역적인
 작업이므로 단순 편의 기능으로 추가하지 않는다. 공식 API 전체 후보와 검토 조건은
