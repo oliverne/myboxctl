@@ -9,8 +9,9 @@
 - 활성 phase: 없음
 - Phase 00~15와 npm `v0.3.1` 배포가 완료된 상태에서 시작했다.
 - 저장소 workflow와 운영 문서의 전환은 이 phase에서 완료한다.
-- npm 웹사이트의 Trusted Publisher 등록, 실제 OIDC publish, registry smoke와 기존 token 폐기는
-  release 자격 증명과 별도 운영 승인이 필요한 후속 절차다.
+- npm 웹사이트의 Trusted Publisher 등록, 실제 OIDC publish, registry/provenance 및 설치 smoke와 기존
+  token 폐기는 release 자격 증명과 별도 운영 승인이 필요한 후속 절차였으며, 2026-09-13 사용자 확인으로
+  모두 완료했다.
 
 ## 변경 범위
 
@@ -26,14 +27,14 @@
 
 npm package 설정에서 다음 Trusted Publisher를 추가해야 한다.
 
-| 항목 | 값 |
-| --- | --- |
-| Provider | GitHub Actions |
-| Organization or user | `oliverne` |
-| Repository | `myboxctl` |
-| Workflow filename | `publish-npm.yml` |
-| Environment name | 없음 |
-| Allowed action | `npm publish` |
+| 항목                 | 값                |
+| -------------------- | ----------------- |
+| Provider             | GitHub Actions    |
+| Organization or user | `oliverne`        |
+| Repository           | `myboxctl`        |
+| Workflow filename    | `publish-npm.yml` |
+| Environment name     | 없음              |
+| Allowed action       | `npm publish`     |
 
 Trusted Publishing은 Node.js 22.14.0 이상과 npm CLI 11.5.1 이상, GitHub-hosted runner와
 workflow의 `id-token: write`를 요구한다. GitHub Actions OIDC publish에서는 npm provenance가
@@ -49,7 +50,8 @@ bun run build
 git diff --check
 ```
 
-다음은 이 phase의 저장소 변경 이후 사용자가 release 승인과 npm package 설정을 확인한 뒤 수행한다.
+다음 외부 절차는 저장소 변경 이후 별도 release 승인으로 수행했으며, 2026-09-13 사용자 확인으로
+모두 완료했다.
 
 1. npm package에 Trusted Publisher를 등록한다.
 2. 새 version tag로 `publish-npm.yml`을 실행한다.
@@ -57,6 +59,7 @@ git diff --check
 4. `npx`/global install smoke를 수행한다.
 5. 기존 npm publish token을 npm에서 revoke하고 GitHub의 `NPM_TOKEN` secret을 삭제한다.
 
-위 외부 절차는 이 구현 작업에서 자동 실행하지 않는다. 실패한 OIDC publish를 동일 version으로
-무조건 반복하지 않으며, `ENEEDAUTH`/`E404`는 Trusted Publisher identity와 OIDC permission부터
-재확인한다.
+외부 절차 완료 결과는 `v0.3.2` OIDC publish 성공, npm registry `latest`와 provenance 확인,
+`npx`/global install smoke 성공, 기존 npm publish token과 GitHub `NPM_TOKEN` secret 폐기다. 실패한
+OIDC publish를 동일 version으로 무조건 반복하지 않으며, `ENEEDAUTH`/`E404`는 Trusted Publisher
+identity와 OIDC permission부터 재확인한다.

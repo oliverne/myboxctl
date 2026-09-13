@@ -15,7 +15,7 @@
 | Phase 13    | observability, human/JSONL 출력과 rate-limit 지연 분석 완료                       | [`phases/13-observability-and-test-latency.md`](../phases/13-observability-and-test-latency.md), [`test-latency-investigation.md`](test-latency-investigation.md)                |
 | Phase 14    | canonical CLI surface, destination semantics와 versioned JSON contract 완료       | [`phases/14-cli-ux-and-agent-contract.md`](../phases/14-cli-ux-and-agent-contract.md), [`cli-contract.md`](cli-contract.md)                                                      |
 | Phase 15    | recursive folder transfer, partial failure, plan preset과 diagnostic log 완료     | [`phases/15-recursive-folder-transfer.md`](../phases/15-recursive-folder-transfer.md), [`architecture/reliability.md`](../architecture/reliability.md)                           |
-| Phase 16    | npm `NPM_TOKEN` 배포를 GitHub Actions OIDC Trusted Publishing으로 전환             | [`phases/16-npm-trusted-publishing.md`](../phases/16-npm-trusted-publishing.md), [`operations/npm-release.md`](../operations/npm-release.md)                          |
+| Phase 16    | npm `NPM_TOKEN` 배포를 GitHub Actions OIDC Trusted Publishing으로 전환            | [`phases/16-npm-trusted-publishing.md`](../phases/16-npm-trusted-publishing.md), [`operations/npm-release.md`](../operations/npm-release.md)                                     |
 
 ## 주요 배포 전환
 
@@ -24,6 +24,8 @@
   [`PROGRESS.md`](../PROGRESS.md)에 둔다.
 - Phase 15 완료 후 `v0.3.0`을 배포했고, Node ReadableStream upload 호환성 수정으로 `v0.3.1`을
   추가 배포했다. tag와 workflow의 세부 증거는 Git history와 npm 운영 문서에서 확인한다.
+- `v0.3.2`에서 첫 OIDC Trusted Publishing과 registry/provenance 및 설치 smoke를 확인하고 기존 npm
+  publish token과 GitHub `NPM_TOKEN` secret을 폐기했다 (2026-09-13 사용자 확인).
 
 ## 이력 원칙
 

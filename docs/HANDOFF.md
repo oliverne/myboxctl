@@ -2,7 +2,7 @@
 
 ## 인수 목적
 
-Phase 00~15의 구현과 필수 로컬/CI/live 검증, Phase 16의 repository workflow·운영 문서 전환을 완료했다.
+Phase 00~15의 구현과 필수 로컬/CI/live 검증, Phase 16의 OIDC 배포 전환과 외부 운영 절차를 완료했다.
 현재 활성 구현 phase는 없으며, 다음 담당자는
 새 phase 또는 release 범위를 정하면 된다. 전체 phase 상태와 최신 검증 수치는
 [`PROGRESS.md`](PROGRESS.md)가 소유한다.
@@ -11,11 +11,12 @@ Phase 00~15의 구현과 필수 로컬/CI/live 검증, Phase 16의 repository wo
 
 - 작업 브랜치: `main`
 - Phase 00~16: 모두 `complete`
-- 현재 배포: `@oliverne/myboxctl@0.3.1`, npm 단독 배포
+- 현재 배포: `@oliverne/myboxctl@0.3.2`, npm 단독 배포
 - standalone/Homebrew/Scoop/install script 경로: 폐기
-- 최신 로컬 검사: `bun run check` 262 pass, 37 opt-in skip, 0 fail; `bun run build` 통과
-- 최신 publish workflow: [`33975001755`](https://github.com/oliverne/myboxctl/actions/runs/33975001755) 성공
-- 사용자 확인: `v0.3.1` registry 설치 smoke와 global install 확인 완료, 사용 중 이상 없음 (2026-09-06)
+- 최신 로컬 검사: `bun run check` 261 pass, 38 skip, 0 fail; `bun run build` 통과
+- 최신 publish: `v0.3.2` OIDC workflow 성공, registry `latest`와 provenance 확인 완료
+- 사용자 확인: `v0.3.2` npx/global install smoke와 기존 npm publish token 및 GitHub `NPM_TOKEN`
+  secret 폐기 완료 (2026-09-13)
 - Agent Skill: `.agents/skills/myboxctl/`에 설치와 대표 명령 예제 중심의 교차 호스트 절차 및 독립 CLI
   contract reference를 추가하고 영문·국문 README에서 안내; Hermes 사용자 스킬 형식 및 정적 검증
   완료, 실제 호출은 미검증
@@ -52,9 +53,9 @@ versioned envelope를 stdout에 내고, event는 stderr 정책을 따른다. 상
   `/myboxctl-integration-test/` 아래 unique child로 제한한다.
 - live mutation, credential 변경, commit, push, tag와 publish는 서로 다른 승인 범위로 취급한다.
 - PAT, Authorization header, upload/download URL과 token은 출력·로그·문서에 남기지 않는다.
-- npm publish는 `id-token: write`를 사용하는 Trusted Publishing(OIDC) 방식으로 전환했다. npm package의
-  Trusted Publisher 등록, 첫 OIDC publish/registry smoke 후 기존 npm token과 `NPM_TOKEN` secret을
-  폐기한다.
+- npm publish는 `id-token: write`를 사용하는 Trusted Publishing(OIDC) 방식이다. npm package의
+  Trusted Publisher 등록, 첫 OIDC publish와 registry/provenance 및 설치 smoke 확인, 기존 npm publish
+  token과 GitHub `NPM_TOKEN` secret 폐기를 완료했다.
 
 ## 기준 문서
 

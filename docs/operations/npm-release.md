@@ -8,7 +8,8 @@ GitHub Actions 배포 인증은 npm Trusted Publishing(OIDC)을 사용한다. �
 Trusted Publishing에는 Node.js 22.14.0 이상과 npm CLI 11.5.1 이상이 필요하며, 이 저장소의
 publish workflow는 Node.js 24를 사용한다.
 
-현재 npm `latest`는 `v0.3.1`이다. `v0.3.1` 배포는 완료됐으며, 아래 명령은 다음 미게시 version을
+현재 npm `latest`는 `v0.3.2`다. 첫 OIDC 배포와 registry/provenance 및 설치 smoke, 기존 token 폐기를
+완료했다 (2026-09-13 사용자 확인). 아래 명령은 다음 미게시 version을
 선택해 실행하는 형식 예시다. 실제 배포 때는 게시되지 않은 version을 선택하며 기존 tag를 이동하지 않는다.
 
 ## 1. npm 계정과 scope 확인
@@ -125,6 +126,9 @@ myboxctl --version
 ```
 
 ## 6. 기존 token 폐기
+
+`v0.3.2` 첫 OIDC publish와 registry smoke 확인 뒤 기존 npm publish token과 GitHub `NPM_TOKEN`
+secret을 폐기했다 (2026-09-13 사용자 확인). 아래 절차는 향후 credential 전환 시의 안전 순서다.
 
 OIDC publish가 실제로 한 번 성공하고 registry smoke까지 확인된 뒤에만 기존 publish token을 폐기한다.
 먼저 npm의 **Access Tokens**에서 해당 granular token을 revoke한 다음, 남아 있다면 GitHub repository

@@ -41,8 +41,8 @@
 
 - [`operations/ubuntu-24.04.md`](operations/ubuntu-24.04.md): Ubuntu Server 24.04 설치, credentials,
   AI 에이전트 subprocess 호출, 업그레이드·rollback
-- [`operations/npm-release.md`](operations/npm-release.md): npm token 생성, tag, publish workflow,
-  registry smoke와 최초 배포 후 OIDC 전환
+- [`operations/npm-release.md`](operations/npm-release.md): tag, OIDC publish workflow,
+  registry/provenance 및 설치 smoke와 credential 운영
 
 ## 유지 규칙
 
