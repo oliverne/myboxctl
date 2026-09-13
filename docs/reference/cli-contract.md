@@ -147,6 +147,10 @@ file 또는 folder를 MYBOX trash로 이동한다. folder는 subtree 전체가 �
 문자(trailing space/dot, Windows 금지 문자와 예약 basename)는 mutation 전에 exit 2다. 이름은 보낸
 그대로 전송하며 NFC로 자동 변환하지 않는다.
 
+구조적 거부는 `error.code`로 구분한다. separator가 있으면 `NAME_NOT_SINGLE_COMPONENT`이고 메시지가
+`myboxctl move` 대안을 안내한다. 빈 값, `.`, `..`, C0/DEL은 `NAME_INVALID`, portable 금지 문자는
+`NON_PORTABLE_NAME`이다. 위치까지 바꾸려면 `move`를 따로 호출한다.
+
 같은 parent에 NFC 기준으로 같은 이름의 다른 resource가 있으면 `NAME_CONFLICT` exit 5이며 아무것도
 바꾸지 않는다. 성공하면 `data`에 `path`, `newPath`, `resourceId`, `type`을 반환한다.
 

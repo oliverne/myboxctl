@@ -97,6 +97,10 @@
 - Phase 18 live: `MYBOX_INTEGRATION=1 bun test test/integration/rename-move.test.ts` 6 pass/0 fail
   (965.73s). mutation은 `/myboxctl-integration-test/` 아래 unique child로 제한했다. destination root `/`
   실이동과 429/응답 유실 reconcile은 fake HTTP test로만 검증했고 live 미검증으로 남긴다.
+- rename 오류 UX(2026-09-13, phase 18 계약 유지): `new-name` 구조적 거부에 `NAME_NOT_SINGLE_COMPONENT`
+  (separator, 메시지가 `move` 대안 안내)와 `NAME_INVALID`(빈 값/`.`/`..`/C0·DEL) code를 부여했고 계약
+  문서에 기록했다. fake HTTP test 2개와 CLI subprocess assertion 1개를 추가해 `bun run check`
+  307 pass, 57 skip, 0 fail을 확인했다. 오류 경로만 바뀌어 live 재실행은 하지 않았다.
 
 ## 다음 작업
 

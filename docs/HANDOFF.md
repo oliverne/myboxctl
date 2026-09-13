@@ -17,7 +17,7 @@ Failure Diagnostics다. 전체 phase 상태와 최신 검증 수치는 [`PROGRES
 - 현재 배포: `@oliverne/myboxctl@0.4.0`(npm `latest`), npm 단독 배포
 - standalone/Scoop/install script 경로: 폐기 유지
 - Homebrew: Phase 22에서 standalone 부활 없이 npm tarball 기반 Node formula로 계획
-- 최신 로컬 검사: `bun run check` 305 pass, 57 skip, 0 fail; `bun run build`와 `git diff --check` 통과
+- 최신 로컬 검사: `bun run check` 307 pass, 57 skip, 0 fail; `bun run build`와 `git diff --check` 통과
 - 최신 publish: `v0.4.0` 배포 완료 — 배포 commit `3838c02`(CI success, run 34757973707), tag `v0.4.0`,
   publish workflow run 34758012146의 `publish`·`release` job success. registry `0.4.0`/`latest`와 npm
   provenance attestation, GitHub Release `v0.4.0`(draft/prerelease 아님, 본문 일치, asset 0개) 확인
@@ -51,6 +51,12 @@ Failure Diagnostics다. 전체 phase 상태와 최신 검증 수치는 [`PROGRES
   교정했다. rename/move limiter bucket의 `other` 공유는 유지했다.
   신규 회귀 7개를 포함해 `bun run check` 305 pass, 57 skip, 0 fail, `bun run build`를 통과했다. live
   재실행은 미수행이다.
+- rename 오류 UX(2026-09-13, `v0.4.1` 배포 대상): `src/features/relocation.ts`의
+  `assertNewResourceName`이 구조적 거부에 code를 준다. separator는 `NAME_NOT_SINGLE_COMPONENT`이고
+  메시지가 `myboxctl move` 대안을 안내하며, 빈 값/`.`/`..`/C0·DEL은 `NAME_INVALID`, portable 금지
+  문자는 기존 `NON_PORTABLE_NAME`을 유지한다. 계약은 `docs/reference/cli-contract.md`에 기록했고,
+  fake HTTP test 2개와 CLI subprocess assertion 1개를 추가해 `bun run check` 307 pass, 57 skip,
+  0 fail을 통과했다. live 재실행은 하지 않았다(오류 경로만 변경).
 - pi-lens 참고: `src/output.ts`의 `sanitizeValue`는 `SanitizedValue`, `src/cli.ts`의
   `normalizeMachineData`는 `MachineData` 반환 타입으로 `no-unknown-returns` heuristic을 피한다.
   `no-runtime-typeof`, `no-conditional-empty-object-spread`, `no-unsafe-dictionary-unknown` 같은

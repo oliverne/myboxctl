@@ -219,6 +219,37 @@ describe("rename HTTP operation", () => {
     expect(server.requests.filter((request) => request.method === "POST")).toHaveLength(0);
   });
 
+  test("rejects a multi-component name with an actionable message and code", async () => {
+    const state: RenameState = { renamed: false };
+    const server = await createFakeHttpServer({ handler: renameHandler(state) });
+    servers.push(server);
+
+    await expect(
+      runRename("/reports/draft.md", "/final.md", dependencies(server)),
+    ).rejects.toMatchObject({
+      kind: "invalid-arguments",
+      code: "NAME_NOT_SINGLE_COMPONENT",
+      message:
+        'The new name must be a single path component: /final.md. Pass only the new name, or use "myboxctl move" to change its location.',
+    });
+    expect(server.requests).toHaveLength(0);
+  });
+
+  test("codes every structural new-name rejection", async () => {
+    const state: RenameState = { renamed: false };
+    const server = await createFakeHttpServer({ handler: renameHandler(state) });
+    servers.push(server);
+    const deps = dependencies(server);
+
+    for (const name of ["", ".", "..", "bad\u0001name"]) {
+      await expect(runRename("/reports/draft.md", name, deps)).rejects.toMatchObject({
+        kind: "invalid-arguments",
+        code: "NAME_INVALID",
+      });
+    }
+    expect(server.requests).toHaveLength(0);
+  });
+
   test("rejects a non-portable name before any request", async () => {
     const state: RenameState = { renamed: false };
     const server = await createFakeHttpServer({ handler: renameHandler(state) });

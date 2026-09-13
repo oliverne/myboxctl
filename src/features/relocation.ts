@@ -24,19 +24,26 @@ export function invalidArgument(message: string, code?: string): DomainError {
  * `rename` takes a single path component, not a path. Structural problems and non-portable names are
  * rejected before any mutation. The name is sent exactly as given: the server preserves NFC and NFD
  * spellings (see API-13/API-15 in the API ledger), so the CLI does not silently normalize it.
+ *
+ * A path separator is the one structural problem a caller can resolve by choosing another command, so
+ * it gets its own `NAME_NOT_SINGLE_COMPONENT` code and names `move` in the message. Every other
+ * structural rejection is `NAME_INVALID`; non-portable names stay `NON_PORTABLE_NAME`.
  */
 export function assertNewResourceName(name: string): void {
   if (name.length === 0) {
-    throw invalidArgument("The new name must not be empty.");
+    throw invalidArgument("The new name must not be empty.", "NAME_INVALID");
   }
   if (name === "." || name === "..") {
-    throw invalidArgument(`The new name must not be '.' or '..': ${name}.`);
+    throw invalidArgument(`The new name must not be '.' or '..': ${name}.`, "NAME_INVALID");
   }
   if (/[/\\]/u.test(name)) {
-    throw invalidArgument(`The new name must be a single path component: ${name}.`);
+    throw invalidArgument(
+      `The new name must be a single path component: ${name}. Pass only the new name, or use "myboxctl move" to change its location.`,
+      "NAME_NOT_SINGLE_COMPONENT",
+    );
   }
   if (hasControlCharacter(name)) {
-    throw invalidArgument("The new name must not contain control characters.");
+    throw invalidArgument("The new name must not contain control characters.", "NAME_INVALID");
   }
 
   try {

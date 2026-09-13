@@ -230,7 +230,12 @@ describe("rename and move command subprocess contract", () => {
     expect(result.exitCode).toBe(2);
     expect(JSON.parse(result.stdout)).toMatchObject({
       ok: false,
-      error: { kind: "invalid-arguments" },
+      error: {
+        kind: "invalid-arguments",
+        code: "NAME_NOT_SINGLE_COMPONENT",
+        message:
+          'The new name must be a single path component: ../escape.md. Pass only the new name, or use "myboxctl move" to change its location.',
+      },
     });
     expect(server.requests).toHaveLength(0);
   });
