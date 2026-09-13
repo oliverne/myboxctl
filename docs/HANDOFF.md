@@ -2,7 +2,8 @@
 
 ## 인수 목적
 
-Phase 00–18 구현과 필수 로컬/live 검증, `v0.4.0` 배포와 GitHub Release 생성을 모두 완료했다. Phase 17
+Phase 00–18 구현과 필수 로컬/live 검증, `v0.4.0`·`v0.4.1` 배포와 GitHub Release 생성을 모두 완료했다.
+Phase 17
 GitHub Release Notes도 `v0.4.0` 배포에서 외부 검증을 마쳤다. 다음 계획 phase는 Phase 19 Automatic
 Failure Diagnostics다. 전체 phase 상태와 최신 검증 수치는 [`PROGRESS.md`](PROGRESS.md)가 소유한다.
 
@@ -13,18 +14,21 @@ Failure Diagnostics다. 전체 phase 상태와 최신 검증 수치는 [`PROGRES
 - Phase 17: `complete`; `v0.4.0` 배포에서 note 검증과 npm publish, GitHub Release 생성·본문 일치까지
   확인했다
 - Phase 19–22: 모두 `pending`; 다음 순서는 Phase 19 Automatic Failure Diagnostics
-- 배포된 release note: `docs/releases/v0.4.0.md`(6 bullet); `v0.4.0` GitHub Release 본문과 일치
-- 현재 배포: `@oliverne/myboxctl@0.4.0`(npm `latest`), npm 단독 배포
+- 배포된 release note: `docs/releases/v0.4.1.md`(3 bullet); `v0.4.1` GitHub Release 본문과 일치. 이전
+  `docs/releases/v0.4.0.md`(6 bullet)도 `v0.4.0` Release 본문과 일치
+- 현재 배포: `@oliverne/myboxctl@0.4.1`(npm `latest`), npm 단독 배포
 - standalone/Scoop/install script 경로: 폐기 유지
 - Homebrew: Phase 22에서 standalone 부활 없이 npm tarball 기반 Node formula로 계획
 - 최신 로컬 검사: `bun run check` 307 pass, 57 skip, 0 fail; `bun run build`와 `git diff --check` 통과
-- 최신 publish: `v0.4.0` 배포 완료 — 배포 commit `3838c02`(CI success, run 34757973707), tag `v0.4.0`,
-  publish workflow run 34758012146의 `publish`·`release` job success. registry `0.4.0`/`latest`와 npm
-  provenance attestation, GitHub Release `v0.4.0`(draft/prerelease 아님, 본문 일치, asset 0개) 확인
-- 설치 smoke: `npx @oliverne/myboxctl@0.4.0`의 `--version`(0.4.0 한 줄), 인자 없는 실행 root help
+- 최신 publish: `v0.4.1` 배포 완료 — 배포 commit `a813e99`(CI success, run 34759018056), tag `v0.4.1`,
+  publish workflow run 34759055277의 `publish`·`release` job success. registry `0.4.1`/`latest`와 npm
+  provenance attestation, GitHub Release `v0.4.1`(draft/prerelease 아님, 본문 일치, asset 0개) 확인
+- 이전 publish: `v0.4.0` — 배포 commit `3838c02`(CI success, run 34757973707), tag `v0.4.0`,
+  publish workflow run 34758012146의 `publish`·`release` job success
+- 설치 smoke: `npx @oliverne/myboxctl@0.4.1`의 `--version`(0.4.1 한 줄), 인자 없는 실행 root help
   exit 0, `--help`의 `rename`/`move` 포함, 임시 prefix global install의 `--version`/`--help` exit 0 확인
-- registry 전파 관찰: publish 성공 직후 약 1–2분간 registry read가 `0.3.2`를 반환했고 그 뒤 `0.4.0`이
-  반영됐다. publish 직후의 `npm view` E404를 publish 실패로 단정하지 않는다
+- registry 전파 관찰: `v0.4.1` publish 성공 직후 registry read가 한 번 `0.4.0`을 반환했고 30초 뒤
+  `0.4.1`이 반영됐다. publish 직후의 `npm view` E404를 publish 실패로 단정하지 않는다
 - 사용자 확인: 기존 npm publish token와 GitHub `NPM_TOKEN` secret 폐기 완료 (2026-09-13). 로컬
   `~/.npmrc`의 잔여 `_authToken` 항목도 제거했고, 이제 로컬에서 임의로 수행하는 `npm publish`는
   ENEEDAUTH로 실패한다. 배포는 `publish-npm.yml`의 OIDC 경로로만 수행한다.
@@ -34,7 +38,8 @@ Failure Diagnostics다. 전체 phase 상태와 최신 검증 수치는 [`PROGRES
 - Release Skill: `.agents/skills/myboxctl-release/SKILL.md`에 `v0.4.0` 배포 절차 기반의 릴리스 절차를
   정리했다. 승인 경계, 사전 확인, version 선택, 사용자 관점 note 문체(예시 포함), commit/CI, tag,
   workflow dispatch, registry 전파 대기, 배포 검증, 기록과 실패 대응을 포함한다. 같은 문체 규칙을
-  `docs/releases/README.md`와 `CONTRIBUTING.md`의 릴리스 절에 연결했다. 실제 호출 검증은 미수행이다.
+  `docs/releases/README.md`와 `CONTRIBUTING.md`의 릴리스 절에 연결했다. `v0.4.1` 배포에서 이 절차를
+  따라 배포와 검증을 수행했다.
 - Phase 17 구현: `docs/releases/` note 규칙과 `src/release/notes.ts` +
   `scripts/verify-release-notes.ts` 검증, `publish-npm.yml`의 `publish`/`release` job 권한 분리,
   idempotent Release 생성, note/workflow 정적 회귀 테스트를 추가했다. `bun run check`, `bun run build`,
@@ -51,13 +56,12 @@ Failure Diagnostics다. 전체 phase 상태와 최신 검증 수치는 [`PROGRES
   교정했다. rename/move limiter bucket의 `other` 공유는 유지했다.
   신규 회귀 7개를 포함해 `bun run check` 305 pass, 57 skip, 0 fail, `bun run build`를 통과했다. live
   재실행은 미수행이다.
-- rename 오류 UX(2026-09-13, `v0.4.1` 배포 대상): `src/features/relocation.ts`의
+- rename 오류 UX(2026-09-13, `v0.4.1`로 배포): `src/features/relocation.ts`의
   `assertNewResourceName`이 구조적 거부에 code를 준다. separator는 `NAME_NOT_SINGLE_COMPONENT`이고
   메시지가 `myboxctl move` 대안을 안내하며, 빈 값/`.`/`..`/C0·DEL은 `NAME_INVALID`, portable 금지
   문자는 기존 `NON_PORTABLE_NAME`을 유지한다. 계약은 `docs/reference/cli-contract.md`에 기록했고,
   fake HTTP test 2개와 CLI subprocess assertion 1개를 추가해 `bun run check` 307 pass, 57 skip,
-  0 fail을 통과했다. live 재실행은 하지 않았다(오류 경로만 변경).
-- pi-lens 참고: `src/output.ts`의 `sanitizeValue`는 `SanitizedValue`, `src/cli.ts`의
+  0 fail을 통과했다. live 재실행은 하지 않았다(오류 경로만 변경).- pi-lens 참고: `src/output.ts`의 `sanitizeValue`는 `SanitizedValue`, `src/cli.ts`의
   `normalizeMachineData`는 `MachineData` 반환 타입으로 `no-unknown-returns` heuristic을 피한다.
   `no-runtime-typeof`, `no-conditional-empty-object-spread`, `no-unsafe-dictionary-unknown` 같은
   heuristic hint는 남아 있지만 `bun run check`의 gate는 아니다.
@@ -153,8 +157,9 @@ test/integration/rename-move.test.ts`(live acceptance, 6 pass)로 검증한다.
   token과 GitHub `NPM_TOKEN` secret 폐기를 완료했다. `v0.4.0`도 같은 OIDC 경로로 배포했다. 저장소
   secret에는 credential이 아닌 `MYBOX_PAT`만 남아 있고 workflow는 `NPM_TOKEN`/`NODE_AUTH_TOKEN`을
   참조하지 않는다.
-- `v0.4.0` 배포 검증은 배포 commit push와 CI success, tag push, `publish-npm.yml` dispatch,
-  `gh run watch` success, registry/provenance/GitHub Release 확인과 설치 smoke로 구성했다.
+- `v0.4.1` 배포 검증은 배포 commit push와 CI success, tag push, `publish-npm.yml` dispatch,
+  `gh run watch` success, registry/provenance/GitHub Release 확인과 설치 smoke로 구성했고 위 최신 publish
+  항목에 증거를 적었다. `v0.4.0`도 같은 경로로 검증했다.
 
 ## 기준 문서
 
@@ -185,6 +190,6 @@ bun install --frozen-lockfile
 bun run check
 ```
 
-Phase 00–18은 모두 `complete`이고 `v0.4.0`이 npm `latest`로 배포됐다. 다음 작업은 Phase 19 Automatic
+Phase 00–18은 모두 `complete`이고 `v0.4.1`이 npm `latest`로 배포됐다. 다음 작업은 Phase 19 Automatic
 Failure Diagnostics를 `in_progress`로 시작하는 것이다. 범위 변경이 있으면 `PLAN.md`와 해당 phase
 문서를 함께 갱신한다. 계획 문서 반영 자체는 구현, external publish, commit 또는 push를 의미하지 않는다.

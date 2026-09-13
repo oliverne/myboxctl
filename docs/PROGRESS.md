@@ -10,20 +10,21 @@
 - 다음 phase: `Phase 19 Automatic Failure Diagnostics` (`pending`)
 - 전체 상태: `in_progress`
 - 배포: standalone 실행파일은 폐기했고 npm(Node 기반) 단독 배포를 사용한다. 현재 npm `latest`는
-  `v0.4.0`다. Phase 22에서 standalone 부활 없이 Node 기반 Homebrew tap을 계획한다.
+  `v0.4.1`다. Phase 22에서 standalone 부활 없이 Node 기반 Homebrew tap을 계획한다.
 - npm 배포 인증: Phase 16에서 GitHub Actions OIDC Trusted Publishing으로 전환했다. 첫 OIDC publish와
   registry/provenance 및 설치 smoke를 확인했고, 기존 npm publish token과 GitHub `NPM_TOKEN` secret을
   폐기했다 (2026-09-13 사용자 확인). 로컬 `~/.npmrc`의 잔여 `_authToken` 항목도 같은 날 제거해 로컬
   npm publish는 ENEEDAUTH가 되고, 배포는 workflow OIDC로만 수행된다.
-- 최신 로컬 검사: `bun run check` 305 pass, 57 skip, 0 fail; 별도 `bun run build` 통과
+- 최신 로컬 검사: `bun run check` 307 pass, 57 skip, 0 fail; 별도 `bun run build` 통과
 - 문서 윤문: `README.ko.md`, `CONTRIBUTING.md` 보수적 윤문 완료; `git diff --check` 통과
-- 최신 배포 검증: `v0.4.0` OIDC publish workflow의 `publish`·`release` job 성공, npm registry
-  `0.4.0`/`latest`와 provenance attestation 확인, GitHub Release `v0.4.0`(draft/prerelease 아님,
-  본문이 `docs/releases/v0.4.0.md`와 일치, asset 0개) 확인 완료
-- 설치 smoke: `npx @oliverne/myboxctl@0.4.0 --version`(0.4.0 한 줄), 인자 없는 실행 root help exit 0,
+- 최신 배포 검증: `v0.4.1` OIDC publish workflow(run 34759055277)의 `publish`·`release` job 성공,
+  npm registry `0.4.1`/`latest`와 provenance attestation 확인, GitHub Release `v0.4.1`(draft/prerelease
+  아님, 본문이 `docs/releases/v0.4.1.md`와 후행 빈 줄 외 일치, asset 0개) 확인 완료. 배포 commit은
+  `a813e99`, CI run 34759018056 success
+- 설치 smoke: `npx @oliverne/myboxctl@0.4.1 --version`(0.4.1 한 줄), 인자 없는 실행 root help exit 0,
   `--help`에 `rename`/`move` 포함, 임시 prefix global install의 `--version`/`--help` exit 0 확인 완료
-- registry 전파: publish 성공 직후 registry read가 약 1–2분간 기존 version을 반환했고, 그 뒤
-  `0.4.0`과 `latest`가 반영됐다. `npm view`의 E404를 publish 실패로 단정하지 않는다
+- registry 전파: publish 성공 직후 registry read가 한 번 `0.4.0`을 반환했고 30초 뒤 `0.4.1`과 `latest`가
+  반영됐다. `npm view`의 E404를 publish 실패로 단정하지 않는다
 - Agent Skill: Hermes 등 셸 실행이 가능한 에이전트 호스트용 `.agents/skills/myboxctl/`을 설치와
   대표 명령 예제 중심으로 작성하고 영문·국문 README에 사용 경로 소개; 정적 검증 완료
 - Release Skill: `v0.4.0` 배포 절차를 기반으로 `.agents/skills/myboxctl-release/SKILL.md`를 추가했다.
@@ -85,7 +86,8 @@
   GitHub Actions history에 둔다.
 - live: recursive transfer는 `/myboxctl-integration-test/` 아래 unique child만 사용한 왕복 acceptance와
   cleanup을 통과했다. 추가 live mutation은 별도 승인 대상이다.
-- release: `v0.4.0` tag/workflow와 package 검증, npm registry/provenance 및 설치 smoke를 완료했다.
+- release: `v0.4.0`과 `v0.4.1` tag/workflow와 package 검증, npm registry/provenance 및 설치 smoke를
+  완료했다.
 - npm Trusted Publishing: npm package 설정과 실제 OIDC publish, registry/provenance 및 설치 smoke,
   기존 token 폐기까지 완료했다 (2026-09-13 사용자 확인). `v0.4.0`도 같은 OIDC 경로로 배포했다.
 - Phase 17 배포: note 검증 script/단위 테스트, workflow 정적 계약 테스트와 `bun run check`(305 pass,
@@ -100,7 +102,8 @@
 - rename 오류 UX(2026-09-13, phase 18 계약 유지): `new-name` 구조적 거부에 `NAME_NOT_SINGLE_COMPONENT`
   (separator, 메시지가 `move` 대안 안내)와 `NAME_INVALID`(빈 값/`.`/`..`/C0·DEL) code를 부여했고 계약
   문서에 기록했다. fake HTTP test 2개와 CLI subprocess assertion 1개를 추가해 `bun run check`
-  307 pass, 57 skip, 0 fail을 확인했다. 오류 경로만 바뀌어 live 재실행은 하지 않았다.
+  307 pass, 57 skip, 0 fail을 확인했다. 오류 경로만 바뀌어 live 재실행은 하지 않았다. 배포 commit
+  `a813e99`에 `docs/releases/v0.4.1.md`를 포함해 `v0.4.1`로 배포·검증을 마쳤다.
 
 ## 다음 작업
 
