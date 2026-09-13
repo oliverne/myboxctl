@@ -3,9 +3,9 @@
 ## 인수 목적
 
 Phase 00–16과 Phase 18 Remote Rename & Move의 구현과 필수 로컬/live 검증을 완료했다. Phase 17 GitHub
-Release Notes는 로컬 구현과 로컬 검증을 마쳤고, 실제 version의 npm publish 뒤 GitHub Release 생성만
-별도 승인으로 남아 `in_progress`다. 다음 단계는 Phase 18을 포함한 version의 배포 검증이고, 다음 계획
-phase는 Phase 19 Automatic Failure Diagnostics다.
+Release Notes는 로컬 구현과 로컬 검증을 마쳤고, Phase 18을 포함한 다음 version을 `v0.4.0`으로 정해
+`docs/releases/v0.4.0.md`를 작성했다. 남은 것은 배포 commit push/CI, tag 생성, npm publish와 GitHub
+Release 확인이며 모두 별도 승인 대상이다. 다음 계획 phase는 Phase 19 Automatic Failure Diagnostics다.
 전체 phase 상태와 최신 검증 수치는 [`PROGRESS.md`](PROGRESS.md)가 소유한다.
 
 ## 현재 상태
@@ -15,6 +15,9 @@ phase는 Phase 19 Automatic Failure Diagnostics다.
 - Phase 17: `in_progress`; note 검증·workflow job 분리와 정적 회귀 테스트는 구현 완료, 실제
   npm publish 뒤 GitHub Release 생성은 미검증. Phase 18을 포함한 version 배포에서 함께 검증한다
 - Phase 19–22: 모두 `pending`; Phase 17의 잔여 배포 검증 뒤 순차 진행
+- 다음 배포 note: `docs/releases/v0.4.0.md`(6 bullet) 작성 완료;
+  `bun run verify:release-notes -- --tag v0.4.0`, prettier check, `bun run check`(305 pass, 57 skip,
+  0 fail) 통과. 배포 commit push/CI, tag, npm publish와 GitHub Release는 미실행
 - 현재 배포: `@oliverne/myboxctl@0.3.2`, npm 단독 배포
 - standalone/Scoop/install script 경로: 폐기 유지
 - Homebrew: Phase 22에서 standalone 부활 없이 npm tarball 기반 Node formula로 계획
@@ -109,8 +112,8 @@ versioned envelope를 stdout에 내고, event는 stderr 정책을 따른다. 상
 
 ## 계획된 후속 로드맵
 
-1. Phase 17(잔여): Phase 18을 포함한 다음 user-facing version에서 `docs/releases/vX.Y.Z.md`를 작성하고
-   npm publish 뒤 GitHub Release의 tag/version/본문을 확인한다
+1. Phase 17(잔여): `docs/releases/v0.4.0.md`를 배포 commit에 포함해 push하고 CI 성공을 확인한 뒤
+   tag를 만들고 npm publish 뒤 GitHub Release의 tag/version/본문을 확인한다
 2. Phase 19: config opt-in, 성공 시 무파일, 실패 시 bounded 자동 diagnostic JSONL
 3. Phase 20: explicit local checkpoint를 사용하는 recursive upload 재개
 4. Phase 21: unknown-size stdin을 secure temp file에 spool한 뒤 단일 파일 업로드

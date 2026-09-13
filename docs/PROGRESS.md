@@ -36,6 +36,10 @@
   `remote/path.ts` 한 곳으로 통합하고, HANDOFF의 destination root `parentId` 획득 서술을 실제
   동작(record의 `resourceId`를 move body `parentId`로 사용)으로 교정했다. 신규 회귀 7개를 포함해
   `bun run check` 305 pass, 57 skip, 0 fail, `bun run build`를 통과했다. live 재실행은 미수행이다.
+- Phase 17 잔여 배포 검증 준비: Phase 18을 포함한 다음 version을 `v0.4.0`으로 정하고 Phase 18의 사용자
+  영향 6 bullet로 `docs/releases/v0.4.0.md`를 작성했다. `bun run verify:release-notes -- --tag v0.4.0`,
+  prettier format check와 `bun run check`(305 pass, 57 skip, 0 fail)를 통과했다. tag 생성, npm publish와
+  GitHub Release 생성은 미실행이다.
 - 후속 로드맵: Phase 19–22와 recursive upload checkpoint Decision을 `pending` 계획으로 유지한다.
 
 ## Phase 상태
@@ -87,8 +91,9 @@
 
 ## 다음 작업
 
-1. Phase 18을 포함한 다음 user-facing version에서 `docs/releases/vX.Y.Z.md`를 작성하고 한 번의
-   npm publish로 Phase 17의 외부 검증(GitHub Release의 tag/version/본문 확인)을 함께 수행한다.
+1. `docs/releases/v0.4.0.md`가 포함된 commit을 `origin/main`에 push하고 CI 성공을 확인한 뒤 tag를
+   만들어 한 번의 npm publish로 Phase 17의 외부 검증(GitHub Release의 tag/version/본문 확인)을 함께
+   수행한다. tag, publish와 Release 생성은 별도 승인 대상이다.
 2. Phase 17은 그 외부 검증이 기록되기 전까지 `in_progress`를 유지한다.
 3. Phase 19–22는 앞선 phase가 완료된 뒤 순서대로 시작한다.
 
