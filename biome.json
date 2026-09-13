@@ -7,7 +7,8 @@
       "!!release",
       "!!node_modules",
       "!!coverage",
-      "!!.vscode"
+      "!!.vscode",
+      "!!.zvec-grep"
     ]
   },
   "formatter": {
