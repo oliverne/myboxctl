@@ -138,14 +138,46 @@ remote path가 folder이면 `--recursive`가 필수다. `/` 전체 download, 기
 file 또는 folder를 MYBOX trash로 이동한다. folder는 subtree 전체가 함께 이동한다. missing은 기본 exit 4,
 `--ignore-missing`일 때만 `action: "already-absent"`와 exit 0이다. `/` 삭제는 항상 exit 2다.
 
+### `rename <remote-path> <new-name>`
+
+같은 parent 안에서 file 또는 folder의 basename만 바꾼다. `resourceId`는 유지된다. 현재 이름과
+정확히 같으면 mutation 없이 `action: "unchanged"`로 성공한다.
+
+`new-name`은 path가 아닌 단일 component다. 빈 값, `.`, `..`, `/` 또는 `\`, C0/DEL과 portable 금지
+문자(trailing space/dot, Windows 금지 문자와 예약 basename)는 mutation 전에 exit 2다. 이름은 보낸
+그대로 전송하며 NFC로 자동 변환하지 않는다.
+
+같은 parent에 NFC 기준으로 같은 이름의 다른 resource가 있으면 `NAME_CONFLICT` exit 5이며 아무것도
+바꾸지 않는다. 성공하면 `data`에 `path`, `newPath`, `resourceId`, `type`을 반환한다.
+
+### `move <remote-path> <destination-directory>`
+
+basename을 유지한 채 file 또는 folder를 기존 directory로 옮긴다. `resourceId`는 유지된다. destination의
+trailing `/` 유무와 관계없이 directory로만 해석하며, destination이 이미 존재해야 한다. `/`는 허용한다.
+
+같은 parent로 옮기면 mutation 없이 `action: "unchanged"`로 성공한다. source가 자기 자신 또는 자기
+descendant 아래로 가는 요청, 존재하지 않거나 directory가 아닌 destination은 mutation 전에 실패한다
+(각각 exit 2, exit 4, exit 5). destination에 NFC 기준으로 같은 이름의 다른 resource가 있으면
+`NAME_CONFLICT` exit 5다.
+
+`rename`과 `move`는 한 endpoint만 호출하며 mutation 결과를 반복하지 않고 `resourceId`로 확인한다.
+성공 postcondition은 resolver가 확정한 실제 canonical spelling 경로로 검사한다. timeout, 5xx, 429
+또는 잘못된 성공 body로 결과가 불확실하면 POST를 반복하지 않고 이전/새 path를 같은 ID로 조회해
+reconcile하며, 확정할 수 없으면 exit 6의 `MUTATION_UNCONFIRMED`다. `move`의 destination은 mutation용
+canonical resolver로 해석해 Unicode-equivalent fallback, canonical 충돌과 중간 file component를
+검사하고 실제 folder spelling과 ID로 이동한다. descendant 거부도 resolver가 선택한 실제 component
+spelling으로 다시 확인한다. 전용 destination root는 `GET /v1/search/resources/folders?path=/`의 단일
+record를 사용한다.
+
 ## Human output
 
 `--json` 없이 실행하면 self-describing한 출력이 나온다. `list`는 `TYPE SIZE MODIFIED NAME` table과
 빈 결과의 `No items in ...` 문장을 사용하고, `info`는 `Path/Type/Size/Modified` key/value를 사용한다.
 mutation과 download는 `Created`, `Uploaded`, `Updated`, `Skipped`, `Downloaded`, `Deleted`,
-`Folder moved to trash`, `Already absent` 형식의 짧은 문장을 사용한다. 오류는 stderr의 `Error:`와
-필요한 `Code:`, `Request ID:`, `Retry after:`로 한 번만 출력한다. 부분 전송은 완료 count와 mutation
-불확실성을 추가로 알린다.
+`Folder moved to trash`, `Already absent`, `Renamed <old> -> <new>`, `Moved <old> -> <new>`,
+`Already named <path>`, `Already in destination: <path>` 형식의 짧은 문장을 사용한다. 오류는 stderr의
+`Error:`와 필요한 `Code:`, `Request ID:`, `Retry after:`로 한 번만 출력한다. 부분 전송은 완료 count와
+mutation 불확실성을 추가로 알린다.
 
 ## Presentation option 위치
 

@@ -20,6 +20,8 @@ AI 에이전트가 MYBOX에 파일을 올리고 확인하고 내려받고, 필�
 | `upload`      | 파일 또는 명시적인 재귀 폴더 tree 업로드   |
 | `download`    | 파일 또는 명시적인 재귀 폴더 tree 다운로드 |
 | `delete`      | 원격 파일·폴더를 MYBOX 휴지통으로 이동     |
+| `rename`      | 원격 파일·폴더의 이름 변경                 |
+| `move`        | 원격 파일·폴더를 기존 폴더로 이동          |
 
 ## 설치
 
@@ -46,6 +48,8 @@ myboxctl download /agents/output/report.md ./report.md
 myboxctl upload ./reports /agents/ --recursive --mkdir
 myboxctl download /agents/reports ./reports-copy --recursive
 myboxctl delete /agents/output/report.md
+myboxctl rename /agents/output/draft.md final.md
+myboxctl move /agents/output/final.md /agents/archive/
 ```
 
 로컬 또는 원격 경로에 공백이 있으면 셸이 각 경로를 하나의 인자로 전달하도록 따옴표로
@@ -71,7 +75,12 @@ myboxctl download "/Team Files/big report.zip" ".\Local Files\big report.zip"
 - 폴더 전송에는 `--recursive`가 필요합니다. 기존 destination tree와 병합하지 않습니다. symlink와 macOS,
   Linux, Windows에서 이식할 수 없는 이름은 거부합니다.
 - `delete`는 대상 파일을 MYBOX 휴지통으로 이동합니다. 암호 폴더, 공유 폴더는 지원하지 않습니다.
-- 원격 파일명은 NFC(윈도우, 리눅스 방식)로 저장합니다. NFD(macOS 방식)와 파일명이 충돌하면 파일을 변경하지 않습니다.
+- `rename`과 `move`는 `resourceId`를 유지하고 endpoint 하나만 호출합니다. destination에 같은 이름의
+  resource가 있으면 변경 전에 중단합니다. `move`는 기존 folder만 destination으로 받고, 자기 자신이나
+  descendant로의 이동을 거부하며 이름은 바꾸지 않습니다.
+- 새로 만드는 원격 이름은 NFC로 전송합니다. 기존 이름 조회는 입력 spelling을 그대로 사용하며
+  canonical-equivalent 후보가 여러 개면 파일을 변경하지 않습니다. `rename`의 새 이름은 사용자가 준
+  spelling 그대로 전송합니다.
 
 ## AGENT Rules
 

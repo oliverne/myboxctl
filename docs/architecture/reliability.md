@@ -91,6 +91,15 @@ limiter의 `quota` 대기로 확인됐다. 따라서 bucket을 완화하지 않�
   reconcile한다. 어느 쪽이든 기존 ID가 남아 있으면 active로 취급한다. 429에서 active인 경우에만
   `Retry-After` 후 같은 ID로 한 번 재시도하며, timeout/5xx에서는 DELETE를 반복하지 않는다.
   같은 path에 나타난 다른 ID는 절대 삭제하지 않는다.
+- `renameResource`와 `moveResource`: POST는 한 번만 수행하고 generic retry를 쓰지 않는다. 성공 뒤에는
+  실제 canonical component spelling으로 만든 새 path의 exact resolve가 같은 `resourceId`를 유일하게
+  반환하는지, 이전 path가 그 ID를 더 이상 반환하지 않는지 확인한다. timeout, 5xx, 429 또는 잘못된
+  성공 body처럼 결과가 불확실하면 POST를 반복하지 않고 같은 ID 관찰로 reconcile하며, 원래 path에 그대로
+  있으면 원래 오류를 반환하고 그 밖에는 `MUTATION_UNCONFIRMED` `api-unavailable`로 종료한다. conflict,
+  no-op, root/descendant, destination 유형은 POST 이전에 판정한다. `move`의 destination은 mutation용
+  canonical resolver로 해석해 Unicode-equivalent fallback과 canonical 충돌 검사를 적용하고 실제 folder
+  spelling을 사용하며, descendant 검사도 resolver가 선택한 실제 component spelling으로 다시 확인한다.
+  `renameResource`의 `{name}` 응답은 schema로 검증한다.
 
 400, 401, 403, 409, 422, 507은 자동 재시도하지 않는다. 423은 live 해제 특성이 미확정이므로
 자동 재시도하지 않는다. 실제 command에서 자연 발생해 정책이 필요해질 때 별도 targeted probe로

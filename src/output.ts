@@ -26,7 +26,10 @@ export type CommandAction =
   | "skipped"
   | "downloaded"
   | "deleted"
-  | "already-absent";
+  | "already-absent"
+  | "renamed"
+  | "moved"
+  | "unchanged";
 
 export type SuccessEnvelope<T> = {
   schemaVersion: 1;
@@ -55,12 +58,21 @@ export type FailureEnvelope = {
 
 export type OutputEnvelope<T> = SuccessEnvelope<T> | FailureEnvelope;
 
+type SanitizedValue =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | SanitizedValue[]
+  | { [key: string]: SanitizedValue };
+
 /** Remove credential-shaped values before anything reaches stdout or stderr. */
 export const redactSecrets = redactSensitiveText;
 
 const REDACTED = "[REDACTED]";
 
-function sanitizeValue(value: unknown, seen: WeakSet<object>): unknown {
+function sanitizeValue(value: unknown, seen: WeakSet<object>): SanitizedValue {
   if (typeof value === "string") {
     return redactSecrets(value);
   }
@@ -70,7 +82,7 @@ function sanitizeValue(value: unknown, seen: WeakSet<object>): unknown {
   }
 
   if (value === null || typeof value !== "object") {
-    return value;
+    return value as SanitizedValue;
   }
 
   if (seen.has(value)) {
@@ -84,7 +96,7 @@ function sanitizeValue(value: unknown, seen: WeakSet<object>): unknown {
     return result;
   }
 
-  const result: Record<string, unknown> = {};
+  const result: Record<string, SanitizedValue> = {};
   for (const [key, item] of Object.entries(value)) {
     if (
       /(?:authorization|password|secret|token|credential|uploadurl|downloadurl)/i.test(key) ||

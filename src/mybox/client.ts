@@ -9,9 +9,11 @@ import {
   type DownloadUrlResponse,
   downloadUrlResponseSchema,
   myboxErrorSchema,
+  type RenameResourceResponse,
   type ResourceDetail,
   type ResourceItem,
   type ResourceListResponse,
+  renameResourceResponseSchema,
   resourceDetailSchema,
   resourceListResponseSchema,
   type SearchResourceItem,
@@ -102,6 +104,8 @@ function operationFor(method: string, path: string): string {
   if (path === "/v1/drive/storage") return "storage";
   if (path === "/v1/drive/resources") return method === "GET" ? "root-list" : "resources";
   if (/^\/v1\/drive\/folders\/[^/]+\/resources$/.test(path)) return "folder-list";
+  if (/^\/v1\/drive\/resources\/[^/]+\/rename$/.test(path)) return "resource-rename";
+  if (/^\/v1\/drive\/resources\/[^/]+\/move$/.test(path)) return "resource-move";
   if (/^\/v1\/drive\/resources\/[^/]+$/.test(path)) {
     return method === "DELETE" ? "delete" : "resource-detail";
   }
@@ -597,6 +601,38 @@ export class MyboxClient {
     }
     if (result.response.status >= 200 && result.response.status < 300) {
       throw apiResponseError("MYBOX returned an unexpected delete success status.");
+    }
+    throw this.parseError(result.response, result.body);
+  }
+
+  async renameResource(resourceId: string, name: string): Promise<RenameResourceResponse> {
+    return this.requestJson(
+      "POST",
+      `/v1/drive/resources/${encodeURIComponent(resourceId)}/rename`,
+      { body: { name }, schema: renameResourceResponseSchema },
+    );
+  }
+
+  async moveResource(resourceId: string, parentId: string): Promise<void> {
+    let result: { response: Response; body: unknown };
+    try {
+      result = await this.requestOnce(
+        "POST",
+        `/v1/drive/resources/${encodeURIComponent(resourceId)}/move`,
+        { body: { parentId } },
+      );
+    } catch (error) {
+      if (error instanceof DomainError) {
+        throw error;
+      }
+      throw networkError(error);
+    }
+
+    if (result.response.status === 200) {
+      return;
+    }
+    if (result.response.status >= 200 && result.response.status < 300) {
+      throw apiResponseError("MYBOX returned an unexpected move success status.");
     }
     throw this.parseError(result.response, result.body);
   }

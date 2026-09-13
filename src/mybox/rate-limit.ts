@@ -109,7 +109,12 @@ function emptyState(): RateLimitState {
 }
 
 function parseState(contents: string): RateLimitState {
-  const value = JSON.parse(contents) as unknown;
+  let value: unknown;
+  try {
+    value = JSON.parse(contents) as unknown;
+  } catch (error) {
+    throw stateError(error);
+  }
   if (
     typeof value !== "object" ||
     value === null ||
@@ -199,6 +204,16 @@ function bucketForRequest(
     operation = "folder-create";
   } else if (method === "POST" && request.url.pathname === "/v1/drive/files") {
     operation = "upload-reservation";
+  } else if (
+    method === "POST" &&
+    /^\/v1\/drive\/resources\/[^/]+\/rename$/.test(request.url.pathname)
+  ) {
+    operation = "resource-rename";
+  } else if (
+    method === "POST" &&
+    /^\/v1\/drive\/resources\/[^/]+\/move$/.test(request.url.pathname)
+  ) {
+    operation = "resource-move";
   }
   if (operation !== undefined) {
     return {
@@ -246,12 +261,14 @@ export function defaultRateLimitStatePath(
     return env.MYBOX_RATE_LIMIT_STATE_PATH;
   }
 
-  const stateHome =
-    env.XDG_STATE_HOME && env.XDG_STATE_HOME.length > 0
-      ? env.XDG_STATE_HOME
-      : process.platform === "win32" && env.LOCALAPPDATA
-        ? env.LOCALAPPDATA
-        : join(homeDirectory, ".local", "state");
+  let stateHome: string;
+  if (env.XDG_STATE_HOME !== undefined && env.XDG_STATE_HOME.length > 0) {
+    stateHome = env.XDG_STATE_HOME;
+  } else if (process.platform === "win32" && env.LOCALAPPDATA) {
+    stateHome = env.LOCALAPPDATA;
+  } else {
+    stateHome = join(homeDirectory, ".local", "state");
+  }
   return join(stateHome, "myboxctl", "rate-limit.json");
 }
 
@@ -314,7 +331,7 @@ export class SharedRateLimiter implements RequestRateLimiter {
       if (systemErrorCode(error) === "ENOENT") {
         return emptyState();
       }
-      throw stateError(error);
+      throw error instanceof DomainError ? error : stateError(error);
     }
   }
 

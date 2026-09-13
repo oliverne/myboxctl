@@ -5,16 +5,17 @@
 
 ## 현재 상태
 
-- 마지막 완료 phase: `Phase 16 npm Trusted Publishing`
-- 활성 구현 phase: `Phase 17 GitHub Release Notes`
-- 다음 phase: `Phase 18 Remote Rename & Move` (`pending`)
+- 마지막 완료 phase: `Phase 18 Remote Rename & Move`
+- 활성 구현 phase: 없음; 다음 단계는 Phase 18을 포함한 version의 배포 검증이다
+- 미완료 검증 phase: `Phase 17 GitHub Release Notes` (Phase 18 배포 시 함께 검증)
+- 다음 phase: `Phase 19 Automatic Failure Diagnostics` (`pending`)
 - 전체 상태: `in_progress`
 - 배포: standalone 실행파일은 폐기했고 npm(Node 기반) 단독 배포를 사용한다. 현재 npm `latest`는
   `v0.3.2`다. Phase 22에서 standalone 부활 없이 Node 기반 Homebrew tap을 계획한다.
 - npm 배포 인증: Phase 16에서 GitHub Actions OIDC Trusted Publishing으로 전환했다. 첫 OIDC publish와
   registry/provenance 및 설치 smoke를 확인했고, 기존 npm publish token과 GitHub `NPM_TOKEN` secret을
   폐기했다 (2026-09-13 사용자 확인).
-- 최신 로컬 검사: `bun run check` 278 pass, 37 skip, 0 fail; 별도 `bun run build` 통과
+- 최신 로컬 검사: `bun run check` 305 pass, 57 skip, 0 fail; 별도 `bun run build` 통과
 - 문서 윤문: `README.ko.md`, `CONTRIBUTING.md` 보수적 윤문 완료; `git diff --check` 통과
 - 최신 배포 검증: `v0.3.2` OIDC publish workflow 성공, npm registry `latest`와 provenance 확인 완료
 - 사용자 확인: `v0.3.2` npx/global install smoke 확인 완료 (2026-09-13)
@@ -25,7 +26,17 @@
   idempotent Release 생성, note/workflow 정적 회귀 테스트를 추가했다. `bun run check`(278 pass,
   37 skip, 0 fail), `bun run build`, `git diff --check`를 통과했다.
 - Phase 17 외부 검증: 실제 npm publish와 GitHub Release 생성은 별도 승인 전이라 실행하지 않았다.
-- 후속 로드맵: Phase 18–22와 recursive upload checkpoint Decision을 `pending` 계획으로 유지한다.
+- Phase 18 구현·검증: `rename`/`move` command, `MyboxClient.renameResource`/`moveResource`, endpoint별
+  limiter와 `RemoteResolver.rootResourceId`를 추가했다. targeted probe 10 pass/0 fail, 신규 fake HTTP와
+  CLI subprocess test 20 pass/0 fail, 승인된 live acceptance 6 pass/0 fail(965.73s)를 완료했다.
+  상세 계약은 [`reference/mybox-api.md`](reference/mybox-api.md) API-15에 기록했다.
+- Phase 18 review 후속 수정: 불확실한 rename/move mutation의 ID 기반 reconcile, canonical
+  destination resolver, 실제 canonical spelling postcondition/descendant 검사, contract probe의
+  정확한 status/code와 poll predicate 단정을 반영했다. 코드 리뷰 뒤 `hasControlCharacter` 중복을
+  `remote/path.ts` 한 곳으로 통합하고, HANDOFF의 destination root `parentId` 획득 서술을 실제
+  동작(record의 `resourceId`를 move body `parentId`로 사용)으로 교정했다. 신규 회귀 7개를 포함해
+  `bun run check` 305 pass, 57 skip, 0 fail, `bun run build`를 통과했다. live 재실행은 미수행이다.
+- 후속 로드맵: Phase 19–22와 recursive upload checkpoint Decision을 `pending` 계획으로 유지한다.
 
 ## Phase 상태
 
@@ -49,7 +60,7 @@
 | 15 Recursive folder transfer      | complete    | local 구현, 3-OS matrix, live round-trip과 failure-path 회귀 완료                       | [`phases/15-recursive-folder-transfer.md`](phases/15-recursive-folder-transfer.md)               |
 | 16 npm Trusted Publishing         | complete    | Trusted Publisher 등록, 첫 OIDC publish·provenance·설치 smoke 및 기존 token 폐기 완료   | [`phases/16-npm-trusted-publishing.md`](phases/16-npm-trusted-publishing.md)                     |
 | 17 GitHub Release Notes           | in_progress | note 검증·workflow 권한 분리·정적 회귀 테스트 구현, 로컬 검증 통과; 실제 release 미검증 | [`phases/17-github-release-notes.md`](phases/17-github-release-notes.md)                         |
-| 18 Remote Rename & Move           | pending     | 한 endpoint당 한 command와 resource ID 기반 reconcile 계획                              | [`phases/18-remote-rename-move.md`](phases/18-remote-rename-move.md)                             |
+| 18 Remote Rename & Move           | complete    | probe·fake HTTP/CLI 회귀·live acceptance 통과; live root destination 미검증             | [`phases/18-remote-rename-move.md`](phases/18-remote-rename-move.md)                             |
 | 19 Automatic Failure Diagnostics  | pending     | opt-in config, bounded buffer와 실패 시 자동 JSONL 계획                                 | [`phases/19-automatic-failure-diagnostics.md`](phases/19-automatic-failure-diagnostics.md)       |
 | 20 Recursive Upload Resume        | pending     | explicit checkpoint, atomic state와 fail-closed 재개 계획                               | [`phases/20-recursive-upload-resume.md`](phases/20-recursive-upload-resume.md)                   |
 | 21 stdin Upload                   | pending     | unknown-size stdin의 secure temp spool과 기존 uploader 재사용 계획                      | [`phases/21-stdin-upload.md`](phases/21-stdin-upload.md)                                         |
@@ -67,13 +78,19 @@
   기존 token 폐기까지 완료했다 (2026-09-13 사용자 확인).
 - Phase 17 로컬: note 검증 script/단위 테스트, workflow 정적 계약 테스트, `bun run check`와
   `bun run build`, `git diff --check`가 통과했다. 실제 npm publish와 GitHub Release 생성은 미실행이다.
+- Phase 18 로컬: `bun run test:rename-move-probe` 10 pass/0 fail, 신규 rename/move fake HTTP·CLI
+  subprocess test 27 pass/0 fail(review 후속 7개 포함), `bun run check`(305 pass, 57 skip, 0 fail),
+  `bun run build`, `git diff --check`가 통과했다.
+- Phase 18 live: `MYBOX_INTEGRATION=1 bun test test/integration/rename-move.test.ts` 6 pass/0 fail
+  (965.73s). mutation은 `/myboxctl-integration-test/` 아래 unique child로 제한했다. destination root `/`
+  실이동과 429/응답 유실 reconcile은 fake HTTP test로만 검증했고 live 미검증으로 남긴다.
 
 ## 다음 작업
 
-1. 다음 user-facing version을 배포할 때 `docs/releases/vX.Y.Z.md`를 작성하고 Phase 17의 외부 검증
-   (npm publish 뒤 GitHub Release의 tag/version/본문 확인)을 수행한다.
+1. Phase 18을 포함한 다음 user-facing version에서 `docs/releases/vX.Y.Z.md`를 작성하고 한 번의
+   npm publish로 Phase 17의 외부 검증(GitHub Release의 tag/version/본문 확인)을 함께 수행한다.
 2. Phase 17은 그 외부 검증이 기록되기 전까지 `in_progress`를 유지한다.
-3. Phase 18–22는 앞선 phase가 완료된 뒤 순서대로 시작한다.
+3. Phase 19–22는 앞선 phase가 완료된 뒤 순서대로 시작한다.
 
 ## 상태 변경 규칙
 

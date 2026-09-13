@@ -185,6 +185,14 @@ function joinComponents(components: readonly string[], end: number): string {
   return `/${components.slice(0, end).join("/")}`;
 }
 
+function childPathFromComponents(components: readonly string[]): ChildRemotePath {
+  const parsed = parseRemotePath(`/${components.join("/")}`);
+  if (parsed.kind === "root") {
+    throw apiResponseError("MYBOX canonical resolver built an invalid child path.");
+  }
+  return parsed;
+}
+
 export class RemoteResolver {
   readonly client: MyboxClient;
   readonly dependencies: ResolverDependencies;
@@ -390,7 +398,13 @@ export class RemoteResolver {
         throw conflict(`A file cannot be used as a directory: ${current.normalized}.`);
       }
       if (index === path.components.length - 1) {
-        return { kind: "found", path, resource };
+        // Return the resolved component spelling, not the requested spelling: postcondition checks
+        // must query the path the server actually stores (see API-13/API-14).
+        return {
+          kind: "found",
+          path: childPathFromComponents([...actualComponents, resource.name]),
+          resource,
+        };
       }
 
       actualComponents.push(resource.name);
@@ -402,6 +416,20 @@ export class RemoteResolver {
 
   async detail(resolution: FoundResolution): Promise<ResourceDetail> {
     return this.client.getResource(resolution.resource.resourceId);
+  }
+
+  /**
+   * Resolves the MYBOX root folder ID. The root is not reachable through path resolution, so it is
+   * read from the single search record whose path is `/` (see API-15 in the API ledger).
+   */
+  async rootResourceId(): Promise<string> {
+    const folders = await this.client.searchFolders({ path: "/" });
+    const candidates = folders.filter((resource) => normalizedCandidatePath(resource.path) === "/");
+    const [root] = candidates;
+    if (root === undefined || candidates.length !== 1) {
+      throw apiResponseError("MYBOX did not return exactly one root folder.");
+    }
+    return root.resourceId;
   }
 
   async createFolder(input: CreateFolderInput): Promise<CreateFolderResponse> {

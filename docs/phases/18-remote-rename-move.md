@@ -5,11 +5,13 @@
 
 ## 상태와 진입 조건
 
-- 상태: `pending`
-- 활성 phase: 없음
-- Phase 17 완료 후 시작한다.
-- 구현을 시작할 때 `docs/PROGRESS.md`에서 Phase 18만 `in_progress`로 변경한다.
+- 상태: `complete`
+- 활성 phase: 없음 (P18-B–D 완료)
+- Phase 17은 로컬 구현과 로컬 검증을 마치고 실제 release 검증만 남은 상태다. Phase 18을 먼저 진행했고
+  다음 user-facing version 배포에서 Phase 17의 외부 검증을 함께 수행한다.
 - 실제 mutation probe는 `/myboxctl-integration-test/` 아래 unique child에만 수행한다.
+- destination root `/`로의 실제 이동은 integration prefix 밖에 resource를 만들므로 별도 승인 전에는
+  probe하지 않는다. root의 `parentId`는 read-only 조회로만 확인한다.
 
 ## 목표
 
@@ -118,4 +120,58 @@ bun run build
 - conflict/no-op/root/descendant 안전 조건이 mutation 전에 검증된다.
 - retryable 또는 응답 유실 경로에서 POST를 반복하지 않고 ID 기반 reconcile을 수행한다.
 - fake HTTP, CLI subprocess와 승인된 live acceptance가 통과한다.
+
+## 검증 기록
+
+### 2026-09-13 P18-A targeted contract probe
+
+- `bun run test:rename-move-probe`(신규 `test/integration/rename-move-contract.test.ts`) 10 pass,
+  0 fail. mutation은 `/myboxctl-integration-test/` 아래 실행별 unique child에서만 수행했다.
+- 확정한 사실은 [`reference/mybox-api.md`](reference/mybox-api.md)의 API-15에 기록했다. 요약:
+  rename은 `200 { name }`과 ID 유지, 같은 sibling 이름은 `409 / PLAT-409`에 무변경, move는 `200` 빈
+  body, move conflict `409`, descendant 이동과 알 수 없는 `parentId`는 `400 / PLAT-400`, resource
+  detail은 `path`/`parentPath`를 반환하지 않음, root `parentId`는
+  `GET /v1/search/resources/folders?path=/`의 단일 record에서 확인 가능.
+
+### 2026-09-13 P18-B–C 구현과 로컬 검증
+
+- `src/mybox/contract.ts`의 rename response schema, `MyboxClient.renameResource`/`moveResource`,
+  endpoint별 rate-limit bucket, `RemoteResolver.rootResourceId`를 추가했다.
+- `src/features/rename.ts`, `src/features/move.ts`, 공유 helper `src/features/relocation.ts`와
+  `rename`/`move` CLI command를 구현했다.
+- 회귀 테스트: `test/http/rename.test.ts`(6), `test/http/move.test.ts`(6),
+  `test/cli/rename-move.test.ts`(8) 20 pass, 0 fail.
+- `bun run check` 298 pass / 57 skip / 0 fail, `bun run build`, `git diff --check` 통과.
+
+### 2026-09-13 P18-D live acceptance
+
+- `MYBOX_INTEGRATION=1 bun test test/integration/rename-move.test.ts` 6 pass, 0 fail (965.73s).
+- 검증 범위: file/folder rename과 move의 ID 유지와 새 path read-after-write, 동일 이름 no-op,
+  sibling/destination `NAME_CONFLICT`, non-portable name, folder descendant 이동 거부, 이동 후 원래
+  path absent.
+- 검색 10회/분 한도 때문에 suite 전체가 약 16분 걸렸다. 실패가 아니라 정책상 대기이며 stderr event로
+  관측했다.
+- 미검증으로 남긴 항목:
+  - destination root `/`로의 실제 이동. integration prefix 밖에 resource를 만들 수 있어 live mutation
+    범위에서 제외했고 fake HTTP test로만 검증했다.
+- 429/응답 유실 뒤 `MUTATION_UNCONFIRMED` reconcile. 실제 재현이 필요해지기 전까지 fake HTTP
+  deterministic test로만 검증했다.
 - official API inventory의 rename/move가 `implemented`로 변경된다.
+
+### 2026-09-13 review 후속 수정 (P18-B–C 보강)
+
+- 리뷰에서 지적한 5개 항목을 모두 코드 결함으로 확인하고 수정했다.
+- 불확실한 mutation 결과를 ID로 reconcile: POST가 timeout/5xx/429 또는 잘못된 성공 body로
+  실패해도 같은 `resourceId`의 이전/새 path를 관찰해 성공/미적용/불확정을 구분하고 POST를
+  반복하지 않는다.
+- `move` destination을 mutation용 canonical resolver(`resolveForMutation`)로 해석해 Unicode
+  fallback, canonical 충돌, 중간 file component 검사와 folder type 확인을 적용한다.
+- postcondition과 descendant 검사를 resolver가 선택한 실제 canonical component spelling으로
+  수행한다(`resolveCanonicalOnce`가 실제 spelling path를 반환).
+- contract probe가 정확한 status/code(`PLAT-409`, `PLAT-400`)를 assert하고, poll predicate
+  미충족을 실패로 처리한다.
+- 회귀 테스트: rename/move fake HTTP에 응답 유실 reconcile, malformed body reconcile, NFD parent
+  postcondition, Unicode-equivalent destination, Unicode-equivalent descendant 거부, move 응답 유실
+  reconcile 7개를 추가했다.
+- `bun run check` 304 pass / 57 skip / 0 fail, `bun run build` 통과. live 재실행은 별도 승인 전이라
+  하지 않았고, 응답 유실 reconcile과 Unicode live 경로는 fake HTTP로만 검증했다.

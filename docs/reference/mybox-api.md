@@ -147,6 +147,35 @@ DELETE /v1/drive/resources/{resourceId}
 
 문서: <https://developers.mybox.naver.com/docs/files_delete>
 
+### 이름 변경
+
+```http
+POST /v1/drive/resources/{resourceId}/rename
+Content-Type: application/json
+
+{ "name": "new-name.txt" }
+```
+
+성공은 200이고 body는 `{ name }`이다. `resourceId`는 유지된다. 같은 parent에 같은 이름의 sibling이
+있으면 409이며 overwrite하지 않는다. 실제 관찰은 API-15를 따른다.
+
+문서: <https://developers.mybox.naver.com/docs/files_rename>
+
+### 이동
+
+```http
+POST /v1/drive/resources/{resourceId}/move
+Content-Type: application/json
+
+{ "parentId": "destinationFolderId" }
+```
+
+성공은 200이고 body는 비어 있다. `resourceId`는 유지된다. destination conflict는 409, 알 수 없는
+`parentId`와 descendant 이동은 400이다. root의 `parentId`는
+`GET /v1/search/resources/folders?path=/`의 단일 record에서 얻는다. 실제 관찰은 API-15를 따른다.
+
+문서: <https://developers.mybox.naver.com/docs/files_move>
+
 ### API 사용 한도와 429
 
 공식 Getting Started 문서의 `4. API 사용 한도`에 요금제별 호출 한도가 명시되어 있다.
@@ -229,6 +258,39 @@ sliding window 또는 endpoint별 상세 동작은 확인하지 못했다.
 - CI 90의 Bun check/build/full tests와 Ubuntu/macOS/Windows local regression, Release 21의 native
   smoke, 실제 MYBOX probe run 33244082095(1 pass/0 fail)를 통과해 이 client policy를 confirmed로
   기록한다.
+
+### API-15 — rename/move server semantics
+
+- 상태: confirmed
+- 확인일: 2026-09-13
+- 실행: `bun run test:rename-move-probe` (10 pass/0 fail), mutation은
+  `/myboxctl-integration-test/` 아래 실행별 unique child에서만 수행했다.
+- `POST /v1/drive/resources/{resourceId}/rename` body `{ name }`:
+  - file과 folder 모두 성공은 `200`, `Content-Type: application/json`, body는 `{ name }`만 포함한다.
+  - 성공 뒤 `resourceId`는 유지되고 detail의 `name`과 parent listing의 이름이 새 이름으로 바뀐다.
+  - 새 이름의 exact search는 같은 `resourceId`를 반환하고 이전 이름 search는 0건이다.
+  - 같은 이름으로 다시 rename하면 `200`과 `{ name }`을 반환하며 상태는 그대로다.
+  - 같은 parent에 같은 이름의 sibling이 있으면 `409 / PLAT-409`이고, listing과 양쪽 ID는 변경되지
+    않는다. 즉 서버가 overwrite하지 않는다.
+- `POST /v1/drive/resources/{resourceId}/move` body `{ parentId }`:
+  - 성공은 `200`이고 body는 비어 있다(Content-Type 없음).
+  - 성공 뒤 `resourceId`는 유지되고 destination listing에 나타나며 source listing에서 사라진다.
+  - destination의 새 parentPath 기준 exact file search가 같은 `resourceId`를 반환한다.
+  - 현재 parent로 다시 move하면 `200`을 반환하며 상태는 그대로다. 서버는 same-parent를 거부하지
+    않으므로 client preflight no-op 판정이 필요하다.
+  - destination에 같은 이름의 resource가 있으면 `409 / PLAT-409`이고, moving/existing resource
+    모두 ID가 유지되며 listing도 변하지 않는다.
+  - folder를 자기 descendant 아래로 move하면 `400 / PLAT-400`이고 topology가 변하지 않는다.
+  - 존재하지 않는 `parentId`는 `404`가 아니라 `400 / PLAT-400`이다. destination not-found는 client
+    preflight가 판정해야 한다.
+- `GET /v1/drive/resources/{resourceId}`의 detail 응답은 `path`/`parentPath`를 반환하지 않는다
+  (관찰 시 `null`). 따라서 mutation postcondition은 detail의 path가 아니라 same-ID detail의 `name`,
+  parent direct-child listing과 새 parentPath exact search로 검증한다.
+- root 해석: `GET /v1/search/resources/folders?path=/`는 `path: "/"`, `resourceId`, `parentId`를 가진
+  단일 record를 반환하고 `type`은 생략된다. 반환된 `resourceId`는 root direct children의 `parentId`와
+  일치한다. destination root `/`는 이 조회로 `parentId`를 얻는다. root로의 실제 move는 integration
+  prefix 밖에 resource를 만들 수 있어 Phase 18 probe 범위에서 제외했다.
+- 오류 body는 `{ code, message, requestId, timestamp }`이고 requestId는 출력·문서에 기록하지 않는다.
 
 ## 2026-08-27 Phase 09 targeted download probe
 

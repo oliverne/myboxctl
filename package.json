@@ -27,6 +27,7 @@
     "test:server-semantics-probe": "MYBOX_SERVER_SEMANTICS_PROBE=1 bun test test/integration/cross-implementation-hardening.test.ts",
     "test:unicode-probe": "MYBOX_UNICODE_PROBE=1 bun test test/integration/cross-platform-unicode-filenames.test.ts",
     "test:upload-probe": "MYBOX_UPLOAD_PROBE=1 bun test test/integration/upload-contract.test.ts",
+    "test:rename-move-probe": "MYBOX_RENAME_MOVE_PROBE=1 bun test test/integration/rename-move-contract.test.ts",
     "test:contract": "MYBOX_CONTRACT=1 bun test test/integration/api-contract.test.ts",
     "check": "bun run typecheck && bun run lint && bun run build && bun test"
   },

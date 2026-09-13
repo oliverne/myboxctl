@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 import { apiResponseError, DomainError } from "../errors.ts";
 import type { ResourceItem } from "../mybox/contract.ts";
+import { hasControlCharacter } from "../remote/path.ts";
 import type { FoundResolution, RemoteResolver } from "../remote/resolver.ts";
 
 export type FileIdentity = { dev: number; ino: number; size: number; mtimeMs: number };
@@ -49,15 +50,11 @@ function fileIdentity(stats: Stats): FileIdentity {
 
 export function assertPortableName(name: string): void {
   const stem = name.split(".", 1)[0]?.toUpperCase() ?? "";
-  const hasControlCharacter = [...name].some((character) => {
-    const codePoint = character.codePointAt(0);
-    return codePoint !== undefined && (codePoint <= 0x1f || codePoint === 0x7f);
-  });
   if (
     name.length === 0 ||
     name === "." ||
     name === ".." ||
-    hasControlCharacter ||
+    hasControlCharacter(name) ||
     /[<>:"/\\|?*]/u.test(name) ||
     /[ .]$/u.test(name) ||
     /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/u.test(stem)

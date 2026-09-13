@@ -21,7 +21,7 @@ export const resourceItemSchema = z
     path: nonEmptyString.optional(),
     parentPath: z.string().optional(),
   })
-  .passthrough();
+  .loose();
 
 export const searchResourceItemSchema = z
   .object({
@@ -39,7 +39,7 @@ export const searchResourceItemSchema = z
     isHidden: z.boolean().optional(),
     lastModifiedBy: z.string().optional(),
   })
-  .passthrough();
+  .loose();
 
 export const resourceDetailSchema = resourceItemSchema;
 
@@ -47,7 +47,7 @@ export const responseMetaDataSchema = z
   .object({
     nextCursor: z.union([z.string(), z.null()]).optional(),
   })
-  .passthrough();
+  .loose();
 
 export const resourceListResponseSchema = z
   .object({
@@ -56,7 +56,7 @@ export const resourceListResponseSchema = z
     fileCount: nonNegativeNumber,
     subFolderCount: nonNegativeNumber,
   })
-  .passthrough();
+  .loose();
 
 export const searchResourceListResponseSchema = z
   .object({
@@ -65,28 +65,28 @@ export const searchResourceListResponseSchema = z
     fileCount: nonNegativeNumber.optional(),
     subFolderCount: nonNegativeNumber.optional(),
   })
-  .passthrough();
+  .loose();
 
 export const createFolderResponseSchema = z
   .object({
     name: nonEmptyString,
     resourceId: nonEmptyString,
   })
-  .passthrough();
+  .loose();
 
 export const createUploadResponseSchema = z
   .object({
     uploadUrl: z.url(),
     offset: z.number().int().nonnegative().optional(),
   })
-  .passthrough();
+  .loose();
 
 export const downloadUrlResponseSchema = z
   .object({
     downloadUrl: z.url(),
     expiresIn: z.number().int().positive().max(600),
   })
-  .passthrough();
+  .loose();
 
 export const storageFileCountsSchema = z
   .object({
@@ -99,7 +99,7 @@ export const storageFileCountsSchema = z
     total: nonNegativeInteger,
     video: nonNegativeInteger,
   })
-  .passthrough();
+  .loose();
 
 export const storageResponseSchema = z
   .object({
@@ -109,7 +109,7 @@ export const storageResponseSchema = z
     trashAutoDeleteDays: nonNegativeInteger,
     usedBytes: nonNegativeInteger,
   })
-  .passthrough();
+  .loose();
 
 export const uploadContentResponseSchema = z
   .object({
@@ -117,7 +117,13 @@ export const uploadContentResponseSchema = z
     name: nonEmptyString,
     fileSize: nonNegativeNumber,
   })
-  .passthrough();
+  .loose();
+
+export const renameResourceResponseSchema = z
+  .object({
+    name: nonEmptyString,
+  })
+  .loose();
 
 export const myboxErrorSchema = z
   .object({
@@ -126,7 +132,7 @@ export const myboxErrorSchema = z
     requestId: nonEmptyString.optional(),
     timestamp: nonEmptyString.optional(),
   })
-  .passthrough();
+  .loose();
 
 export type ResourceItem = z.infer<typeof resourceItemSchema>;
 export type SearchResourceItem = z.infer<typeof searchResourceItemSchema>;
@@ -136,6 +142,7 @@ export type ResourceListResponse = z.infer<typeof resourceListResponseSchema>;
 export type SearchResourceListResponse = z.infer<typeof searchResourceListResponseSchema>;
 export type CreateFolderResponse = z.infer<typeof createFolderResponseSchema>;
 export type CreateUploadResponse = z.infer<typeof createUploadResponseSchema>;
+export type RenameResourceResponse = z.infer<typeof renameResourceResponseSchema>;
 export type DownloadUrlResponse = z.infer<typeof downloadUrlResponseSchema>;
 export type StorageFileCounts = z.infer<typeof storageFileCountsSchema>;
 export type StorageResponse = z.infer<typeof storageResponseSchema>;

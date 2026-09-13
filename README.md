@@ -19,6 +19,8 @@ not affiliated with NAVER.
 | `upload`      | Upload a file or an explicit recursive folder tree   |
 | `download`    | Download a file or an explicit recursive folder tree |
 | `delete`      | Move a remote file or folder to the MYBOX trash      |
+| `rename`      | Rename a file or folder in place                     |
+| `move`        | Move a file or folder into an existing folder        |
 
 ## Install
 
@@ -46,6 +48,8 @@ myboxctl download /agents/output/report.md ./report.md
 myboxctl upload ./reports /agents/ --recursive --mkdir
 myboxctl download /agents/reports ./reports-copy --recursive
 myboxctl delete /agents/output/report.md
+myboxctl rename /agents/output/draft.md final.md
+myboxctl move /agents/output/final.md /agents/archive/
 ```
 
 Paths containing spaces must be quoted so that the shell passes each path as one argument. The
@@ -72,7 +76,12 @@ Important behavior:
   symlinks and names that are not portable across macOS, Linux, and Windows.
 - `delete` moves resources to the MYBOX trash. Root, encrypted folders, and shared-with-me folders
   are unsupported.
-- New remote names use NFC. Ambiguous Unicode-equivalent names fail safely.
+- `rename` and `move` keep the resource ID, call exactly one mutation endpoint, and fail before
+  mutating when the new name collides with another resource in the destination. `move` requires an
+  existing destination folder, rejects a folder moving into itself or its descendant, and never
+  renames.
+- New remote resources are created with NFC names. Existing lookups use the given spelling, and
+  ambiguous Unicode-equivalent candidates fail safely. `rename` sends the requested name as-is.
 
 ## Automation
 

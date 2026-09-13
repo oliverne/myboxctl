@@ -2,22 +2,23 @@
 
 ## 인수 목적
 
-Phase 00–15의 구현과 필수 로컬/CI/live 검증, Phase 16의 OIDC 배포 전환과 외부 운영 절차를 완료했다.
-Phase 17 GitHub Release Notes는 로컬 구현과 로컬 검증을 마쳤고, 실제 version의 npm publish 뒤 GitHub
-Release 생성만 별도 승인으로 남아 `in_progress`다. 다음 계획 phase는 Phase 18 Remote Rename & Move다.
+Phase 00–16과 Phase 18 Remote Rename & Move의 구현과 필수 로컬/live 검증을 완료했다. Phase 17 GitHub
+Release Notes는 로컬 구현과 로컬 검증을 마쳤고, 실제 version의 npm publish 뒤 GitHub Release 생성만
+별도 승인으로 남아 `in_progress`다. 다음 단계는 Phase 18을 포함한 version의 배포 검증이고, 다음 계획
+phase는 Phase 19 Automatic Failure Diagnostics다.
 전체 phase 상태와 최신 검증 수치는 [`PROGRESS.md`](PROGRESS.md)가 소유한다.
 
 ## 현재 상태
 
 - 작업 브랜치: `main`
-- Phase 00–16: 모두 `complete`
+- Phase 00–16, 18: 모두 `complete`
 - Phase 17: `in_progress`; note 검증·workflow job 분리와 정적 회귀 테스트는 구현 완료, 실제
-  npm publish 뒤 GitHub Release 생성은 미검증
-- Phase 18–22: 모두 `pending`; Phase 17 완료 뒤 순차 진행
+  npm publish 뒤 GitHub Release 생성은 미검증. Phase 18을 포함한 version 배포에서 함께 검증한다
+- Phase 19–22: 모두 `pending`; Phase 17의 잔여 배포 검증 뒤 순차 진행
 - 현재 배포: `@oliverne/myboxctl@0.3.2`, npm 단독 배포
 - standalone/Scoop/install script 경로: 폐기 유지
 - Homebrew: Phase 22에서 standalone 부활 없이 npm tarball 기반 Node formula로 계획
-- 최신 로컬 검사: `bun run check` 278 pass, 37 skip, 0 fail; `bun run build` 통과
+- 최신 로컬 검사: `bun run check` 305 pass, 57 skip, 0 fail; `bun run build`와 `git diff --check` 통과
 - 최신 publish: `v0.3.2` OIDC workflow 성공, registry `latest`와 provenance 확인 완료
 - 사용자 확인: `v0.3.2` npx/global install smoke와 기존 npm publish token 및 GitHub `NPM_TOKEN`
   secret 폐기 완료 (2026-09-13)
@@ -28,6 +29,22 @@ Release 생성만 별도 승인으로 남아 `in_progress`다. 다음 계획 pha
   `scripts/verify-release-notes.ts` 검증, `publish-npm.yml`의 `publish`/`release` job 권한 분리,
   idempotent Release 생성, note/workflow 정적 회귀 테스트를 추가했다. `bun run check`, `bun run build`,
   `git diff --check`를 통과했다; 실제 npm publish와 GitHub Release 생성은 미실행
+- Phase 18 구현: `rename`/`move` CLI command, `MyboxClient.renameResource`/`moveResource`, endpoint별
+  limiter bucket, `RemoteResolver.rootResourceId`와 공유 relocation helper를 추가했다. targeted probe
+  10 pass/0 fail, 신규 fake HTTP·CLI subprocess 20 pass/0 fail, live acceptance 6 pass/0 fail(965.73s)를
+  완료했다. live root destination 이동과 429/응답 유실 reconcile은 fake HTTP로만 검증했다.
+- Phase 18 review 후속 수정: 불확실한 rename/move mutation을 ID로 reconcile하고, `move` destination을
+  mutation용 canonical resolver로 해석하며, postcondition/descendant 검사를 resolver가 선택한 실제
+  canonical spelling으로 수행한다. contract probe는 정확한 status/code와 poll predicate를 단정한다.
+  코드 리뷰 뒤 `hasControlCharacter` 중복 구현을 `remote/path.ts` export 한 곳으로 통합하고, 아래
+  destination root 서술을 실제 동작(record의 `resourceId`를 move body `parentId`로 사용)으로
+  교정했다. rename/move limiter bucket의 `other` 공유는 유지했다.
+  신규 회귀 7개를 포함해 `bun run check` 305 pass, 57 skip, 0 fail, `bun run build`를 통과했다. live
+  재실행은 미수행이다.
+- pi-lens 참고: `src/output.ts`의 `sanitizeValue`는 `SanitizedValue`, `src/cli.ts`의
+  `normalizeMachineData`는 `MachineData` 반환 타입으로 `no-unknown-returns` heuristic을 피한다.
+  `no-runtime-typeof`, `no-conditional-empty-object-spread`, `no-unsafe-dictionary-unknown` 같은
+  heuristic hint는 남아 있지만 `bun run check`의 gate는 아니다.
 
 ## 구현된 현재 계약
 
@@ -36,6 +53,29 @@ Release 생성만 별도 승인으로 남아 `in_progress`다. 다음 계획 pha
 canonical command는 `list`/`ls`, `info`, `mkdir`, `upload`, `download`, `delete`다. `--json`은
 versioned envelope를 stdout에 내고, event는 stderr 정책을 따른다. 상세 command/JSON/exit code 계약은
 [`reference/cli-contract.md`](reference/cli-contract.md)를 기준으로 한다.
+
+### Rename과 move
+
+- `rename <remote-path> <new-name>`은 같은 parent에서 basename만 바꾸고,
+  `move <remote-path> <destination-directory>`는 basename을 유지한 채 기존 directory로 옮긴다. 둘 다
+  `resourceId`를 유지하고 endpoint 하나만 호출한다.
+- `new-name`은 단일 component다. 빈 값, `.`, `..`, separator, C0/DEL과 portable 금지 문자는 mutation
+  전에 exit 2다. 이름은 NFC로 자동 변환하지 않고 준 그대로 전송한다.
+- destination에 NFC 기준 같은 이름의 다른 resource가 있으면 `NAME_CONFLICT` exit 5이며, no-op이면
+  mutation 없이 `action: "unchanged"`다. `move`는 destination이 기존 folder여야 하고 자기 자신 또는
+  descendant로의 이동을 거부한다.
+- POST는 한 번만 수행한다. 성공 뒤 실제 canonical spelling 경로의 exact resolve가 같은 ID를
+  유일하게 반환하고 이전 path가 그 ID를 더 이상 반환하지 않아야 성공이다. timeout/5xx/429 또는
+  잘못된 성공 body처럼 결과가 불확실하면 POST를 반복하지 않고 이전/새 path를 같은 ID로 관찰해
+  성공/미적용/불확정을 구분하고, 확정할 수 없으면 `MUTATION_UNCONFIRMED`다.
+- `move` destination은 mutation용 canonical resolver로 해석해 Unicode fallback, canonical 충돌과
+  중간 file component를 검사하고 실제 folder spelling/ID로 이동한다. descendant 거부도 실제
+  component spelling으로 다시 확인한다.
+- destination root `/`는 `GET /v1/search/resources/folders?path=/`의 단일 record의 `resourceId`를
+  move body의 `parentId`로 사용한다.
+
+세부 계약은 [`reference/cli-contract.md`](reference/cli-contract.md)와 API-15
+([`reference/mybox-api.md`](reference/mybox-api.md))에 있다.
 
 ### Recursive transfer
 
@@ -69,13 +109,12 @@ versioned envelope를 stdout에 내고, event는 stderr 정책을 따른다. 상
 
 ## 계획된 후속 로드맵
 
-1. Phase 17(잔여): 다음 user-facing version에서 `docs/releases/vX.Y.Z.md`를 작성하고 npm publish 뒤
-   GitHub Release의 tag/version/본문을 확인한다
-2. Phase 18: 독립 `rename`/`move` command와 resource ID 기반 mutation reconcile
-3. Phase 19: config opt-in, 성공 시 무파일, 실패 시 bounded 자동 diagnostic JSONL
-4. Phase 20: explicit local checkpoint를 사용하는 recursive upload 재개
-5. Phase 21: unknown-size stdin을 secure temp file에 spool한 뒤 단일 파일 업로드
-6. Phase 22: npm tarball과 Node를 사용하는 personal Homebrew tap
+1. Phase 17(잔여): Phase 18을 포함한 다음 user-facing version에서 `docs/releases/vX.Y.Z.md`를 작성하고
+   npm publish 뒤 GitHub Release의 tag/version/본문을 확인한다
+2. Phase 19: config opt-in, 성공 시 무파일, 실패 시 bounded 자동 diagnostic JSONL
+3. Phase 20: explicit local checkpoint를 사용하는 recursive upload 재개
+4. Phase 21: unknown-size stdin을 secure temp file에 spool한 뒤 단일 파일 업로드
+5. Phase 22: npm tarball과 Node를 사용하는 personal Homebrew tap
 
 built-in tar/zip은 구현하지 않고 Phase 21의 stdin upload와 외부 `tar`를 조합한다. Phase 20은 arbitrary
 existing tree를 merge하지 않으며 checkpoint가 소유하고 검증한 tree만 재개한다. 상태/transaction 결정은
@@ -86,6 +125,9 @@ existing tree를 merge하지 않으며 checkpoint가 소유하고 검증한 tree
 - 일반 검증은 저장소 루트에서 `bun run check` 후 `bun run build`를 순서대로 실행한다.
 - release note 검증은 `bun run verify:release-notes -- --tag vX.Y.Z`로 수행하고, `bun run check`가
   `docs/releases/*.md`와 `publish-npm.yml` 구조를 함께 검증한다.
+- rename/move 계약은 `bun run test:rename-move-probe`(live read/write probe, 10 pass), 일반 suite에
+  포함되는 fake HTTP·CLI subprocess 회귀 27개(review 후속 7개 포함), `MYBOX_INTEGRATION=1 bun test
+test/integration/rename-move.test.ts`(live acceptance, 6 pass)로 검증한다.
 - 실제 MYBOX test는 `MYBOX_INTEGRATION=1 bun test test/integration`이며, mutation은
   `/myboxctl-integration-test/` 아래 unique child로 제한한다.
 - live mutation, credential 변경, commit, push, tag, npm publish와 GitHub Release 생성은 서로 다른
@@ -106,9 +148,8 @@ existing tree를 merge하지 않으며 checkpoint가 소유하고 검증한 tree
 - 배포 절차: [`operations/npm-release.md`](operations/npm-release.md)
 - release note 규칙: [`releases/README.md`](releases/README.md)
 - npm Trusted Publishing 전환: [`phases/16-npm-trusted-publishing.md`](phases/16-npm-trusted-publishing.md)
-- 현재 구현 phase: [`phases/17-github-release-notes.md`](phases/17-github-release-notes.md)
-- 후속 phase: [`phases/18-remote-rename-move.md`](phases/18-remote-rename-move.md),
-  [`phases/19-automatic-failure-diagnostics.md`](phases/19-automatic-failure-diagnostics.md),
+- 현재 구현 phase: [`phases/18-remote-rename-move.md`](phases/18-remote-rename-move.md) (`complete`)
+- 후속 phase: [`phases/19-automatic-failure-diagnostics.md`](phases/19-automatic-failure-diagnostics.md),
   [`phases/20-recursive-upload-resume.md`](phases/20-recursive-upload-resume.md),
   [`phases/21-stdin-upload.md`](phases/21-stdin-upload.md),
   [`phases/22-homebrew-tap.md`](phases/22-homebrew-tap.md)
@@ -124,7 +165,7 @@ bun install --frozen-lockfile
 bun run check
 ```
 
-Phase 17은 `in_progress`이며 로컬 구현과 로컬 검증이 끝났다. 남은 작업은 다음 user-facing version에서
-`docs/releases/vX.Y.Z.md`를 작성하고 npm publish 뒤 GitHub Release를 확인하는 것이다. 범위 변경이 있으면
-`PLAN.md`와 해당 phase 문서를 함께 갱신한다. 계획 문서 반영 자체는 구현, external publish, commit 또는
-push를 의미하지 않는다.
+Phase 17은 `in_progress`이며 로컬 구현과 로컬 검증이 끝났고, Phase 18은 구현과 live acceptance까지
+`complete`다. 남은 작업은 Phase 18을 포함한 다음 user-facing version에서 `docs/releases/vX.Y.Z.md`를
+작성하고 npm publish 뒤 GitHub Release를 확인하는 것이다. 범위 변경이 있으면 `PLAN.md`와 해당 phase
+문서를 함께 갱신한다. 계획 문서 반영 자체는 구현, external publish, commit 또는 push를 의미하지 않는다.

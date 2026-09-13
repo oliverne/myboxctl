@@ -30,7 +30,7 @@ function invalidPath(message: string): DomainError {
   return new DomainError("invalid-remote-path", message);
 }
 
-function hasControlCharacter(value: string): boolean {
+export function hasControlCharacter(value: string): boolean {
   return [...value].some((character) => {
     const codePoint = character.codePointAt(0);
     return codePoint !== undefined && (codePoint <= 0x1f || codePoint === 0x7f);

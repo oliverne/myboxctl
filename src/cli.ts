@@ -14,6 +14,8 @@ import { runDownloadCommand } from "./features/download-command.ts";
 import { runInfo } from "./features/info.ts";
 import { runList } from "./features/list.ts";
 import { runMkdir } from "./features/mkdir.ts";
+import { runMove } from "./features/move.ts";
+import { runRename } from "./features/rename.ts";
 import { runUploadCommand } from "./features/upload-command.ts";
 import { createEventPresentation, type EventPresentationOptions } from "./human-ui.ts";
 import {
@@ -88,7 +90,7 @@ function renderResourceTable(resources: Array<Record<string, unknown>>): string 
 }
 
 function writeCommandSuccess(
-  command: "list" | "info" | "mkdir" | "upload" | "delete" | "download",
+  command: "list" | "info" | "mkdir" | "upload" | "delete" | "download" | "rename" | "move",
   result: { action: CommandAction; data: unknown },
   options: OutputOptions,
   observer?: ResultObserver,
@@ -152,12 +154,12 @@ function writeCommandSuccess(
       );
       return;
     }
-    const verb =
-      result.action === "skipped"
-        ? "Skipped"
-        : result.action === "overwritten"
-          ? "Updated"
-          : "Uploaded";
+    let verb = "Uploaded";
+    if (result.action === "skipped") {
+      verb = "Skipped";
+    } else if (result.action === "overwritten") {
+      verb = "Updated";
+    }
     const suffix =
       result.action === "skipped"
         ? " (already current)"
@@ -188,17 +190,34 @@ function writeCommandSuccess(
     return;
   }
 
+  if (command === "rename" || command === "move") {
+    const { path, newPath } = data as { path: string; newPath: string };
+    if (result.action === "unchanged") {
+      const label = command === "rename" ? "Already named" : "Already in destination:";
+      process.stdout.write(`${label} ${displayValue(path)}\n`);
+      return;
+    }
+    const verb = command === "rename" ? "Renamed" : "Moved";
+    process.stdout.write(`${verb} ${displayValue(path)} -> ${displayValue(newPath)}\n`);
+    return;
+  }
+
   const deleteData = data as { path: string; type: "file" | "folder" | null };
-  process.stdout.write(
-    result.action === "already-absent"
-      ? `Already absent: ${displayValue(deleteData.path)}\n`
-      : deleteData.type === "folder"
-        ? `Folder moved to trash: ${displayValue(deleteData.path)}\n`
-        : `Deleted ${displayValue(deleteData.path)}\n`,
-  );
+  if (result.action === "already-absent") {
+    process.stdout.write(`Already absent: ${displayValue(deleteData.path)}\n`);
+    return;
+  }
+  const label = deleteData.type === "folder" ? "Folder moved to trash" : "Deleted";
+  process.stdout.write(`${label} ${displayValue(deleteData.path)}\n`);
 }
 
-function normalizeMachineData(command: string, value: unknown): unknown {
+/**
+ * Machine-readable `--json` data for one command. Commands whose data already has the right shape
+ * pass it through unchanged, so only upload/download/delete are normalized here.
+ */
+type MachineData = Record<string, unknown>;
+
+function normalizeMachineData(command: string, value: unknown): MachineData {
   if (command === "upload") {
     const data = value as {
       type?: "folder";
@@ -247,18 +266,21 @@ function normalizeMachineData(command: string, value: unknown): unknown {
   }
   if (command === "delete") {
     const data = value as { path: string; resourceId?: string | null; type?: string | null };
+    let type: "file" | "folder" | null;
+    if (data.type?.toLowerCase() === "folder") {
+      type = "folder";
+    } else if (data.type === undefined || data.type === null) {
+      type = null;
+    } else {
+      type = "file";
+    }
     return {
       path: data.path,
       resourceId: data.resourceId ?? null,
-      type:
-        data.type?.toLowerCase() === "folder"
-          ? "folder"
-          : data.type === undefined || data.type === null
-            ? null
-            : "file",
+      type,
     };
   }
-  return value;
+  return value as MachineData;
 }
 
 function addPresentationOptions(command: Command): Command {
@@ -549,6 +571,68 @@ export function createProgram(
           }
         }),
       "Folders and their contents move together to MYBOX trash. Missing paths fail with exit 4 unless --ignore-missing is used.\nThe root path / cannot be deleted.",
+    ),
+  );
+
+  addPresentationOptions(
+    addContractHelp(
+      program
+        .command("rename")
+        .description("Rename a remote file or folder in place")
+        .argument("<remote-path>", "Absolute remote path")
+        .argument("<new-name>", "New single path component")
+        .action(async (remotePath: string, newName: string, options: OutputOptions) => {
+          const effective = mergedOptions(program, options);
+          const runtime = await runtimeForCommand(
+            runtimeFactory,
+            "rename",
+            effective,
+            diagnosticSink,
+          );
+          try {
+            const result = await runRename(remotePath, newName, {
+              client: runtime.client,
+              resolver: runtime.resolver,
+            });
+            runtime.events.finish();
+            writeCommandSuccess("rename", result, effective, observer);
+          } finally {
+            runtime.events.finish();
+          }
+        }),
+      "Renames one resource inside its current parent and keeps the resource ID.\nThe new name must be a single component: no '/', '.', '..', control characters or non-portable characters.\nA different sibling with the same name fails with exit 5 before any mutation.",
+    ),
+  );
+
+  addPresentationOptions(
+    addContractHelp(
+      program
+        .command("move")
+        .description("Move a remote file or folder into an existing directory")
+        .argument("<remote-path>", "Absolute remote path")
+        .argument("<destination-directory>", "Existing absolute remote directory, or /")
+        .action(
+          async (remotePath: string, destinationDirectory: string, options: OutputOptions) => {
+            const effective = mergedOptions(program, options);
+            const runtime = await runtimeForCommand(
+              runtimeFactory,
+              "move",
+              effective,
+              diagnosticSink,
+            );
+            try {
+              const result = await runMove(remotePath, destinationDirectory, {
+                client: runtime.client,
+                resolver: runtime.resolver,
+              });
+              runtime.events.finish();
+              writeCommandSuccess("move", result, effective, observer);
+            } finally {
+              runtime.events.finish();
+            }
+          },
+        ),
+      "Moves one resource without renaming it and keeps the resource ID.\nThe destination must already exist; moving to / is allowed. A folder cannot move into itself or its descendant.\nA same-name resource in the destination fails with exit 5 before any mutation.",
     ),
   );
 
