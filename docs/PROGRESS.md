@@ -6,51 +6,54 @@
 ## 현재 상태
 
 - 마지막 완료 phase: `Phase 16 npm Trusted Publishing`
-- 활성 구현 phase: 없음
-- 다음 phase: `Phase 17 GitHub Release Notes` (`pending`)
-- 전체 상태: `pending`
+- 활성 구현 phase: `Phase 17 GitHub Release Notes`
+- 다음 phase: `Phase 18 Remote Rename & Move` (`pending`)
+- 전체 상태: `in_progress`
 - 배포: standalone 실행파일은 폐기했고 npm(Node 기반) 단독 배포를 사용한다. 현재 npm `latest`는
   `v0.3.2`다. Phase 22에서 standalone 부활 없이 Node 기반 Homebrew tap을 계획한다.
 - npm 배포 인증: Phase 16에서 GitHub Actions OIDC Trusted Publishing으로 전환했다. 첫 OIDC publish와
   registry/provenance 및 설치 smoke를 확인했고, 기존 npm publish token과 GitHub `NPM_TOKEN` secret을
   폐기했다 (2026-09-13 사용자 확인).
-- 최신 로컬 검사: `bun run check` 261 pass, 38 skip, 0 fail; 별도 `bun run build` 통과
+- 최신 로컬 검사: `bun run check` 278 pass, 37 skip, 0 fail; 별도 `bun run build` 통과
 - 문서 윤문: `README.ko.md`, `CONTRIBUTING.md` 보수적 윤문 완료; `git diff --check` 통과
 - 최신 배포 검증: `v0.3.2` OIDC publish workflow 성공, npm registry `latest`와 provenance 확인 완료
 - 사용자 확인: `v0.3.2` npx/global install smoke 확인 완료 (2026-09-13)
 - Agent Skill: Hermes 등 셸 실행이 가능한 에이전트 호스트용 `.agents/skills/myboxctl/`을 설치와
   대표 명령 예제 중심으로 작성하고 영문·국문 README에 사용 경로 소개; 정적 검증 완료
-- 후속 로드맵: Phase 17–22와 recursive upload checkpoint Decision을 `pending` 계획으로 추가했다.
-  변경된 Markdown의 Prettier, local link와 `git diff --check` 검증을 통과했으며 코드 test, live mutation과
-  release 검증은 실행하지 않았다.
+- Phase 17 로컬 구현: `docs/releases/` note 규칙과 `src/release/notes.ts` +
+  `scripts/verify-release-notes.ts` 검증, `publish-npm.yml`의 `publish`/`release` job 권한 분리,
+  idempotent Release 생성, note/workflow 정적 회귀 테스트를 추가했다. `bun run check`(278 pass,
+  37 skip, 0 fail), `bun run build`, `git diff --check`를 통과했다.
+- Phase 17 외부 검증: 실제 npm publish와 GitHub Release 생성은 별도 승인 전이라 실행하지 않았다.
+- 후속 로드맵: Phase 18–22와 recursive upload checkpoint Decision을 `pending` 계획으로 유지한다.
 
 ## Phase 상태
 
-| Phase                             | 상태     | 현재 근거                                                                             | 문서                                                                                             |
-| --------------------------------- | -------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| 00 API contract                   | complete | contract probe와 API ledger 완료                                                      | [`phases/00-api-contract.md`](phases/00-api-contract.md)                                         |
-| 01 Foundation                     | complete | config/error/output/client와 fake HTTP 검증 완료                                      | [`phases/01-foundation.md`](phases/01-foundation.md)                                             |
-| 02 Read commands                  | complete | path, resolver, stat, list 검증 완료                                                  | [`phases/02-read-commands.md`](phases/02-read-commands.md)                                       |
-| 03 Ensure directory               | complete | ensure-dir와 shared search limiter 검증 완료                                          | [`phases/03-ensure-dir.md`](phases/03-ensure-dir.md)                                             |
-| 04 Upload                         | complete | streaming, resume, overwrite와 acceptance 완료                                        | [`phases/04-upload.md`](phases/04-upload.md)                                                     |
-| 05 Put                            | complete | decision policy와 metadata flow 검증 완료                                             | [`phases/05-put.md`](phases/05-put.md)                                                           |
-| 06 Delete                         | complete | delete, ID reconcile와 limiter 검증 완료                                              | [`phases/06-delete.md`](phases/06-delete.md)                                                     |
-| 07 Hardening                      | complete | CI와 통합 live acceptance 완료                                                        | [`phases/07-hardening.md`](phases/07-hardening.md)                                               |
-| 08 Official API alignment         | complete | 공식 API correction과 live acceptance 완료                                            | [`phases/08-official-api-alignment.md`](phases/08-official-api-alignment.md)                     |
-| 09 Download                       | complete | targeted probe, 3-OS 검증과 live acceptance 완료                                      | [`phases/09-download.md`](phases/09-download.md)                                                 |
-| 10 Cross-implementation hardening | complete | path/delete/Unicode hardening과 live probe 완료                                       | [`phases/10-cross-implementation-hardening.md`](phases/10-cross-implementation-hardening.md)     |
-| 11 Distribution & Release         | complete | native smoke와 release 경계 검증 완료                                                 | [`phases/11-distribution-release.md`](phases/11-distribution-release.md)                         |
-| 12 Cross-platform Unicode names   | complete | 3-OS local 검증과 Unicode live probe 완료                                             | [`phases/12-cross-platform-unicode-filenames.md`](phases/12-cross-platform-unicode-filenames.md) |
-| 13 Observability & test latency   | complete | event 출력, limiter 계측과 live acceptance 완료                                       | [`phases/13-observability-and-test-latency.md`](phases/13-observability-and-test-latency.md)     |
-| 14 CLI UX & Agent Contract        | complete | canonical surface와 versioned output contract 완료                                    | [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)               |
-| 15 Recursive folder transfer      | complete | local 구현, 3-OS matrix, live round-trip과 failure-path 회귀 완료                     | [`phases/15-recursive-folder-transfer.md`](phases/15-recursive-folder-transfer.md)               |
-| 16 npm Trusted Publishing         | complete | Trusted Publisher 등록, 첫 OIDC publish·provenance·설치 smoke 및 기존 token 폐기 완료 | [`phases/16-npm-trusted-publishing.md`](phases/16-npm-trusted-publishing.md)                     |
-| 17 GitHub Release Notes           | pending  | version별 변경 사항과 npm publish 뒤 GitHub Release 생성 계획                         | [`phases/17-github-release-notes.md`](phases/17-github-release-notes.md)                         |
-| 18 Remote Rename & Move           | pending  | 한 endpoint당 한 command와 resource ID 기반 reconcile 계획                            | [`phases/18-remote-rename-move.md`](phases/18-remote-rename-move.md)                             |
-| 19 Automatic Failure Diagnostics  | pending  | opt-in config, bounded buffer와 실패 시 자동 JSONL 계획                               | [`phases/19-automatic-failure-diagnostics.md`](phases/19-automatic-failure-diagnostics.md)       |
-| 20 Recursive Upload Resume        | pending  | explicit checkpoint, atomic state와 fail-closed 재개 계획                             | [`phases/20-recursive-upload-resume.md`](phases/20-recursive-upload-resume.md)                   |
-| 21 stdin Upload                   | pending  | unknown-size stdin의 secure temp spool과 기존 uploader 재사용 계획                    | [`phases/21-stdin-upload.md`](phases/21-stdin-upload.md)                                         |
-| 22 Homebrew Tap                   | pending  | standalone 없는 npm tarball 기반 Node formula 계획                                    | [`phases/22-homebrew-tap.md`](phases/22-homebrew-tap.md)                                         |
+| Phase                             | 상태        | 현재 근거                                                                               | 문서                                                                                             |
+| --------------------------------- | ----------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 00 API contract                   | complete    | contract probe와 API ledger 완료                                                        | [`phases/00-api-contract.md`](phases/00-api-contract.md)                                         |
+| 01 Foundation                     | complete    | config/error/output/client와 fake HTTP 검증 완료                                        | [`phases/01-foundation.md`](phases/01-foundation.md)                                             |
+| 02 Read commands                  | complete    | path, resolver, stat, list 검증 완료                                                    | [`phases/02-read-commands.md`](phases/02-read-commands.md)                                       |
+| 03 Ensure directory               | complete    | ensure-dir와 shared search limiter 검증 완료                                            | [`phases/03-ensure-dir.md`](phases/03-ensure-dir.md)                                             |
+| 04 Upload                         | complete    | streaming, resume, overwrite와 acceptance 완료                                          | [`phases/04-upload.md`](phases/04-upload.md)                                                     |
+| 05 Put                            | complete    | decision policy와 metadata flow 검증 완료                                               | [`phases/05-put.md`](phases/05-put.md)                                                           |
+| 06 Delete                         | complete    | delete, ID reconcile와 limiter 검증 완료                                                | [`phases/06-delete.md`](phases/06-delete.md)                                                     |
+| 07 Hardening                      | complete    | CI와 통합 live acceptance 완료                                                          | [`phases/07-hardening.md`](phases/07-hardening.md)                                               |
+| 08 Official API alignment         | complete    | 공식 API correction과 live acceptance 완료                                              | [`phases/08-official-api-alignment.md`](phases/08-official-api-alignment.md)                     |
+| 09 Download                       | complete    | targeted probe, 3-OS 검증과 live acceptance 완료                                        | [`phases/09-download.md`](phases/09-download.md)                                                 |
+| 10 Cross-implementation hardening | complete    | path/delete/Unicode hardening과 live probe 완료                                         | [`phases/10-cross-implementation-hardening.md`](phases/10-cross-implementation-hardening.md)     |
+| 11 Distribution & Release         | complete    | native smoke와 release 경계 검증 완료                                                   | [`phases/11-distribution-release.md`](phases/11-distribution-release.md)                         |
+| 12 Cross-platform Unicode names   | complete    | 3-OS local 검증과 Unicode live probe 완료                                               | [`phases/12-cross-platform-unicode-filenames.md`](phases/12-cross-platform-unicode-filenames.md) |
+| 13 Observability & test latency   | complete    | event 출력, limiter 계측과 live acceptance 완료                                         | [`phases/13-observability-and-test-latency.md`](phases/13-observability-and-test-latency.md)     |
+| 14 CLI UX & Agent Contract        | complete    | canonical surface와 versioned output contract 완료                                      | [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)               |
+| 15 Recursive folder transfer      | complete    | local 구현, 3-OS matrix, live round-trip과 failure-path 회귀 완료                       | [`phases/15-recursive-folder-transfer.md`](phases/15-recursive-folder-transfer.md)               |
+| 16 npm Trusted Publishing         | complete    | Trusted Publisher 등록, 첫 OIDC publish·provenance·설치 smoke 및 기존 token 폐기 완료   | [`phases/16-npm-trusted-publishing.md`](phases/16-npm-trusted-publishing.md)                     |
+| 17 GitHub Release Notes           | in_progress | note 검증·workflow 권한 분리·정적 회귀 테스트 구현, 로컬 검증 통과; 실제 release 미검증 | [`phases/17-github-release-notes.md`](phases/17-github-release-notes.md)                         |
+| 18 Remote Rename & Move           | pending     | 한 endpoint당 한 command와 resource ID 기반 reconcile 계획                              | [`phases/18-remote-rename-move.md`](phases/18-remote-rename-move.md)                             |
+| 19 Automatic Failure Diagnostics  | pending     | opt-in config, bounded buffer와 실패 시 자동 JSONL 계획                                 | [`phases/19-automatic-failure-diagnostics.md`](phases/19-automatic-failure-diagnostics.md)       |
+| 20 Recursive Upload Resume        | pending     | explicit checkpoint, atomic state와 fail-closed 재개 계획                               | [`phases/20-recursive-upload-resume.md`](phases/20-recursive-upload-resume.md)                   |
+| 21 stdin Upload                   | pending     | unknown-size stdin의 secure temp spool과 기존 uploader 재사용 계획                      | [`phases/21-stdin-upload.md`](phases/21-stdin-upload.md)                                         |
+| 22 Homebrew Tap                   | pending     | standalone 없는 npm tarball 기반 Node formula 계획                                      | [`phases/22-homebrew-tap.md`](phases/22-homebrew-tap.md)                                         |
 
 ## 검증 경계
 
@@ -62,13 +65,15 @@
 - release: tag/workflow와 package 검증 및 사용자 registry 설치 smoke를 완료했다.
 - npm Trusted Publishing: npm package 설정과 실제 OIDC publish, registry/provenance 및 설치 smoke,
   기존 token 폐기까지 완료했다 (2026-09-13 사용자 확인).
+- Phase 17 로컬: note 검증 script/단위 테스트, workflow 정적 계약 테스트, `bun run check`와
+  `bun run build`, `git diff --check`가 통과했다. 실제 npm publish와 GitHub Release 생성은 미실행이다.
 
 ## 다음 작업
 
-1. Phase 17 구현을 시작할 때 해당 phase만 `in_progress`로 변경한다.
-2. version별 release note source와 npm/GitHub job 권한 경계를 구현하고 로컬 검증한다.
-3. 실제 tag와 npm/GitHub publish는 별도 승인을 받은 다음 version에서 검증한다.
-4. Phase 18–22는 앞선 phase가 완료된 뒤 순서대로 시작한다.
+1. 다음 user-facing version을 배포할 때 `docs/releases/vX.Y.Z.md`를 작성하고 Phase 17의 외부 검증
+   (npm publish 뒤 GitHub Release의 tag/version/본문 확인)을 수행한다.
+2. Phase 17은 그 외부 검증이 기록되기 전까지 `in_progress`를 유지한다.
+3. Phase 18–22는 앞선 phase가 완료된 뒤 순서대로 시작한다.
 
 ## 상태 변경 규칙
 

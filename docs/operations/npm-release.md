@@ -1,7 +1,8 @@
 # npm 배포
 
 이 문서는 `@oliverne/myboxctl`을 npm에 배포하는 절차다. 배포 대상은 Node.js 20 이상에서
-실행되는 npm package이며 GitHub Release, standalone 실행파일, Homebrew와 Scoop은 사용하지 않는다.
+실행되는 npm package이며 standalone 실행파일, Homebrew와 Scoop은 사용하지 않는다. npm publish가
+성공하면 같은 tag의 GitHub Release를 source-controlled release note로 생성한다.
 
 GitHub Actions 배포 인증은 npm Trusted Publishing(OIDC)을 사용한다. 따라서 배포 workflow에는
 장기 보관하는 `NPM_TOKEN`이 없고, npm CLI가 GitHub Actions의 단기 OIDC 자격 증명을 사용한다.
@@ -52,12 +53,23 @@ bun run build
 
 하나라도 실패하면 tag를 생성하지 않는다.
 
-## 3. tag 생성
+## 3. release note 작성과 tag 생성
 
-기존 tag는 이력으로 유지하고 이동하거나 덮어쓰지 않는다.
+사용자에게 영향을 주는 변경만 3~6개 bullet로 `docs/releases/vX.Y.Z.md`에 적고 배포 commit에
+포함한다. 작성 규칙과 예시는 [`releases/README.md`](../releases/README.md)를 따른다.
 
 ```bash
-release_version=0.3.2
+release_version=0.4.0
+bun run verify:release-notes -- --tag "v${release_version}"
+git status --short
+```
+
+note 검증이 실패하거나 `git status --short`에 미커밋 변경이 남아 있으면 여기서 중단한다.
+
+기존 tag는 이력으로 유지하고 이동하거나 덮어쓰지 않는다. note가 포함된 배포 commit이 `origin/main`에
+push되고 CI가 성공한 뒤 tag를 만든다.
+
+```bash
 test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
 git tag -a "v${release_version}" -m "myboxctl v${release_version}"
 git push origin "v${release_version}"
@@ -70,7 +82,7 @@ git ls-remote --tags origin "v${release_version}"
 ## 4. npm publish workflow 실행
 
 ```bash
-release_version=0.3.2
+release_version=0.4.0
 gh workflow run publish-npm.yml \
   --repo oliverne/myboxctl \
   -f tag="v${release_version}"
@@ -87,23 +99,48 @@ gh run list \
 gh run watch <RUN_ID> --repo oliverne/myboxctl --exit-status
 ```
 
-workflow는 tag checkout, 일반 검사, Node bundle 생성, package 준비, `--version`/`--help` 및
-`npm pack --dry-run` 검증 후 `npm publish --access public`을 실행한다. `id-token: write` 권한과
-Trusted Publisher 설정이 OIDC 인증에 사용되며 `NPM_TOKEN`, `NODE_AUTH_TOKEN`, 임시 `.npmrc`는
-필요하지 않다. GitHub Actions에서 OIDC로 publish하면 npm이 provenance attestation도 자동 생성하므로
-별도의 `--provenance` 플래그를 추가하지 않는다.
+workflow는 두 job으로 나뉜다. `publish` job은 tag checkout, 일반 검사, release note 검증, Node
+bundle 생성, package 준비, `--version`/`--help` 및 `npm pack --dry-run` 검증 후
+`npm publish --access public`을 실행한다. `id-token: write`만 사용하며 `NPM_TOKEN`,
+`NODE_AUTH_TOKEN`, 임시 `.npmrc`는 필요하지 않다. GitHub Actions에서 OIDC로 publish하면 npm이
+provenance attestation도 자동 생성하므로 별도의 `--provenance` 플래그를 추가하지 않는다.
+
+`publish` job이 성공하면 `release` job이 같은 tag commit의 note를 본문으로 GitHub Release를
+생성한다. `release` job은 `contents: write`만 사용하고 `npm publish`를 다시 실행하지 않는다. 이미
+같은 tag의 Release가 있으면 `tagName`, `body`, draft/prerelease를 note와 대조해 일치하고 draft/
+prerelease가 아닐 때만 성공으로 보고한다. 하나라도 다르면 덮어쓰지 않고 실패한다.
 
 실패한 workflow를 원인 확인 없이 반복 실행하지 않는다. 동일한 version이 이미 게시됐다면 npm에서
 덮어쓸 수 없으므로 새 patch version이 필요하다. `ENEEDAUTH` 또는 `E404`가 발생하면 먼저
 Trusted Publisher의 repository, workflow filename, environment와 workflow의 `id-token: write`를
 대조한다.
 
-## 5. registry 설치 smoke
+npm publish는 성공했지만 Release 생성만 실패하면 GitHub Actions에서 **Re-run failed jobs**로
+`release` job만 재실행한다. 이미 게시된 npm version은 다시 publish하지 않는다.
+
+## 5. GitHub Release 확인
+
+`release` job이 생성한 GitHub Release가 tag와 note를 정확히 가리키는지 확인한다.
+
+```bash
+release_version=0.4.0
+gh release view "v${release_version}" \
+  --repo oliverne/myboxctl \
+  --json tagName,body,url
+```
+
+통과 기준:
+
+- `tagName`이 선택한 tag와 같다.
+- `body`가 `docs/releases/v${release_version}.md`와 일치한다.
+- standalone archive나 checksum asset이 첨부되지 않았다.
+
+## 6. registry 설치 smoke
 
 registry 전파 후 다음 결과를 확인한다.
 
 ```bash
-release_version=0.3.2
+release_version=0.4.0
 npm view "@oliverne/myboxctl@${release_version}" version dist-tags.latest
 npx --yes "@oliverne/myboxctl@${release_version}" --version
 npx --yes "@oliverne/myboxctl@${release_version}"
@@ -125,7 +162,7 @@ npm install -g "@oliverne/myboxctl@${release_version}"
 myboxctl --version
 ```
 
-## 6. 기존 token 폐기
+## 7. 기존 token 폐기
 
 `v0.3.2` 첫 OIDC publish와 registry smoke 확인 뒤 기존 npm publish token과 GitHub `NPM_TOKEN`
 secret을 폐기했다 (2026-09-13 사용자 확인). 아래 절차는 향후 credential 전환 시의 안전 순서다.

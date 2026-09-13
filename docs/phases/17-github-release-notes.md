@@ -5,10 +5,11 @@
 
 ## 상태와 진입 조건
 
-- 상태: `pending`
-- 활성 phase: 없음
+- 상태: `in_progress`
+- 활성 phase: Phase 17
 - Phase 00~16과 npm `v0.3.2` 배포가 완료된 상태에서 시작한다.
-- 구현을 시작할 때 `docs/PROGRESS.md`에서 Phase 17만 `in_progress`로 변경한다.
+- note 검증, workflow job 분리와 운영 문서는 구현했고, 실제 version의 npm publish 뒤 GitHub Release
+  생성은 별도 승인으로 검증한다.
 - commit/push, tag push와 npm/GitHub publish는 각각 별도 승인 경계를 유지한다.
 
 ## 목표
@@ -86,8 +87,12 @@ GitHub Release 생성도 외부 공개 mutation이다. tag와 publish 승인이 
 ```bash
 bun run check
 bun run build
+bun run verify:release-notes -- --tag vX.Y.Z
 git diff --check
 ```
+
+`bun run check`는 `docs/releases/*.md` 전체와 `publish-npm.yml` 구조를 정적으로 회귀 검증한다.
+`verify:release-notes`는 실제 note 파일이 있는 version에서만 통과한다.
 
 외부 release 검증은 별도 승인 후 수행한다.
 

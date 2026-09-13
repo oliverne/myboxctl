@@ -15,6 +15,7 @@
     "build": "bun run scripts/build.ts",
     "prepare:npm": "bun run scripts/prepare-npm.ts",
     "publish:npm": "bun run scripts/publish-npm.ts",
+    "verify:release-notes": "bun run scripts/verify-release-notes.ts",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "format": "bun run format:code && bun run format:md",

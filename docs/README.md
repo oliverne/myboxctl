@@ -43,8 +43,10 @@
 
 - [`operations/ubuntu-24.04.md`](operations/ubuntu-24.04.md): Ubuntu Server 24.04 설치, credentials,
   AI 에이전트 subprocess 호출, 업그레이드·rollback
-- [`operations/npm-release.md`](operations/npm-release.md): tag, OIDC publish workflow,
-  registry/provenance 및 설치 smoke와 credential 운영
+- [`operations/npm-release.md`](operations/npm-release.md): release note, tag, OIDC publish workflow,
+  GitHub Release 생성, registry/provenance 및 설치 smoke와 credential 운영
+- [`releases/README.md`](releases/README.md): GitHub Release 본문으로 쓰는 version별 release note 작성
+  규칙
 
 ## 유지 규칙
 
