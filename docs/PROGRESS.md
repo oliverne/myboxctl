@@ -26,6 +26,9 @@
   `0.4.0`과 `latest`가 반영됐다. `npm view`의 E404를 publish 실패로 단정하지 않는다
 - Agent Skill: Hermes 등 셸 실행이 가능한 에이전트 호스트용 `.agents/skills/myboxctl/`을 설치와
   대표 명령 예제 중심으로 작성하고 영문·국문 README에 사용 경로 소개; 정적 검증 완료
+- Release Skill: `v0.4.0` 배포 절차를 기반으로 `.agents/skills/myboxctl-release/SKILL.md`를 추가했다.
+  승인 경계, version 선택, 사용자 관점 release note 문체, tag/workflow/전파 대기/검증과 실패 대응을
+  담았고 `docs/releases/README.md`에 같은 문체 규칙을 명문화했다. 실제 호출 검증은 미수행이다.
 - Phase 17 로컬 구현: `docs/releases/` note 규칙과 `src/release/notes.ts` +
   `scripts/verify-release-notes.ts` 검증, `publish-npm.yml`의 `publish`/`release` job 권한 분리,
   idempotent Release 생성, note/workflow 정적 회귀 테스트를 추가했다. `bun run check`(278 pass,

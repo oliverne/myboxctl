@@ -46,7 +46,9 @@
 - [`operations/npm-release.md`](operations/npm-release.md): release note, tag, OIDC publish workflow,
   GitHub Release 생성, registry/provenance 및 설치 smoke와 credential 운영
 - [`releases/README.md`](releases/README.md): GitHub Release 본문으로 쓰는 version별 release note 작성
-  규칙
+  규칙(문체 포함)
+- [`.agents/skills/myboxctl-release/SKILL.md`](../.agents/skills/myboxctl-release/SKILL.md): 에이전트가
+  배포를 대행할 때 따르는 release skill
 
 ## 유지 규칙
 

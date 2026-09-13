@@ -31,6 +31,10 @@ Failure Diagnostics다. 전체 phase 상태와 최신 검증 수치는 [`PROGRES
 - Agent Skill: `.agents/skills/myboxctl/`에 설치와 대표 명령 예제 중심의 교차 호스트 절차 및 독립 CLI
   contract reference를 추가하고 영문·국문 README에서 안내; Hermes 사용자 스킬 형식 및 정적 검증
   완료, 실제 호출은 미검증
+- Release Skill: `.agents/skills/myboxctl-release/SKILL.md`에 `v0.4.0` 배포 절차 기반의 릴리스 절차를
+  정리했다. 승인 경계, 사전 확인, version 선택, 사용자 관점 note 문체(예시 포함), commit/CI, tag,
+  workflow dispatch, registry 전파 대기, 배포 검증, 기록과 실패 대응을 포함한다. 같은 문체 규칙을
+  `docs/releases/README.md`와 `CONTRIBUTING.md`의 릴리스 절에 연결했다. 실제 호출 검증은 미수행이다.
 - Phase 17 구현: `docs/releases/` note 규칙과 `src/release/notes.ts` +
   `scripts/verify-release-notes.ts` 검증, `publish-npm.yml`의 `publish`/`release` job 권한 분리,
   idempotent Release 생성, note/workflow 정적 회귀 테스트를 추가했다. `bun run check`, `bun run build`,

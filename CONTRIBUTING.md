@@ -90,6 +90,14 @@ PR에는 보통 다음 내용을 포함합니다.
 자세한 설계는 [`docs/architecture/overview.md`](docs/architecture/overview.md)와
 [`docs/reference/cli-contract.md`](docs/reference/cli-contract.md)를 참고해 주세요.
 
+## 릴리스
+
+npm 배포와 GitHub Release는 `.github/workflows/publish-npm.yml` workflow로 수행합니다. 절차와 검증
+기준은 [`docs/operations/npm-release.md`](docs/operations/npm-release.md)에 정리되어 있고, 에이전트가
+배포를 대행할 때는 [`.agents/skills/myboxctl-release/SKILL.md`](.agents/skills/myboxctl-release/SKILL.md)를
+사용합니다. release note의 문체와 bullet 규칙은 [`docs/releases/README.md`](docs/releases/README.md)를
+따릅니다.
+
 ## AI-assisted contributions
 
 AI 코딩 도구를 사용한 기여도 괜찮습니다. 이 저장소 자체도 AI 코딩 에이전트를 적극적으로 활용해
