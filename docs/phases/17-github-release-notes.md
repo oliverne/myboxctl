@@ -5,11 +5,10 @@
 
 ## 상태와 진입 조건
 
-- 상태: `in_progress`
-- 활성 phase: Phase 17
-- Phase 00~16과 npm `v0.3.2` 배포가 완료된 상태에서 시작한다.
-- note 검증, workflow job 분리와 운영 문서는 구현했고, 실제 version의 npm publish 뒤 GitHub Release
-  생성은 별도 승인으로 검증한다.
+- 상태: `complete`
+- 활성 phase: 없음 (P17-A–C 및 `v0.4.0` 외부 검증 완료)
+- Phase 00~16과 npm `v0.3.2` 배포가 완료된 상태에서 시작했고, `v0.4.0` 배포에서 외부 검증까지 완료했다.
+- note 검증, workflow job 분리, 운영 문서와 외부 release 검증을 모두 마쳤다.
 - commit/push, tag push와 npm/GitHub publish는 각각 별도 승인 경계를 유지한다.
 
 ## 목표
@@ -94,17 +93,23 @@ git diff --check
 `bun run check`는 `docs/releases/*.md` 전체와 `publish-npm.yml` 구조를 정적으로 회귀 검증한다.
 `verify:release-notes`는 실제 note 파일이 있는 version에서만 통과한다.
 
-외부 release 검증은 별도 승인 후 수행한다.
+외부 release 검증은 `v0.4.0` 배포(2026-09-13)에서 수행했다.
 
-- npm version과 Git tag가 일치한다.
-- GitHub Release가 같은 tag를 가리킨다.
-- 본문이 해당 version의 source-controlled note와 일치한다.
-- standalone asset은 생성하거나 첨부하지 않는다.
+- npm version과 Git tag가 일치한다. `@oliverne/myboxctl@0.4.0`, tag `v0.4.0` → `3838c02`.
+- GitHub Release가 같은 tag를 가리킨다. `release` job(run 34758012146)이 생성했고 draft/prerelease가
+  아니다.
+- 본문이 해당 version의 source-controlled note와 일치한다. `docs/releases/v0.4.0.md`와 Release body가
+  같고 차이는 후행 빈 줄 하나뿐이다. workflow 비교는 command substitution을 사용해 후행 개행을
+  제거하므로 idempotent 재실행도 성공한다.
+- standalone asset은 생성하거나 첨부하지 않는다. asset 0개다.
+- registry와 npm provenance attestation(`slsa.dev/provenance/v1`)을 확인했고 `latest`가 `0.4.0`이다.
+- publish 성공 직후 약 1–2분간 registry read가 이전 version을 반환했다. publish 직후의 `npm view`
+  E404를 publish 실패로 단정하지 않는다.
 
 ## 완료 조건
 
 - note 누락과 version 불일치가 publish 전에 차단된다.
 - npm job은 OIDC 권한만, Release job은 contents write 권한만 가진다.
-- 승인된 실제 version에서 npm publish 뒤 GitHub Release가 생성된다.
+- 승인된 실제 version에서 npm publish 뒤 GitHub Release가 생성된다. `v0.4.0`에서 확인했다.
 - registry와 GitHub 양쪽의 version 및 본문 확인이 기록된다.
 - `PROGRESS.md`와 `HANDOFF.md`가 실제 검증 결과로 갱신된다.

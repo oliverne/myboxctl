@@ -2,29 +2,30 @@
 
 ## 인수 목적
 
-Phase 00–16과 Phase 18 Remote Rename & Move의 구현과 필수 로컬/live 검증을 완료했다. Phase 17 GitHub
-Release Notes는 로컬 구현과 로컬 검증을 마쳤고, Phase 18을 포함한 다음 version을 `v0.4.0`으로 정해
-`docs/releases/v0.4.0.md`를 작성했다. 남은 것은 배포 commit push/CI, tag 생성, npm publish와 GitHub
-Release 확인이며 모두 별도 승인 대상이다. 다음 계획 phase는 Phase 19 Automatic Failure Diagnostics다.
-전체 phase 상태와 최신 검증 수치는 [`PROGRESS.md`](PROGRESS.md)가 소유한다.
+Phase 00–18 구현과 필수 로컬/live 검증, `v0.4.0` 배포와 GitHub Release 생성을 모두 완료했다. Phase 17
+GitHub Release Notes도 `v0.4.0` 배포에서 외부 검증을 마쳤다. 다음 계획 phase는 Phase 19 Automatic
+Failure Diagnostics다. 전체 phase 상태와 최신 검증 수치는 [`PROGRESS.md`](PROGRESS.md)가 소유한다.
 
 ## 현재 상태
 
 - 작업 브랜치: `main`
-- Phase 00–16, 18: 모두 `complete`
-- Phase 17: `in_progress`; note 검증·workflow job 분리와 정적 회귀 테스트는 구현 완료, 실제
-  npm publish 뒤 GitHub Release 생성은 미검증. Phase 18을 포함한 version 배포에서 함께 검증한다
-- Phase 19–22: 모두 `pending`; Phase 17의 잔여 배포 검증 뒤 순차 진행
-- 다음 배포 note: `docs/releases/v0.4.0.md`(6 bullet) 작성 완료;
-  `bun run verify:release-notes -- --tag v0.4.0`, prettier check, `bun run check`(305 pass, 57 skip,
-  0 fail) 통과. 배포 commit push/CI, tag, npm publish와 GitHub Release는 미실행
-- 현재 배포: `@oliverne/myboxctl@0.3.2`, npm 단독 배포
+- Phase 00–18: 모두 `complete`
+- Phase 17: `complete`; `v0.4.0` 배포에서 note 검증과 npm publish, GitHub Release 생성·본문 일치까지
+  확인했다
+- Phase 19–22: 모두 `pending`; 다음 순서는 Phase 19 Automatic Failure Diagnostics
+- 배포된 release note: `docs/releases/v0.4.0.md`(6 bullet); `v0.4.0` GitHub Release 본문과 일치
+- 현재 배포: `@oliverne/myboxctl@0.4.0`(npm `latest`), npm 단독 배포
 - standalone/Scoop/install script 경로: 폐기 유지
 - Homebrew: Phase 22에서 standalone 부활 없이 npm tarball 기반 Node formula로 계획
 - 최신 로컬 검사: `bun run check` 305 pass, 57 skip, 0 fail; `bun run build`와 `git diff --check` 통과
-- 최신 publish: `v0.3.2` OIDC workflow 성공, registry `latest`와 provenance 확인 완료
-- 사용자 확인: `v0.3.2` npx/global install smoke와 기존 npm publish token 및 GitHub `NPM_TOKEN`
-  secret 폐기 완료 (2026-09-13)
+- 최신 publish: `v0.4.0` 배포 완료 — 배포 commit `3838c02`(CI success, run 34757973707), tag `v0.4.0`,
+  publish workflow run 34758012146의 `publish`·`release` job success. registry `0.4.0`/`latest`와 npm
+  provenance attestation, GitHub Release `v0.4.0`(draft/prerelease 아님, 본문 일치, asset 0개) 확인
+- 설치 smoke: `npx @oliverne/myboxctl@0.4.0`의 `--version`(0.4.0 한 줄), 인자 없는 실행 root help
+  exit 0, `--help`의 `rename`/`move` 포함, 임시 prefix global install의 `--version`/`--help` exit 0 확인
+- registry 전파 관찰: publish 성공 직후 약 1–2분간 registry read가 `0.3.2`를 반환했고 그 뒤 `0.4.0`이
+  반영됐다. publish 직후의 `npm view` E404를 publish 실패로 단정하지 않는다
+- 사용자 확인: 기존 npm publish token와 GitHub `NPM_TOKEN` secret 폐기 완료 (2026-09-13)
 - Agent Skill: `.agents/skills/myboxctl/`에 설치와 대표 명령 예제 중심의 교차 호스트 절차 및 독립 CLI
   contract reference를 추가하고 영문·국문 README에서 안내; Hermes 사용자 스킬 형식 및 정적 검증
   완료, 실제 호출은 미검증
@@ -112,12 +113,11 @@ versioned envelope를 stdout에 내고, event는 stderr 정책을 따른다. 상
 
 ## 계획된 후속 로드맵
 
-1. Phase 17(잔여): `docs/releases/v0.4.0.md`를 배포 commit에 포함해 push하고 CI 성공을 확인한 뒤
-   tag를 만들고 npm publish 뒤 GitHub Release의 tag/version/본문을 확인한다
-2. Phase 19: config opt-in, 성공 시 무파일, 실패 시 bounded 자동 diagnostic JSONL
-3. Phase 20: explicit local checkpoint를 사용하는 recursive upload 재개
-4. Phase 21: unknown-size stdin을 secure temp file에 spool한 뒤 단일 파일 업로드
-5. Phase 22: npm tarball과 Node를 사용하는 personal Homebrew tap
+1. Phase 19 Automatic Failure Diagnostics: config opt-in, 성공 시 무파일, 실패 시 bounded 자동
+   diagnostic JSONL
+2. Phase 20: explicit local checkpoint를 사용하는 recursive upload 재개
+3. Phase 21: unknown-size stdin을 secure temp file에 spool한 뒤 단일 파일 업로드
+4. Phase 22: npm tarball과 Node를 사용하는 personal Homebrew tap
 
 built-in tar/zip은 구현하지 않고 Phase 21의 stdin upload와 외부 `tar`를 조합한다. Phase 20은 arbitrary
 existing tree를 merge하지 않으며 checkpoint가 소유하고 검증한 tree만 재개한다. 상태/transaction 결정은
@@ -138,7 +138,9 @@ test/integration/rename-move.test.ts`(live acceptance, 6 pass)로 검증한다.
 - PAT, Authorization header, upload/download URL과 token은 출력·로그·문서에 남기지 않는다.
 - npm publish는 `id-token: write`를 사용하는 Trusted Publishing(OIDC) 방식이다. npm package의
   Trusted Publisher 등록, 첫 OIDC publish와 registry/provenance 및 설치 smoke 확인, 기존 npm publish
-  token과 GitHub `NPM_TOKEN` secret 폐기를 완료했다.
+  token과 GitHub `NPM_TOKEN` secret 폐기를 완료했다. `v0.4.0`도 같은 OIDC 경로로 배포했다.
+- `v0.4.0` 배포 검증은 배포 commit push와 CI success, tag push, `publish-npm.yml` dispatch,
+  `gh run watch` success, registry/provenance/GitHub Release 확인과 설치 smoke로 구성했다.
 
 ## 기준 문서
 
@@ -151,8 +153,9 @@ test/integration/rename-move.test.ts`(live acceptance, 6 pass)로 검증한다.
 - 배포 절차: [`operations/npm-release.md`](operations/npm-release.md)
 - release note 규칙: [`releases/README.md`](releases/README.md)
 - npm Trusted Publishing 전환: [`phases/16-npm-trusted-publishing.md`](phases/16-npm-trusted-publishing.md)
-- 현재 구현 phase: [`phases/18-remote-rename-move.md`](phases/18-remote-rename-move.md) (`complete`)
-- 후속 phase: [`phases/19-automatic-failure-diagnostics.md`](phases/19-automatic-failure-diagnostics.md),
+- 최근 완료 phase: [`phases/18-remote-rename-move.md`](phases/18-remote-rename-move.md) (`complete`),
+  [`phases/17-github-release-notes.md`](phases/17-github-release-notes.md) (`complete`)
+- 다음 phase: [`phases/19-automatic-failure-diagnostics.md`](phases/19-automatic-failure-diagnostics.md),
   [`phases/20-recursive-upload-resume.md`](phases/20-recursive-upload-resume.md),
   [`phases/21-stdin-upload.md`](phases/21-stdin-upload.md),
   [`phases/22-homebrew-tap.md`](phases/22-homebrew-tap.md)
@@ -168,7 +171,6 @@ bun install --frozen-lockfile
 bun run check
 ```
 
-Phase 17은 `in_progress`이며 로컬 구현과 로컬 검증이 끝났고, Phase 18은 구현과 live acceptance까지
-`complete`다. 남은 작업은 Phase 18을 포함한 다음 user-facing version에서 `docs/releases/vX.Y.Z.md`를
-작성하고 npm publish 뒤 GitHub Release를 확인하는 것이다. 범위 변경이 있으면 `PLAN.md`와 해당 phase
+Phase 00–18은 모두 `complete`이고 `v0.4.0`이 npm `latest`로 배포됐다. 다음 작업은 Phase 19 Automatic
+Failure Diagnostics를 `in_progress`로 시작하는 것이다. 범위 변경이 있으면 `PLAN.md`와 해당 phase
 문서를 함께 갱신한다. 계획 문서 반영 자체는 구현, external publish, commit 또는 push를 의미하지 않는다.

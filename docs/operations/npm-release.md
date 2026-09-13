@@ -9,8 +9,9 @@ GitHub Actions 배포 인증은 npm Trusted Publishing(OIDC)을 사용한다. �
 Trusted Publishing에는 Node.js 22.14.0 이상과 npm CLI 11.5.1 이상이 필요하며, 이 저장소의
 publish workflow는 Node.js 24를 사용한다.
 
-현재 npm `latest`는 `v0.3.2`다. 첫 OIDC 배포와 registry/provenance 및 설치 smoke, 기존 token 폐기를
-완료했다 (2026-09-13 사용자 확인). 아래 명령은 다음 미게시 version을
+현재 npm `latest`는 `v0.4.0`다(`v0.4.0`은 OIDC로 배포하고 GitHub Release까지 확인했다, 2026-09-13).
+첫 OIDC 배포였던 `v0.3.2`에서 registry/provenance 및 설치 smoke, 기존 token 폐기를 완료했다.
+아래 명령은 다음 미게시 version을
 선택해 실행하는 형식 예시다. 실제 배포 때는 게시되지 않은 version을 선택하며 기존 tag를 이동하지 않는다.
 
 ## 1. npm 계정과 scope 확인
@@ -132,10 +133,18 @@ gh release view "v${release_version}" \
 통과 기준:
 
 - `tagName`이 선택한 tag와 같다.
-- `body`가 `docs/releases/v${release_version}.md`와 일치한다.
+- `body`가 `docs/releases/v${release_version}.md`와 일치한다. GitHub API가 본문 끝에 빈 줄 하나를
+  덧붙이므로 후행 공백만 다른 것은 정상이다. workflow의 idempotent 비교도 후행 개행을 무시한다.
 - standalone archive나 checksum asset이 첨부되지 않았다.
 
-## 6. registry 설치 smoke
+## 6. registry 전파 대기
+
+`npm publish`가 성공해도 npm이 package를 처리하는 동안에는 registry read가 잠시 이전 version을
+반환한다. `v0.4.0`에서는 publish 뒤 약 1–2분간 `0.3.2`가 보였고 그 뒤 `0.4.0`으로 바뀌었다.
+따라서 publish 직후의 `npm view` E404나 이전 version은 publish 실패의 증거가 아니다. `npm publish`
+출력의 `+ @oliverne/myboxctl@X.Y.Z`와 workflow success를 먼저 확인하고, 반영될 때까지 재조회한다.
+
+## 7. registry 설치 smoke
 
 registry 전파 후 다음 결과를 확인한다.
 
@@ -162,7 +171,7 @@ npm install -g "@oliverne/myboxctl@${release_version}"
 myboxctl --version
 ```
 
-## 7. 기존 token 폐기
+## 8. 기존 token 폐기
 
 `v0.3.2` 첫 OIDC publish와 registry smoke 확인 뒤 기존 npm publish token과 GitHub `NPM_TOKEN`
 secret을 폐기했다 (2026-09-13 사용자 확인). 아래 절차는 향후 credential 전환 시의 안전 순서다.
