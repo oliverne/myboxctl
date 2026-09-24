@@ -14,8 +14,8 @@ Failure Diagnostics다. 전체 phase 상태와 최신 검증 수치는 [`PROGRES
 - Phase 17: `complete`; `v0.4.0` 배포에서 note 검증과 npm publish, GitHub Release 생성·본문 일치까지
   확인했다
 - Phase 19–22: 모두 `pending`; 다음 순서는 Phase 19 Automatic Failure Diagnostics
-- 배포된 release note: `docs/releases/v0.4.1.md`(3 bullet); `v0.4.1` GitHub Release 본문과 일치. 이전
-  `docs/releases/v0.4.0.md`(6 bullet)도 `v0.4.0` Release 본문과 일치
+- 배포 준비 release note: `docs/releases/v0.4.2.md`(3 bullet, AppleDouble upload 보정). 배포 완료 전까지
+  현재 latest는 `v0.4.1`이다. 배포된 `v0.4.1`·`v0.4.0` note는 각 GitHub Release 본문과 일치한다.
 - 현재 배포: `@oliverne/myboxctl@0.4.1`(npm `latest`), npm 단독 배포
 - standalone/Scoop/install script 경로: 폐기 유지
 - Homebrew: Phase 22에서 standalone 부활 없이 npm tarball 기반 Node formula로 계획
@@ -106,6 +106,8 @@ versioned envelope를 stdout에 내고, event는 stderr 정책을 따른다. 상
   metadata를 제외한다. 명시적인 단일 file upload에는 이 자동 제외를 적용하지 않는다. root와 nested
   fixture를 추가했고 targeted test 3 pass/0 fail, `bun run check` 308 pass/57 skip/0 fail, 별도
   `bun run build`와 `git diff --check`를 통과했다.
+- 이 보정은 `v0.4.2` patch release로 배포 준비 중이다. note commit과 CI 성공 뒤에만 tag와 OIDC
+  publish workflow를 실행한다.
 - transfer tree는 exclusive create이며 기존 tree와 merge하거나 recursive overwrite하지 않는다.
 - mutation 응답이 불확실할 때 POST를 반복하지 않고 `error.partialTransfer`로 확인된 결과와 불확실성을
   구분한다.

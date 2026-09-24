@@ -53,6 +53,9 @@
 - AppleDouble upload 보정(2026-09-24): recursive local manifest가 `._` 접두어의 regular file을 제외해
   MYBOX `PLAT-400`을 피하도록 구현하고 단위 회귀를 추가했다. targeted test 3 pass/0 fail,
   `bun run check` 308 pass/57 skip/0 fail, 별도 `bun run build`와 `git diff --check`를 통과했다.
+- `v0.4.2` 배포 준비(2026-09-24): AppleDouble upload 보정을 patch release로 배포하기 위해
+  `docs/releases/v0.4.2.md`를 추가했다. release note 검증과 전체 로컬 gate를 통과한 뒤 배포 commit,
+  CI, tag, OIDC publish 순으로 진행한다.
 
 ## Phase 상태
 
