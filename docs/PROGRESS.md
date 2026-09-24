@@ -15,7 +15,7 @@
   registry/provenance 및 설치 smoke를 확인했고, 기존 npm publish token과 GitHub `NPM_TOKEN` secret을
   폐기했다 (2026-09-13 사용자 확인). 로컬 `~/.npmrc`의 잔여 `_authToken` 항목도 같은 날 제거해 로컬
   npm publish는 ENEEDAUTH가 되고, 배포는 workflow OIDC로만 수행된다.
-- 최신 로컬 검사: `bun run check` 307 pass, 57 skip, 0 fail; 별도 `bun run build` 통과
+- 최신 로컬 검사: `bun run check` 308 pass, 57 skip, 0 fail; 별도 `bun run build` 통과
 - 문서 윤문: `README.ko.md`, `CONTRIBUTING.md` 보수적 윤문 완료; `git diff --check` 통과
 - 최신 배포 검증: `v0.4.1` OIDC publish workflow(run 34759055277)의 `publish`·`release` job 성공,
   npm registry `0.4.1`/`latest`와 provenance attestation 확인, GitHub Release `v0.4.1`(draft/prerelease
@@ -50,6 +50,9 @@
   `docs/releases/v0.4.0.md`를 배포 commit(`3838c02`)에 포함해 push했고, CI 성공 뒤 tag를 만들어
   publish workflow를 성공시켰다.
 - 후속 로드맵: Phase 19–22와 recursive upload checkpoint Decision을 `pending` 계획으로 유지한다.
+- AppleDouble upload 보정(2026-09-24): recursive local manifest가 `._` 접두어의 regular file을 제외해
+  MYBOX `PLAT-400`을 피하도록 구현하고 단위 회귀를 추가했다. targeted test 3 pass/0 fail,
+  `bun run check` 308 pass/57 skip/0 fail, 별도 `bun run build`와 `git diff --check`를 통과했다.
 
 ## Phase 상태
 

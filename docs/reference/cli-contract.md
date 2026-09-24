@@ -116,7 +116,9 @@ content hash 비교는 하지 않는다.
 
 local path가 directory이면 `--recursive`가 필수다. 전체 manifest와 portable name을 mutation 전에
 검증하고 빈 folder를 포함해 순차 전송한다. 기존 remote destination tree에는 병합하지 않으며 folder
-upload와 `--force`는 함께 쓸 수 없다. transfer root와 child folder는 exclusive create한다.
+upload와 `--force`는 함께 쓸 수 없다. transfer root와 child folder는 exclusive create한다. macOS가
+생성하는 `._` 접두어의 AppleDouble metadata regular file은 recursive manifest에서 제외한다. 사용자가
+단일 local file로 명시한 경로에는 이 자동 제외를 적용하지 않는다.
 
 ### `download <remote-path> [local-destination] [--recursive]`
 
