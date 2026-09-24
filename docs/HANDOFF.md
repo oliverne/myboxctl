@@ -19,7 +19,7 @@ Failure Diagnostics다. 전체 phase 상태와 최신 검증 수치는 [`PROGRES
 - 현재 배포: `@oliverne/myboxctl@0.4.1`(npm `latest`), npm 단독 배포
 - standalone/Scoop/install script 경로: 폐기 유지
 - Homebrew: Phase 22에서 standalone 부활 없이 npm tarball 기반 Node formula로 계획
-- 최신 로컬 검사: `bun run check` 307 pass, 57 skip, 0 fail; `bun run build`와 `git diff --check` 통과
+- 최신 로컬 검사: `bun run check` 308 pass, 57 skip, 0 fail; `bun run build`와 `git diff --check` 통과
 - 최신 publish: `v0.4.1` 배포 완료 — 배포 commit `a813e99`(CI success, run 34759018056), tag `v0.4.1`,
   publish workflow run 34759055277의 `publish`·`release` job success. registry `0.4.1`/`latest`와 npm
   provenance attestation, GitHub Release `v0.4.1`(draft/prerelease 아님, 본문 일치, asset 0개) 확인
@@ -102,6 +102,10 @@ versioned envelope를 stdout에 내고, event는 stderr 정책을 따른다. 상
 - folder upload/download에는 명시적인 `--recursive`가 필요하다.
 - manifest를 먼저 만들고 portable name, collision, symlink/non-regular entry와 identity/topology 변경을
   fail-closed로 검증한다.
+- recursive local manifest는 `lstat` 결과가 regular file이고 이름이 `._`로 시작하는 AppleDouble
+  metadata를 제외한다. 명시적인 단일 file upload에는 이 자동 제외를 적용하지 않는다. root와 nested
+  fixture를 추가했고 targeted test 3 pass/0 fail, `bun run check` 308 pass/57 skip/0 fail, 별도
+  `bun run build`와 `git diff --check`를 통과했다.
 - transfer tree는 exclusive create이며 기존 tree와 merge하거나 recursive overwrite하지 않는다.
 - mutation 응답이 불확실할 때 POST를 반복하지 않고 `error.partialTransfer`로 확인된 결과와 불확실성을
   구분한다.

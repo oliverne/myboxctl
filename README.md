@@ -73,7 +73,8 @@ Important behavior:
   rejects a clearly newer remote file; use `--force` only for an intentional overwrite.
 - `download` preserves an existing local file unless `--overwrite` is explicit.
 - Folder transfer requires `--recursive`, never merges an existing destination tree, and rejects
-  symlinks and names that are not portable across macOS, Linux, and Windows.
+  symlinks and names that are not portable across macOS, Linux, and Windows. It excludes macOS
+  AppleDouble metadata files whose names start with `._`.
 - `delete` moves resources to the MYBOX trash. Root, encrypted folders, and shared-with-me folders
   are unsupported.
 - `rename` and `move` keep the resource ID, call exactly one mutation endpoint, and fail before

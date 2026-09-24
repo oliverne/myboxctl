@@ -110,11 +110,20 @@ export async function buildLocalTreeManifest(rootPath: string): Promise<LocalTre
       });
     }
     children.sort((left, right) => left.name.localeCompare(right.name, "en"));
-    assertSiblingNames(children, relativeDirectory || ".");
+    const inspectedChildren: { child: Dirent; stats: Stats }[] = [];
     for (const child of children) {
       const childPath = join(directory, child.name);
-      const relativePath = relativeDirectory ? `${relativeDirectory}/${child.name}` : child.name;
       const stats = await inspectLocal(childPath);
+      if (stats.isFile() && child.name.startsWith("._")) continue;
+      inspectedChildren.push({ child, stats });
+    }
+    assertSiblingNames(
+      inspectedChildren.map(({ child }) => child),
+      relativeDirectory || ".",
+    );
+    for (const { child, stats } of inspectedChildren) {
+      const childPath = join(directory, child.name);
+      const relativePath = relativeDirectory ? `${relativeDirectory}/${child.name}` : child.name;
       if (stats.isSymbolicLink()) {
         throw new DomainError("local-file", `Symbolic links are not supported: ${relativePath}.`);
       }

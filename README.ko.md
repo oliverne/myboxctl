@@ -73,7 +73,8 @@ myboxctl download "/Team Files/big report.zip" ".\Local Files\big report.zip"
   명백하게 더 최신 파일이면 중단합니다. 의도적으로 덮어쓸 때만 `--force`를 사용하세요.
 - `download`는 `--overwrite`를 지정하지 않으면 기존 로컬 파일을 덮어 쓰지 않습니다.
 - 폴더 전송에는 `--recursive`가 필요합니다. 기존 destination tree와 병합하지 않습니다. symlink와 macOS,
-  Linux, Windows에서 이식할 수 없는 이름은 거부합니다.
+  Linux, Windows에서 이식할 수 없는 이름은 거부하고, macOS의 `._` AppleDouble metadata 파일은
+  업로드하지 않습니다.
 - `delete`는 대상 파일을 MYBOX 휴지통으로 이동합니다. 암호 폴더, 공유 폴더는 지원하지 않습니다.
 - `rename`과 `move`는 `resourceId`를 유지하고 endpoint 하나만 호출합니다. destination에 같은 이름의
   resource가 있으면 변경 전에 중단합니다. `move`는 기존 folder만 destination으로 받고, 자기 자신이나

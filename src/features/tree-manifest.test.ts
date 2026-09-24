@@ -31,6 +31,23 @@ describe("local recursive manifest", () => {
     expect(manifest.entries[1]).toMatchObject({ type: "file", identity: { size: 3 } });
   });
 
+  test("excludes AppleDouble metadata files from recursive uploads", async () => {
+    const root = await fixture();
+    await mkdir(join(root, "nested"));
+    await writeFile(join(root, "report.txt"), "report");
+    await writeFile(join(root, "._report.txt"), "apple-double");
+    await writeFile(join(root, "nested", "photo.jpg"), "photo");
+    await writeFile(join(root, "nested", "._photo.jpg"), "apple-double");
+
+    const manifest = await buildLocalTreeManifest(root);
+
+    expect(manifest.entries.map((entry) => [entry.type, entry.relativePath])).toEqual([
+      ["folder", "nested"],
+      ["file", "nested/photo.jpg"],
+      ["file", "report.txt"],
+    ]);
+  });
+
   test("rejects symlinks and non-portable names", async () => {
     const root = await fixture();
     await writeFile(join(root, "target"), "x");
