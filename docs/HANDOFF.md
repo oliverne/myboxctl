@@ -2,10 +2,10 @@
 
 ## 인수 목적
 
-Phase 00–18 구현과 필수 로컬/live 검증, `v0.4.0`·`v0.4.1` 배포와 GitHub Release 생성을 모두 완료했다.
-Phase 17
-GitHub Release Notes도 `v0.4.0` 배포에서 외부 검증을 마쳤다. 다음 계획 phase는 Phase 19 Automatic
-Failure Diagnostics다. 전체 phase 상태와 최신 검증 수치는 [`PROGRESS.md`](PROGRESS.md)가 소유한다.
+Phase 00–18 구현과 필수 로컬/live 검증, `v0.4.0`·`v0.4.1`·`v0.4.2` 배포와 GitHub Release 생성을 모두
+완료했다. Phase 17 GitHub Release Notes도 `v0.4.0` 배포에서 외부 검증을 마쳤다. 다음 계획 phase는
+Phase 19 Automatic Failure Diagnostics다. 전체 phase 상태와 최신 검증 수치는
+[`PROGRESS.md`](PROGRESS.md)가 소유한다.
 
 ## 현재 상태
 
@@ -14,21 +14,25 @@ Failure Diagnostics다. 전체 phase 상태와 최신 검증 수치는 [`PROGRES
 - Phase 17: `complete`; `v0.4.0` 배포에서 note 검증과 npm publish, GitHub Release 생성·본문 일치까지
   확인했다
 - Phase 19–22: 모두 `pending`; 다음 순서는 Phase 19 Automatic Failure Diagnostics
-- 배포 준비 release note: `docs/releases/v0.4.2.md`(3 bullet, AppleDouble upload 보정). 배포 완료 전까지
-  현재 latest는 `v0.4.1`이다. 배포된 `v0.4.1`·`v0.4.0` note는 각 GitHub Release 본문과 일치한다.
-- 현재 배포: `@oliverne/myboxctl@0.4.1`(npm `latest`), npm 단독 배포
+- 최신 release note: `docs/releases/v0.4.2.md`(3 bullet, AppleDouble upload 보정). `v0.4.2`가 npm
+  `latest`다. 배포된 `v0.4.2`·`v0.4.1`·`v0.4.0` note는 각 GitHub Release 본문과 후행 빈 줄 외 일치한다.
+- 현재 배포: `@oliverne/myboxctl@0.4.2`(npm `latest`), npm 단독 배포
 - standalone/Scoop/install script 경로: 폐기 유지
 - Homebrew: Phase 22에서 standalone 부활 없이 npm tarball 기반 Node formula로 계획
 - 최신 로컬 검사: `bun run check` 308 pass, 57 skip, 0 fail; `bun run build`와 `git diff --check` 통과
-- 최신 publish: `v0.4.1` 배포 완료 — 배포 commit `a813e99`(CI success, run 34759018056), tag `v0.4.1`,
-  publish workflow run 34759055277의 `publish`·`release` job success. registry `0.4.1`/`latest`와 npm
-  provenance attestation, GitHub Release `v0.4.1`(draft/prerelease 아님, 본문 일치, asset 0개) 확인
-- 이전 publish: `v0.4.0` — 배포 commit `3838c02`(CI success, run 34757973707), tag `v0.4.0`,
-  publish workflow run 34758012146의 `publish`·`release` job success
-- 설치 smoke: `npx @oliverne/myboxctl@0.4.1`의 `--version`(0.4.1 한 줄), 인자 없는 실행 root help
-  exit 0, `--help`의 `rename`/`move` 포함, 임시 prefix global install의 `--version`/`--help` exit 0 확인
+- 최신 publish: `v0.4.2` 배포 완료 — 배포 commit `fdcdfc1`(CI success, run 35943521269), tag `v0.4.2`,
+  publish workflow run 37089466046의 `publish`·`release` job success. registry `0.4.2`/`latest`와 npm
+  provenance attestation(`slsa.dev/provenance/v1`), GitHub Release `v0.4.2`(draft/prerelease 아님, 본문
+  일치, asset 0개) 확인
+- 이전 publish: `v0.4.1` — 배포 commit `a813e99`(CI success, run 34759018056), tag `v0.4.1`, publish
+  workflow run 34759055277의 `publish`·`release` job success. `v0.4.0`은 배포 commit `3838c02`(CI
+  success, run 34757973707), tag `v0.4.0`, publish workflow run 34758012146의 `publish`·`release` job
+  success
+- 설치 smoke: `npx @oliverne/myboxctl@0.4.2`의 `--version`(0.4.2 한 줄)과 `--help` exit 0(8개
+  canonical command 노출), 임시 prefix global install의 `--version`/`--help` exit 0 확인
 - registry 전파 관찰: `v0.4.1` publish 성공 직후 registry read가 한 번 `0.4.0`을 반환했고 30초 뒤
-  `0.4.1`이 반영됐다. publish 직후의 `npm view` E404를 publish 실패로 단정하지 않는다
+  `0.4.1`이 반영됐다. `v0.4.2`는 `latest`가 `0.4.1`이고 새 version이 E404인 상태가 약 2분(15초 간격
+  재조회 8회) 지속된 뒤 반영됐다. publish 직후의 `npm view` E404를 publish 실패로 단정하지 않는다
 - 사용자 확인: 기존 npm publish token와 GitHub `NPM_TOKEN` secret 폐기 완료 (2026-09-13). 로컬
   `~/.npmrc`의 잔여 `_authToken` 항목도 제거했고, 이제 로컬에서 임의로 수행하는 `npm publish`는
   ENEEDAUTH로 실패한다. 배포는 `publish-npm.yml`의 OIDC 경로로만 수행한다.
@@ -106,8 +110,8 @@ versioned envelope를 stdout에 내고, event는 stderr 정책을 따른다. 상
   metadata를 제외한다. 명시적인 단일 file upload에는 이 자동 제외를 적용하지 않는다. root와 nested
   fixture를 추가했고 targeted test 3 pass/0 fail, `bun run check` 308 pass/57 skip/0 fail, 별도
   `bun run build`와 `git diff --check`를 통과했다.
-- 이 보정은 `v0.4.2` patch release로 배포 준비 중이다. note commit과 CI 성공 뒤에만 tag와 OIDC
-  publish workflow를 실행한다.
+- 이 보정은 `v0.4.2` patch release로 배포했고 npm registry/provenance, GitHub Release와 설치 smoke
+  검증까지 마쳤다.
 - transfer tree는 exclusive create이며 기존 tree와 merge하거나 recursive overwrite하지 않는다.
 - mutation 응답이 불확실할 때 POST를 반복하지 않고 `error.partialTransfer`로 확인된 결과와 불확실성을
   구분한다.
