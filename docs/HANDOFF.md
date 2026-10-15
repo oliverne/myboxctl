@@ -2,10 +2,10 @@
 
 ## 인수 목적
 
-Phase 00–18 구현과 필수 로컬/live 검증, `v0.4.0`·`v0.4.1`·`v0.4.2` 배포와 GitHub Release 생성을 모두
+Phase 00–19 구현과 필수 로컬/live 검증, `v0.4.0`·`v0.4.1`·`v0.4.2` 배포와 GitHub Release 생성을 모두
 완료했다. Phase 17 GitHub Release Notes도 `v0.4.0` 배포에서 외부 검증을 마쳤다. Phase 19 Automatic
-Failure Diagnostics는 로컬 구현과 macOS 검증을 마쳤고 Ubuntu/macOS/Windows CI 실행만 남았다. 전체
-phase 상태와 최신 검증 수치는 [`PROGRESS.md`](PROGRESS.md)가 소유한다.
+Failure Diagnostics는 로컬 구현과 Ubuntu/macOS/Windows CI 검증까지 마쳤다. 다음 계획 phase는 Phase 20
+Recursive Upload Resume다. 전체 phase 상태와 최신 검증 수치는 [`PROGRESS.md`](PROGRESS.md)가 소유한다.
 
 ## 현재 상태
 
@@ -13,9 +13,9 @@ phase 상태와 최신 검증 수치는 [`PROGRESS.md`](PROGRESS.md)가 소유�
 - Phase 00–18: 모두 `complete`
 - Phase 17: `complete`; `v0.4.0` 배포에서 note 검증과 npm publish, GitHub Release 생성·본문 일치까지
   확인했다
-- Phase 19: `in_progress`; config opt-in, bounded buffer, failure persistence와 retention을 구현했고
-  macOS에서 `bun run check`를 통과했다. Ubuntu 일반 CI와 macOS/Windows matrix는 push 후 실행 대기다
-- Phase 20–22: 모두 `pending`
+- Phase 19: `complete`; 배포 commit `e51497e`의 CI run 38747500959에서 Ubuntu check와 macOS/Windows
+  `local-transfer-contract` matrix가 success였다(Windows는 기존 npm-package timeout flake 1회 후 재실행)
+- Phase 20–22: 모두 `pending`; 다음 순서는 Phase 20 Recursive Upload Resume
 - 최신 release note: `docs/releases/v0.4.2.md`(3 bullet, AppleDouble upload 보정). `v0.4.2`가 npm
   `latest`다. 배포된 `v0.4.2`·`v0.4.1`·`v0.4.0` note는 각 GitHub Release 본문과 후행 빈 줄 외 일치한다.
 - 현재 배포: `@oliverne/myboxctl@0.4.2`(npm `latest`), npm 단독 배포
@@ -27,6 +27,7 @@ phase 상태와 최신 검증 수치는 [`PROGRESS.md`](PROGRESS.md)가 소유�
   `runCli`는 `--diagnostic-log`가 없고 config `diagnostics.onError`가 true일 때만 실패 시 JSONL 한 개를
   쓰고 human stderr/JSON failure envelope(`diagnosticLogPath`)에 경로를 노출한다. 성공 실행은 파일을
   만들지 않는다. 신규 test 26개로 검증했고, CI `local-transfer-contract` matrix에 신규 test를 추가했다.
+  CI run 38747500959에서 Ubuntu·macOS·Windows까지 success를 확인했다.
 - 최신 publish: `v0.4.2` 배포 완료 — 배포 commit `fdcdfc1`(CI success, run 35943521269), tag `v0.4.2`,
   publish workflow run 37089466046의 `publish`·`release` job success. registry `0.4.2`/`latest`와 npm
   provenance attestation(`slsa.dev/provenance/v1`), GitHub Release `v0.4.2`(draft/prerelease 아님, 본문
@@ -158,11 +159,9 @@ versioned envelope를 stdout에 내고, event는 stderr 정책을 따른다. 상
 
 ## 계획된 후속 로드맵
 
-1. Phase 19 Automatic Failure Diagnostics(local 구현 완료): push 후 Ubuntu 일반 CI와 macOS/Windows
-   `local-transfer-contract` matrix가 통과하면 `complete`로 바꾼다
-2. Phase 20: explicit local checkpoint를 사용하는 recursive upload 재개
-3. Phase 21: unknown-size stdin을 secure temp file에 spool한 뒤 단일 파일 업로드
-4. Phase 22: npm tarball과 Node를 사용하는 personal Homebrew tap
+1. Phase 20: explicit local checkpoint를 사용하는 recursive upload 재개
+2. Phase 21: unknown-size stdin을 secure temp file에 spool한 뒤 단일 파일 업로드
+3. Phase 22: npm tarball과 Node를 사용하는 personal Homebrew tap
 
 built-in tar/zip은 구현하지 않고 Phase 21의 stdin upload와 외부 `tar`를 조합한다. Phase 20은 arbitrary
 existing tree를 merge하지 않으며 checkpoint가 소유하고 검증한 tree만 재개한다. 상태/transaction 결정은
@@ -177,8 +176,8 @@ existing tree를 merge하지 않으며 checkpoint가 소유하고 검증한 tree
   포함되는 fake HTTP·CLI subprocess 회귀 27개(review 후속 7개 포함), `MYBOX_INTEGRATION=1 bun test
 test/integration/rename-move.test.ts`(live acceptance, 6 pass)로 검증한다.
 - Phase 19 계약은 `src/failure-diagnostics.test.ts`, `src/config.test.ts`의 diagnostics test와
-  `test/cli/failure-diagnostics.test.ts`(9 pass)로 검증한다. Ubuntu 일반 CI와 macOS/Windows
-  `local-transfer-contract` matrix는 push 후 실행 대기다.
+  `test/cli/failure-diagnostics.test.ts`(9 pass)로 검증한다. CI run 38747500959에서 Ubuntu check와
+  macOS/Windows `local-transfer-contract` matrix까지 success를 확인했다.
 - 실제 MYBOX test는 `MYBOX_INTEGRATION=1 bun test test/integration`이며, mutation은
   `/myboxctl-integration-test/` 아래 unique child로 제한한다.
 - live mutation, credential 변경, commit, push, tag, npm publish와 GitHub Release 생성은 서로 다른
@@ -204,10 +203,9 @@ test/integration/rename-move.test.ts`(live acceptance, 6 pass)로 검증한다.
 - 배포 절차: [`operations/npm-release.md`](operations/npm-release.md)
 - release note 규칙: [`releases/README.md`](releases/README.md)
 - npm Trusted Publishing 전환: [`phases/16-npm-trusted-publishing.md`](phases/16-npm-trusted-publishing.md)
-- 최근 완료 phase: [`phases/18-remote-rename-move.md`](phases/18-remote-rename-move.md) (`complete`),
+- 최근 완료 phase: [`phases/19-automatic-failure-diagnostics.md`](phases/19-automatic-failure-diagnostics.md)
+  (`complete`), [`phases/18-remote-rename-move.md`](phases/18-remote-rename-move.md) (`complete`),
   [`phases/17-github-release-notes.md`](phases/17-github-release-notes.md) (`complete`)
-- 진행 중 phase: [`phases/19-automatic-failure-diagnostics.md`](phases/19-automatic-failure-diagnostics.md)
-  (`in_progress`)
 - 다음 phase: [`phases/20-recursive-upload-resume.md`](phases/20-recursive-upload-resume.md),
   [`phases/21-stdin-upload.md`](phases/21-stdin-upload.md),
   [`phases/22-homebrew-tap.md`](phases/22-homebrew-tap.md)
@@ -223,7 +221,6 @@ bun install --frozen-lockfile
 bun run check
 ```
 
-Phase 00–18은 모두 `complete`이고 `v0.4.2`가 npm `latest`로 배포됐다. Phase 19는 로컬 구현과 macOS
-검증을 마쳤고 push 후 Ubuntu 일반 CI와 macOS/Windows `local-transfer-contract` matrix 확인만 남았다.
-그 뒤 Phase 20 Recursive Upload Resume를 시작한다. 범위 변경이 있으면 `PLAN.md`와 해당 phase 문서를
+Phase 00–19은 모두 `complete`이고 `v0.4.2`가 npm `latest`로 배포됐다. 다음 작업은 Phase 20 Recursive
+Upload Resume를 `in_progress`로 시작하는 것이다. 범위 변경이 있으면 `PLAN.md`와 해당 phase 문서를
 함께 갱신한다. 계획 문서 반영 자체는 구현, external publish, commit 또는 push를 의미하지 않는다.
