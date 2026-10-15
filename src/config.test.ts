@@ -157,4 +157,58 @@ describe("loadConfig", () => {
       loadConfig({ env: { MYBOX_PAT: "token" }, configPath: join(directory, "config.json") }),
     ).rejects.toBeInstanceOf(ConfigError);
   });
+
+  test("reads diagnostics.onError from config and defaults it to false", async () => {
+    const directory = await temporaryDirectory();
+    const configDirectory = join(directory, "myboxctl");
+    await mkdir(configDirectory, { recursive: true });
+    const configPath = join(configDirectory, "config.json");
+
+    await writeFile(configPath, '{"diagnostics":{"onError":true}}\n');
+    const enabled = await loadConfig({
+      env: { MYBOX_PAT: "token", XDG_CONFIG_HOME: directory },
+    });
+    expect(enabled.diagnosticsOnError).toBe(true);
+
+    await writeFile(configPath, '{"diagnostics":{}}\n');
+    const empty = await loadConfig({ env: { MYBOX_PAT: "token", XDG_CONFIG_HOME: directory } });
+    expect(empty.diagnosticsOnError).toBe(false);
+
+    const missing = await loadConfig({
+      env: { MYBOX_PAT: "token", XDG_CONFIG_HOME: await temporaryDirectory() },
+    });
+    expect(missing.diagnosticsOnError).toBe(false);
+  });
+
+  test("combines a MYBOX_PLAN override with config-file diagnostics", async () => {
+    const directory = await temporaryDirectory();
+    await writeFile(
+      join(directory, "config.json"),
+      '{"plan":"80GB","diagnostics":{"onError":true}}\n',
+    );
+
+    const config = await loadConfig({
+      env: { MYBOX_PAT: "token", MYBOX_PLAN: "20TB" },
+      configPath: join(directory, "config.json"),
+    });
+
+    expect(config.plan).toBe("20TB");
+    expect(config.diagnosticsOnError).toBe(true);
+  });
+
+  test("rejects invalid diagnostics configuration", async () => {
+    for (const body of [
+      '{"diagnostics":{"onError":"yes"}}',
+      '{"diagnostics":{"onError":true,"other":1}}',
+      '{"diagnostics":true}',
+      '{"diagnostics":[]}',
+    ]) {
+      const directory = await temporaryDirectory();
+      const configPath = join(directory, "config.json");
+      await writeFile(configPath, `${body}\n`);
+      await expect(loadConfig({ env: { MYBOX_PAT: "token" }, configPath })).rejects.toBeInstanceOf(
+        ConfigError,
+      );
+    }
+  });
 });

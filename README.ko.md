@@ -102,6 +102,11 @@ myboxctl upload ./report.md /agents/output/ --mkdir --json
 event와 최종 결과를 기록합니다. 로컬 경로와 redaction된 stack이 포함될 수 있으므로 공유 전에 내용을
 검토하세요.
 
+같은 config 파일에 `{"diagnostics":{"onError":true}}`를 설정하면 실패한 실행만 redaction된 JSONL로
+남깁니다. 자동 로그는 `$XDG_STATE_HOME/myboxctl/diagnostics/`(XDG 값이 없으면
+`~/.local/state/myboxctl/diagnostics/`)에 최근 20개까지 유지되며, 경로가 stderr 또는 JSON 실패
+envelope의 `diagnosticLogPath` field로 표시됩니다. 성공한 실행은 파일을 만들지 않습니다.
+
 | Exit | 의미                          |
 | ---: | ----------------------------- |
 |    0 | 성공                          |

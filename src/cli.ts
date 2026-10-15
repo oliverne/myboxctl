@@ -8,7 +8,12 @@ import {
   DiagnosticSession,
   parseDiagnosticBootstrap,
 } from "./diagnostics.ts";
-import { DomainError } from "./errors.ts";
+import { DomainError, redactSensitiveText } from "./errors.ts";
+import {
+  AutomaticDiagnosticBuffer,
+  defaultDiagnosticsDirectory,
+  persistFailureDiagnosticLog,
+} from "./failure-diagnostics.ts";
 import { runDelete } from "./features/delete.ts";
 import { runDownloadCommand } from "./features/download-command.ts";
 import { runInfo } from "./features/info.ts";
@@ -21,6 +26,7 @@ import { createEventPresentation, type EventPresentationOptions } from "./human-
 import {
   type CommandAction,
   exitCodeForError,
+  type FailureEnvelope,
   failure,
   redactSecrets,
   success,
@@ -678,10 +684,27 @@ export async function runCli(
       createEventPresentation({ command: bootstrap.command, json: false }).writeHumanFailure(error);
     return exitCodeForError(error);
   }
+  const automatic =
+    bootstrap.path === undefined && !bootstrap.skip
+      ? new AutomaticDiagnosticBuffer({
+          command: bootstrap.command,
+          json: bootstrap.options.json === true,
+          options: bootstrap.options,
+        })
+      : undefined;
+  let diagnosticsOnError = false;
+  const capturingFactory: RuntimeFactory = async (presentation) => {
+    const runtime = await runtimeFactory(presentation);
+    diagnosticsOnError = runtime.config.diagnosticsOnError;
+    return runtime;
+  };
   const program = createProgram(
-    runtimeFactory,
-    (result) => diagnostics?.complete(0, result),
-    diagnostics?.sink,
+    capturingFactory,
+    (result) => {
+      diagnostics?.complete(0, result);
+      automatic?.discard();
+    },
+    diagnostics?.sink ?? automatic?.sink,
   );
   if (argv.length === 2) {
     program.outputHelp();
@@ -701,12 +724,22 @@ export async function runCli(
       error instanceof CommanderError
         ? new DomainError("invalid-arguments", error.message.replace(/^error:\s*/, ""))
         : error;
-    const result = failure(command, cliError);
-    diagnostics?.complete(
-      exitCodeForError(cliError),
-      result,
-      cliError instanceof Error ? (cliError.cause ?? cliError) : cliError,
-    );
+    const exitCode = exitCodeForError(cliError);
+    const cause = cliError instanceof Error ? (cliError.cause ?? cliError) : cliError;
+    const baseResult = failure(command, cliError);
+    diagnostics?.complete(exitCode, baseResult, cause);
+    let result: FailureEnvelope & { diagnosticLogPath?: string } = baseResult;
+    if (automatic !== undefined && diagnosticsOnError) {
+      const path = persistFailureDiagnosticLog(
+        automatic.failureRecords(exitCode, baseResult, cause),
+        {
+          directory: defaultDiagnosticsDirectory(),
+          command,
+          json: wantsJson(argv),
+        },
+      );
+      if (path !== undefined) result = { ...baseResult, diagnosticLogPath: path };
+    }
     if (wantsJson(argv)) {
       writeJson(result);
     } else {
@@ -716,8 +749,11 @@ export async function runCli(
         quiet: argv.includes("--quiet"),
         verbose: argv.includes("--verbose"),
       }).writeHumanFailure(cliError);
+      if (result.diagnosticLogPath !== undefined) {
+        process.stderr.write(`Diagnostic log: ${redactSensitiveText(result.diagnosticLogPath)}\n`);
+      }
     }
-    return exitCodeForError(cliError);
+    return exitCode;
   }
 }
 

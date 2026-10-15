@@ -103,6 +103,11 @@ For an opt-in support log, add `--diagnostic-log <new-file>`. The file is create
 contains JSONL events and the final result, but it may contain local paths and a redacted stack;
 review it before sharing. Existing files are never overwritten.
 
+Set `{"diagnostics":{"onError":true}}` in the same config file to keep a redacted JSONL log only for
+failed runs. Automatic logs are written under `$XDG_STATE_HOME/myboxctl/diagnostics/` (or
+`~/.local/state/myboxctl/diagnostics/`), keep the newest 20, and their path appears on stderr or as
+the `diagnosticLogPath` field of a JSON failure. Successful runs create no file.
+
 | Exit | Meaning                        |
 | ---: | ------------------------------ |
 |    0 | Success                        |

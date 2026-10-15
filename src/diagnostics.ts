@@ -71,6 +71,45 @@ export function parseDiagnosticBootstrap(argv: readonly string[]): DiagnosticBoo
 
 type DiagnosticRecord = Record<string, unknown> & { type: string };
 
+export type DiagnosticClock = () => Date;
+export type DiagnosticUuid = () => string;
+export type DiagnosticSerializer = (value: unknown) => string;
+
+export function serializeDiagnosticRecord(
+  record: DiagnosticRecord,
+  serialize: DiagnosticSerializer = (value) => JSON.stringify(value),
+): string {
+  return serialize(sanitizeForOutput(record));
+}
+
+export function diagnosticRunStartedData(
+  command: string,
+  options: Record<string, boolean>,
+): Record<string, unknown> {
+  return {
+    version: VERSION,
+    command,
+    options,
+    platform: process.platform,
+    arch: process.arch,
+    runtime: { name: "node", version: process.versions.node },
+  };
+}
+
+export function diagnosticCauseRecord(cause: unknown): Record<string, unknown> | undefined {
+  const raw = cause instanceof Error ? (cause as NodeJS.ErrnoException) : undefined;
+  if (raw === undefined) return undefined;
+  return {
+    name: raw.name,
+    message: raw.message,
+    ...(raw.code === undefined ? {} : { code: raw.code }),
+    ...(raw.errno === undefined ? {} : { errno: raw.errno }),
+    ...(raw.syscall === undefined ? {} : { syscall: raw.syscall }),
+    ...(raw.path === undefined ? {} : { path: raw.path }),
+    ...(raw.stack === undefined ? {} : { stack: raw.stack }),
+  };
+}
+
 export type DiagnosticFileIo = {
   open: (path: string, flags: string, mode?: number) => number;
   write: (fd: number, buffer: Buffer, offset: number, length: number) => number;
@@ -136,20 +175,15 @@ export class DiagnosticSession {
     try {
       session.write({
         type: "run-started",
-        data: {
-          version: VERSION,
-          command: bootstrap.command,
-          options: bootstrap.options,
-          platform: process.platform,
-          arch: process.arch,
-          runtime: { name: "node", version: process.versions.node },
-        },
+        data: diagnosticRunStartedData(bootstrap.command, bootstrap.options),
       });
       if (!session.#active) throw new Error("The initial diagnostic record could not be written.");
     } catch (error) {
       try {
         io.close(fd);
-      } catch {}
+      } catch {
+        // Best effort cleanup after a failed initial write; the open error is reported instead.
+      }
       throw new DomainError("local-file", "The diagnostic log could not be written.", {
         cause: error,
       });
@@ -166,14 +200,14 @@ export class DiagnosticSession {
 
   private write(record: DiagnosticRecord): void {
     if (!this.#active) return;
-    const value = sanitizeForOutput({
+    const value: DiagnosticRecord = {
       diagnosticSchemaVersion: 1,
       timestamp: new Date().toISOString(),
       runId: this.runId,
       sequence: this.#sequence,
       ...record,
-    });
-    const bytes = Buffer.from(`${JSON.stringify(value)}\n`, "utf8");
+    };
+    const bytes = Buffer.from(`${serializeDiagnosticRecord(value)}\n`, "utf8");
     let offset = 0;
     try {
       while (offset < bytes.length) {
@@ -197,19 +231,7 @@ export class DiagnosticSession {
   }
 
   complete(exitCode: number, result: unknown, cause?: unknown): void {
-    const raw = cause instanceof Error ? (cause as NodeJS.ErrnoException) : undefined;
-    const safeCause =
-      raw === undefined
-        ? undefined
-        : {
-            name: raw.name,
-            message: raw.message,
-            ...(raw.code === undefined ? {} : { code: raw.code }),
-            ...(raw.errno === undefined ? {} : { errno: raw.errno }),
-            ...(raw.syscall === undefined ? {} : { syscall: raw.syscall }),
-            ...(raw.path === undefined ? {} : { path: raw.path }),
-            ...(raw.stack === undefined ? {} : { stack: raw.stack }),
-          };
+    const safeCause = diagnosticCauseRecord(cause);
     this.write({
       type: "run-completed",
       exitCode,

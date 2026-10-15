@@ -61,6 +61,7 @@ export class AppConfig {
   readonly configPath: string;
   readonly plan: MyboxPlan | null;
   readonly rateLimits: RateLimitPreset;
+  readonly diagnosticsOnError: boolean;
   #pat: string;
 
   constructor(values: {
@@ -71,6 +72,7 @@ export class AppConfig {
     configPath?: string;
     plan?: MyboxPlan | null;
     rateLimits?: RateLimitPreset;
+    diagnosticsOnError?: boolean;
   }) {
     this.#pat = values.pat;
     this.baseUrl = values.baseUrl;
@@ -79,6 +81,7 @@ export class AppConfig {
     this.configPath = values.configPath ?? join(homedir(), ".config", "myboxctl", "config.json");
     this.plan = values.plan ?? null;
     this.rateLimits = values.rateLimits ?? rateLimitPreset(null);
+    this.diagnosticsOnError = values.diagnosticsOnError ?? false;
   }
 
   get pat(): string {
@@ -92,6 +95,7 @@ export class AppConfig {
     configPath: string;
     plan: MyboxPlan | null;
     rateLimits: RateLimitPreset;
+    diagnosticsOnError: boolean;
   } {
     return {
       baseUrl: this.baseUrl,
@@ -100,6 +104,7 @@ export class AppConfig {
       configPath: this.configPath,
       plan: this.plan,
       rateLimits: this.rateLimits,
+      diagnosticsOnError: this.diagnosticsOnError,
     };
   }
 }
@@ -122,11 +127,45 @@ function defaultConfigPath(env: ConfigEnvironment, homeDirectory: string): strin
   );
 }
 
+type ConfigFileValues = {
+  plan: MyboxPlan | null;
+  diagnosticsOnError: boolean;
+};
+
 function parsePlan(value: unknown, source: string): MyboxPlan {
   if (typeof value !== "string" || !(MYBOX_PLANS as readonly string[]).includes(value)) {
     throw new ConfigError(`${source} must be one of: ${MYBOX_PLANS.join(", ")}.`);
   }
   return value as MyboxPlan;
+}
+
+function parseDiagnostics(value: unknown): boolean {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new ConfigError("The myboxctl config file diagnostics field must be an object.");
+  }
+  const record = value as Record<string, unknown>;
+  if (Object.keys(record).some((key) => key !== "onError")) {
+    throw new ConfigError("The myboxctl config file diagnostics supports only the onError field.");
+  }
+  if (!("onError" in record)) return false;
+  if (typeof record.onError !== "boolean") {
+    throw new ConfigError("The myboxctl config file diagnostics.onError must be a boolean.");
+  }
+  return record.onError;
+}
+
+function parseConfigFileValue(value: unknown): ConfigFileValues {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new ConfigError("The myboxctl config file must contain a JSON object.");
+  }
+  const record = value as Record<string, unknown>;
+  if (Object.keys(record).some((key) => key !== "plan" && key !== "diagnostics")) {
+    throw new ConfigError("The myboxctl config file contains unsupported fields.");
+  }
+  return {
+    plan: "plan" in record ? parsePlan(record.plan, "config.json plan") : null,
+    diagnosticsOnError: "diagnostics" in record ? parseDiagnostics(record.diagnostics) : false,
+  };
 }
 
 export function rateLimitPreset(plan: MyboxPlan | null): RateLimitPreset {
@@ -152,17 +191,21 @@ export function rateLimitPreset(plan: MyboxPlan | null): RateLimitPreset {
   };
 }
 
-async function loadPlan(
+async function loadConfigFile(
   path: string,
   env: ConfigEnvironment,
   readFile: ReadFile,
-): Promise<MyboxPlan | null> {
-  if (env.MYBOX_PLAN !== undefined) return parsePlan(env.MYBOX_PLAN, "MYBOX_PLAN");
+): Promise<ConfigFileValues> {
   let contents: string;
   try {
     contents = await readFile(path, "utf8");
   } catch (error) {
-    if ((error as NodeJS.ErrnoException | undefined)?.code === "ENOENT") return null;
+    if ((error as NodeJS.ErrnoException | undefined)?.code === "ENOENT") {
+      return {
+        plan: env.MYBOX_PLAN === undefined ? null : parsePlan(env.MYBOX_PLAN, "MYBOX_PLAN"),
+        diagnosticsOnError: false,
+      };
+    }
     throw new ConfigError("The myboxctl config file could not be read.", { cause: error });
   }
   let value: unknown;
@@ -171,16 +214,11 @@ async function loadPlan(
   } catch (error) {
     throw new ConfigError("The myboxctl config file is not valid JSON.", { cause: error });
   }
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    Array.isArray(value) ||
-    Object.keys(value).some((key) => key !== "plan")
-  ) {
-    throw new ConfigError("The myboxctl config file must contain only a plan field.");
-  }
-  if (!("plan" in value)) return null;
-  return parsePlan(value.plan, "config.json plan");
+  const parsed = parseConfigFileValue(value);
+  return {
+    plan: env.MYBOX_PLAN === undefined ? parsed.plan : parsePlan(env.MYBOX_PLAN, "MYBOX_PLAN"),
+    diagnosticsOnError: parsed.diagnosticsOnError,
+  };
 }
 
 function parseTimeout(value: string | undefined): number {
@@ -279,7 +317,7 @@ export async function loadConfig(options: ConfigOptions = {}): Promise<AppConfig
   const homeDirectory = options.homeDir ?? env.HOME ?? homedir();
   const credentialsPath = options.credentialsPath ?? defaultCredentialsPath(env, homeDirectory);
   const configPath = options.configPath ?? defaultConfigPath(env, homeDirectory);
-  const plan = await loadPlan(configPath, env, options.readFile ?? defaultReadFile);
+  const fileValues = await loadConfigFile(configPath, env, options.readFile ?? defaultReadFile);
 
   let pat: string;
   if (env.MYBOX_PAT !== undefined) {
@@ -302,8 +340,9 @@ export async function loadConfig(options: ConfigOptions = {}): Promise<AppConfig
     timeoutMs: parseTimeout(env.MYBOX_TIMEOUT_MS),
     credentialsPath,
     configPath,
-    plan,
-    rateLimits: rateLimitPreset(plan),
+    plan: fileValues.plan,
+    rateLimits: rateLimitPreset(fileValues.plan),
+    diagnosticsOnError: fileValues.diagnosticsOnError,
   });
 }
 
@@ -314,6 +353,7 @@ export function serializeConfig(config: AppConfig): {
   configPath: string;
   plan: MyboxPlan | null;
   rateLimits: RateLimitPreset;
+  diagnosticsOnError: boolean;
 } {
   return config.toJSON();
 }

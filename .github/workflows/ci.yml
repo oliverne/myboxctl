@@ -4,7 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       live_acceptance:
-        description: Run live MYBOX integration acceptance using the MYBOX_PAT repository secret
+        description: >-
+          Run live MYBOX integration acceptance using the MYBOX_PAT repository
+          secret
         required: false
         default: false
         type: boolean
@@ -19,7 +21,8 @@ on:
         default: false
         type: boolean
       unicode_probe:
-        description: Run the targeted cross-platform Unicode filename compatibility probe
+        description: >-
+          Run the targeted cross-platform Unicode filename compatibility probe
         required: false
         default: false
         type: boolean
@@ -60,7 +63,10 @@ jobs:
 
   live-acceptance:
     name: Live MYBOX acceptance
-    if: github.event_name == 'workflow_dispatch' && (inputs.live_acceptance || inputs.download_probe || inputs.server_semantics_probe || inputs.unicode_probe)
+    if: >-
+      github.event_name == 'workflow_dispatch' && (inputs.live_acceptance ||
+      inputs.download_probe || inputs.server_semantics_probe ||
+      inputs.unicode_probe)
     needs: test
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -86,7 +92,8 @@ jobs:
         shell: bash
         run: |
           if [[ -z "$MYBOX_PAT" ]]; then
-            echo "MYBOX_PAT repository secret is required for live acceptance" >&2
+            echo "MYBOX_PAT repository secret is required for live acceptance" \
+              >&2
             exit 1
           fi
 
@@ -138,7 +145,9 @@ jobs:
           src/features/tree-manifest.test.ts
           src/features/recursive-transfer.test.ts
           src/diagnostics.test.ts
+          src/failure-diagnostics.test.ts
           test/cli/diagnostics.test.ts
+          test/cli/failure-diagnostics.test.ts
           src/local/download-file.test.ts
           src/features/download.test.ts
           test/http/upload.test.ts

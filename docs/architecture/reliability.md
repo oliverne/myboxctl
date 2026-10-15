@@ -155,4 +155,10 @@ transfer root와 child folder 생성은 일반 `mkdir -p` reconcile과 분리한
 redaction된 stack은 포함할 수 있다. 기존 path를 덮어쓰지 않으며 기록 실패는 진행 중 mutation을
 중단하거나 재시도하지 않는다.
 
+`config.json`의 `diagnostics.onError`로 활성화하는 자동 실패 로그도 같은 redaction과 exclusive create를
+따른다. 기록은 실패한 실행에만 수행하고 성공 실행은 파일을 만들지 않으며, memory buffer에는 sanitized
+record만 보관한다. 자동 관리 디렉터리에서 이 도구가 만든 형식의 정규 파일만 최근 20개로 정리하고
+symlink, directory와 다른 형식의 파일은 열거나 삭제하지 않는다. 로그 생성, 기록과 retention 실패는
+redaction된 warning만 남기고 원래 command의 결과와 exit code를 바꾸지 않는다.
+
 오류 context에는 HTTP status, MYBOX code, request ID, retryable 여부만 허용한다.

@@ -17,6 +17,11 @@
 - PAT, `Authorization` header, upload/download URL과 query token은 어느 stream에도 출력하지 않는다.
 - `--diagnostic-log <file>`은 기존 path를 덮어쓰지 않고 실행별 JSONL을 기록한다. local path와 redaction된
   stack이 포함될 수 있으므로 공유 전에 검토한다.
+- `config.json`에 `{"diagnostics":{"onError":true}}`를 설정하면 실패한 실행만 자동 진단 JSONL로
+  남긴다. 기본값은 `false`이고 성공 실행은 파일을 만들지 않는다. 자동 로그는
+  `${XDG_STATE_HOME}/myboxctl/diagnostics/`(XDG 값이 없으면 `~/.local/state/myboxctl/diagnostics/`)에
+  최근 20개만 유지한다. human 실패는 stderr에 `Diagnostic log: <path>` 한 줄을, JSON 실패 envelope는
+  optional `diagnosticLogPath` field를 추가한다. `--diagnostic-log`를 지정하면 자동 로그를 만들지 않는다.
 - 성공/실패의 exit code는 다음과 같다.
 
 | Code | 의미                                                |
@@ -66,6 +71,9 @@
 mutation이 시작됐거나 응답 유실로 결과가 불확실한 폴더 전송 실패는 기존 필드에
 `error.partialTransfer`를 추가한다. `direction`, 양쪽 root path, `rootCreated`, 완료한 file/folder/byte 수,
 지원용 parent folder 수와 `mutationMayHaveOccurred`를 포함하며 완료 path 목록은 출력하지 않는다.
+
+자동 실패 진단이 활성화된 경우 실패 envelope는 optional `diagnosticLogPath` field를 추가한다. 이 field는
+성공 envelope에는 존재하지 않는다.
 
 공통 resource shape는 다음과 같다.
 

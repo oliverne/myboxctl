@@ -3,9 +3,9 @@
 ## 인수 목적
 
 Phase 00–18 구현과 필수 로컬/live 검증, `v0.4.0`·`v0.4.1`·`v0.4.2` 배포와 GitHub Release 생성을 모두
-완료했다. Phase 17 GitHub Release Notes도 `v0.4.0` 배포에서 외부 검증을 마쳤다. 다음 계획 phase는
-Phase 19 Automatic Failure Diagnostics다. 전체 phase 상태와 최신 검증 수치는
-[`PROGRESS.md`](PROGRESS.md)가 소유한다.
+완료했다. Phase 17 GitHub Release Notes도 `v0.4.0` 배포에서 외부 검증을 마쳤다. Phase 19 Automatic
+Failure Diagnostics는 로컬 구현과 macOS 검증을 마쳤고 Ubuntu/macOS/Windows CI 실행만 남았다. 전체
+phase 상태와 최신 검증 수치는 [`PROGRESS.md`](PROGRESS.md)가 소유한다.
 
 ## 현재 상태
 
@@ -13,13 +13,20 @@ Phase 19 Automatic Failure Diagnostics다. 전체 phase 상태와 최신 검증 
 - Phase 00–18: 모두 `complete`
 - Phase 17: `complete`; `v0.4.0` 배포에서 note 검증과 npm publish, GitHub Release 생성·본문 일치까지
   확인했다
-- Phase 19–22: 모두 `pending`; 다음 순서는 Phase 19 Automatic Failure Diagnostics
+- Phase 19: `in_progress`; config opt-in, bounded buffer, failure persistence와 retention을 구현했고
+  macOS에서 `bun run check`를 통과했다. Ubuntu 일반 CI와 macOS/Windows matrix는 push 후 실행 대기다
+- Phase 20–22: 모두 `pending`
 - 최신 release note: `docs/releases/v0.4.2.md`(3 bullet, AppleDouble upload 보정). `v0.4.2`가 npm
   `latest`다. 배포된 `v0.4.2`·`v0.4.1`·`v0.4.0` note는 각 GitHub Release 본문과 후행 빈 줄 외 일치한다.
 - 현재 배포: `@oliverne/myboxctl@0.4.2`(npm `latest`), npm 단독 배포
 - standalone/Scoop/install script 경로: 폐기 유지
 - Homebrew: Phase 22에서 standalone 부활 없이 npm tarball 기반 Node formula로 계획
-- 최신 로컬 검사: `bun run check` 308 pass, 57 skip, 0 fail; `bun run build`와 `git diff --check` 통과
+- 최신 로컬 검사: `bun run check` 334 pass, 57 skip, 0 fail; `bun run build`와 `git diff --check` 통과
+- Phase 19 자동 실패 진단: `src/failure-diagnostics.ts`에 sanitized bounded memory buffer(최근 256
+  event, 1 MiB)와 XDG state 디렉터리 persistence/retention(managed 정규 파일 최근 20개)을 추가했다.
+  `runCli`는 `--diagnostic-log`가 없고 config `diagnostics.onError`가 true일 때만 실패 시 JSONL 한 개를
+  쓰고 human stderr/JSON failure envelope(`diagnosticLogPath`)에 경로를 노출한다. 성공 실행은 파일을
+  만들지 않는다. 신규 test 26개로 검증했고, CI `local-transfer-contract` matrix에 신규 test를 추가했다.
 - 최신 publish: `v0.4.2` 배포 완료 — 배포 commit `fdcdfc1`(CI success, run 35943521269), tag `v0.4.2`,
   publish workflow run 37089466046의 `publish`·`release` job success. registry `0.4.2`/`latest`와 npm
   provenance attestation(`slsa.dev/provenance/v1`), GitHub Release `v0.4.2`(draft/prerelease 아님, 본문
@@ -124,6 +131,18 @@ versioned envelope를 stdout에 내고, event는 stderr 정책을 따른다. 상
 세부 설계·완료 조건·실행 증거는 [`phases/15-recursive-folder-transfer.md`](phases/15-recursive-folder-transfer.md)와
 [`architecture/reliability.md`](architecture/reliability.md)에 있다.
 
+### Automatic failure diagnostics
+
+- `config.json`의 `{"diagnostics":{"onError":true}}`가 있을 때만 동작한다. 기본값은 `false`다.
+- 실행 중에는 sanitized record를 bounded memory buffer(`run-started`와 최종 failure는 항상 보존,
+  event는 최근 256개/1 MiB)에만 두고 exit 0이면 파일을 만들지 않는다.
+- 실패 시 `${XDG_STATE_HOME}/myboxctl/diagnostics/`(미설정 시 `~/.local/state/myboxctl/diagnostics/`)에
+  `myboxctl-<UTC>-<uuid>.jsonl` 한 개를 exclusive create(0700/0600)한다. managed 정규 파일만 최근
+  20개 유지하고 symlink, directory와 다른 형식의 파일은 건드리지 않는다.
+- human 실패는 stderr에 `Diagnostic log: <path>` 한 줄, JSON 실패는 optional `diagnosticLogPath`를
+  추가한다. `--diagnostic-log`가 지정되면 자동 로그를 만들지 않으며 기록·retention 실패는 redaction된
+  warning만 남기고 원래 exit code/결과를 바꾸지 않는다.
+
 ### Release notes와 배포
 
 - npm publish 대상 version의 본문은 `docs/releases/vX.Y.Z.md`에 두고 사용자 영향만 3~6개 bullet로
@@ -139,8 +158,8 @@ versioned envelope를 stdout에 내고, event는 stderr 정책을 따른다. 상
 
 ## 계획된 후속 로드맵
 
-1. Phase 19 Automatic Failure Diagnostics: config opt-in, 성공 시 무파일, 실패 시 bounded 자동
-   diagnostic JSONL
+1. Phase 19 Automatic Failure Diagnostics(local 구현 완료): push 후 Ubuntu 일반 CI와 macOS/Windows
+   `local-transfer-contract` matrix가 통과하면 `complete`로 바꾼다
 2. Phase 20: explicit local checkpoint를 사용하는 recursive upload 재개
 3. Phase 21: unknown-size stdin을 secure temp file에 spool한 뒤 단일 파일 업로드
 4. Phase 22: npm tarball과 Node를 사용하는 personal Homebrew tap
@@ -157,6 +176,9 @@ existing tree를 merge하지 않으며 checkpoint가 소유하고 검증한 tree
 - rename/move 계약은 `bun run test:rename-move-probe`(live read/write probe, 10 pass), 일반 suite에
   포함되는 fake HTTP·CLI subprocess 회귀 27개(review 후속 7개 포함), `MYBOX_INTEGRATION=1 bun test
 test/integration/rename-move.test.ts`(live acceptance, 6 pass)로 검증한다.
+- Phase 19 계약은 `src/failure-diagnostics.test.ts`, `src/config.test.ts`의 diagnostics test와
+  `test/cli/failure-diagnostics.test.ts`(9 pass)로 검증한다. Ubuntu 일반 CI와 macOS/Windows
+  `local-transfer-contract` matrix는 push 후 실행 대기다.
 - 실제 MYBOX test는 `MYBOX_INTEGRATION=1 bun test test/integration`이며, mutation은
   `/myboxctl-integration-test/` 아래 unique child로 제한한다.
 - live mutation, credential 변경, commit, push, tag, npm publish와 GitHub Release 생성은 서로 다른
@@ -184,8 +206,9 @@ test/integration/rename-move.test.ts`(live acceptance, 6 pass)로 검증한다.
 - npm Trusted Publishing 전환: [`phases/16-npm-trusted-publishing.md`](phases/16-npm-trusted-publishing.md)
 - 최근 완료 phase: [`phases/18-remote-rename-move.md`](phases/18-remote-rename-move.md) (`complete`),
   [`phases/17-github-release-notes.md`](phases/17-github-release-notes.md) (`complete`)
-- 다음 phase: [`phases/19-automatic-failure-diagnostics.md`](phases/19-automatic-failure-diagnostics.md),
-  [`phases/20-recursive-upload-resume.md`](phases/20-recursive-upload-resume.md),
+- 진행 중 phase: [`phases/19-automatic-failure-diagnostics.md`](phases/19-automatic-failure-diagnostics.md)
+  (`in_progress`)
+- 다음 phase: [`phases/20-recursive-upload-resume.md`](phases/20-recursive-upload-resume.md),
   [`phases/21-stdin-upload.md`](phases/21-stdin-upload.md),
   [`phases/22-homebrew-tap.md`](phases/22-homebrew-tap.md)
 - 과거 결정/완료 phase 색인: [`reference/project-history.md`](reference/project-history.md)
@@ -200,6 +223,7 @@ bun install --frozen-lockfile
 bun run check
 ```
 
-Phase 00–18은 모두 `complete`이고 `v0.4.1`이 npm `latest`로 배포됐다. 다음 작업은 Phase 19 Automatic
-Failure Diagnostics를 `in_progress`로 시작하는 것이다. 범위 변경이 있으면 `PLAN.md`와 해당 phase
-문서를 함께 갱신한다. 계획 문서 반영 자체는 구현, external publish, commit 또는 push를 의미하지 않는다.
+Phase 00–18은 모두 `complete`이고 `v0.4.2`가 npm `latest`로 배포됐다. Phase 19는 로컬 구현과 macOS
+검증을 마쳤고 push 후 Ubuntu 일반 CI와 macOS/Windows `local-transfer-contract` matrix 확인만 남았다.
+그 뒤 Phase 20 Recursive Upload Resume를 시작한다. 범위 변경이 있으면 `PLAN.md`와 해당 phase 문서를
+함께 갱신한다. 계획 문서 반영 자체는 구현, external publish, commit 또는 push를 의미하지 않는다.

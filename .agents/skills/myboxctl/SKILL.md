@@ -63,6 +63,8 @@ myboxctl delete '/agents/old-report.md' --json
 - 폴더 전송에는 `--recursive`가 필요하며 기존 destination tree와 병합하지 않는다.
 - 실패한 mutation을 외부에서 자동 재실행하지 않는다. `error.partialTransfer`가 있으면 완료 수치와
   `mutationMayHaveOccurred`를 보고하고 중단한다.
+- `--json` 실패 envelope에 `diagnosticLogPath`가 있으면 그 JSONL을 참고한다. 자동 진단 로그는 실패한
+  실행에서만 생성되며 PAT와 전송 URL은 기록되지 않는다.
 - PAT, Authorization header, upload/download URL 또는 query token을 출력하지 않는다.
 
 destination 의미, JSON shape와 exit code가 더 필요할 때만
