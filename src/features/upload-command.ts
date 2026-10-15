@@ -14,6 +14,8 @@ export type UploadCommandOptions = {
   force?: boolean;
   mkdir?: boolean;
   recursive?: boolean;
+  checkpoint?: string;
+  resume?: string;
 };
 
 export type UploadCommandResult =
@@ -99,9 +101,18 @@ export async function runUploadCommand(
     );
   }
   if (stats.isDirectory() && !stats.isSymbolicLink()) {
+    if (options.checkpoint !== undefined && options.resume !== undefined) {
+      throw new DomainError("invalid-arguments", "--checkpoint and --resume cannot be combined.");
+    }
     if (!options.recursive)
       throw new DomainError("invalid-arguments", "A directory upload requires --recursive.");
     return runRecursiveUpload(localPath, remoteDestination, options, dependencies);
+  }
+  if (options.checkpoint !== undefined || options.resume !== undefined) {
+    throw new DomainError(
+      "invalid-arguments",
+      "--checkpoint and --resume require a directory source with --recursive.",
+    );
   }
   const target = await resolveUploadDestination(
     localPath,

@@ -45,6 +45,8 @@ myboxctl download '/agents/output/report.md' './report.md' --json
 
 # 폴더 전체 전송: 기존 destination tree와 병합하지 않음
 myboxctl upload './reports' '/agents/' --recursive --mkdir --json
+myboxctl upload './reports' '/agents/' --recursive --checkpoint './reports.upload.json' --json
+myboxctl upload './reports' '/agents/' --recursive --resume './reports.upload.json' --json
 myboxctl download '/agents/reports' './reports-copy' --recursive --json
 
 # 명시적인 덮어쓰기
@@ -61,6 +63,8 @@ myboxctl delete '/agents/old-report.md' --json
 - 원격 경로는 `/`로 시작해야 한다. 공백이 있는 경로는 한 인자로 전달한다.
 - `--force`, `--overwrite`, `delete`는 사용자가 해당 변경을 명시한 경우에만 실행한다.
 - 폴더 전송에는 `--recursive`가 필요하며 기존 destination tree와 병합하지 않는다.
+- 중단된 recursive 업로드는 `--checkpoint <file>`로 시작해 실패 JSON의 `resumeCheckpointPath`를
+  `--resume <file>`에 전달해 이어간다. `--checkpoint`와 `--resume`은 함께 쓸 수 없다.
 - 실패한 mutation을 외부에서 자동 재실행하지 않는다. `error.partialTransfer`가 있으면 완료 수치와
   `mutationMayHaveOccurred`를 보고하고 중단한다.
 - `--json` 실패 envelope에 `diagnosticLogPath`가 있으면 그 JSONL을 참고한다. 자동 진단 로그는 실패한

@@ -2,8 +2,8 @@
 
 ## 상태
 
-- 결정: accepted for Phase 20 planning
-- 구현: pending
+- 결정: accepted
+- 구현: Phase 20에서 구현; 로컬 검증 완료, Ubuntu/macOS/Windows CI와 live interruption/resume 대기
 
 ## 배경
 

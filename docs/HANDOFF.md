@@ -4,8 +4,9 @@
 
 Phase 00–19 구현과 필수 로컬/live 검증, `v0.4.0`·`v0.4.1`·`v0.4.2` 배포와 GitHub Release 생성을 모두
 완료했다. Phase 17 GitHub Release Notes도 `v0.4.0` 배포에서 외부 검증을 마쳤다. Phase 19 Automatic
-Failure Diagnostics는 로컬 구현과 Ubuntu/macOS/Windows CI 검증까지 마쳤다. 다음 계획 phase는 Phase 20
-Recursive Upload Resume다. 전체 phase 상태와 최신 검증 수치는 [`PROGRESS.md`](PROGRESS.md)가 소유한다.
+Failure Diagnostics는 Ubuntu/macOS/Windows CI 검증까지 마쳤다. Phase 20 Recursive Upload Resume는 로컬
+구현과 검증을 마쳤고 3-OS CI와 live acceptance만 남았다. 전체 phase 상태와 최신 검증 수치는
+[`PROGRESS.md`](PROGRESS.md)가 소유한다.
 
 ## 현재 상태
 
@@ -15,19 +16,27 @@ Recursive Upload Resume다. 전체 phase 상태와 최신 검증 수치는 [`PRO
   확인했다
 - Phase 19: `complete`; 배포 commit `e51497e`의 CI run 38747500959에서 Ubuntu check와 macOS/Windows
   `local-transfer-contract` matrix가 success였다(Windows는 기존 npm-package timeout flake 1회 후 재실행)
-- Phase 20–22: 모두 `pending`; 다음 순서는 Phase 20 Recursive Upload Resume
+- Phase 20: `in_progress`; checkpoint schema/storage/lock, 재개 orchestration과 CLI 옵션을 구현했고
+  로컬 `bun run check` 355 pass/57 skip/0 fail을 통과했다. 3-OS CI와 live acceptance 대기
+- Phase 21–22: 모두 `pending`; 다음 순서는 Phase 20 검증 후 Phase 21 stdin Upload
 - 최신 release note: `docs/releases/v0.4.2.md`(3 bullet, AppleDouble upload 보정). `v0.4.2`가 npm
   `latest`다. 배포된 `v0.4.2`·`v0.4.1`·`v0.4.0` note는 각 GitHub Release 본문과 후행 빈 줄 외 일치한다.
 - 현재 배포: `@oliverne/myboxctl@0.4.2`(npm `latest`), npm 단독 배포
 - standalone/Scoop/install script 경로: 폐기 유지
 - Homebrew: Phase 22에서 standalone 부활 없이 npm tarball 기반 Node formula로 계획
-- 최신 로컬 검사: `bun run check` 334 pass, 57 skip, 0 fail; `bun run build`와 `git diff --check` 통과
+- 최신 로컬 검사: `bun run check` 355 pass, 57 skip, 0 fail; `bun run build`와 `git diff --check` 통과
 - Phase 19 자동 실패 진단: `src/failure-diagnostics.ts`에 sanitized bounded memory buffer(최근 256
   event, 1 MiB)와 XDG state 디렉터리 persistence/retention(managed 정규 파일 최근 20개)을 추가했다.
   `runCli`는 `--diagnostic-log`가 없고 config `diagnostics.onError`가 true일 때만 실패 시 JSONL 한 개를
   쓰고 human stderr/JSON failure envelope(`diagnosticLogPath`)에 경로를 노출한다. 성공 실행은 파일을
   만들지 않는다. 신규 test 26개로 검증했고, CI `local-transfer-contract` matrix에 신규 test를 추가했다.
   CI run 38747500959에서 Ubuntu·macOS·Windows까지 success를 확인했다.
+- Phase 20 recursive upload resume: `src/features/upload-checkpoint.ts`에 versioned Zod checkpoint
+  schema, exclusive create/same-directory atomic replace(0600), owner 검증 기반 local lock과 manifest
+  fingerprint를 추가했다. `src/features/recursive-upload-checkpoint.ts`가 완료 folder/file 재검증 skip,
+  mutation 전 `inFlight` commit, 소유권 불확실 시 `RESUME_UNCERTAIN`, 성공 시에만 checkpoint 정리,
+  실패 envelope `resumeCheckpointPath`를 처리한다. CLI에는 `--checkpoint <file>`/`--resume <file>`을
+  추가했다. 신규 test 21개로 검증했고 CI matrix에 추가했다; 3-OS CI와 live acceptance는 미실행이다.
 - 최신 publish: `v0.4.2` 배포 완료 — 배포 commit `fdcdfc1`(CI success, run 35943521269), tag `v0.4.2`,
   publish workflow run 37089466046의 `publish`·`release` job success. registry `0.4.2`/`latest`와 npm
   provenance attestation(`slsa.dev/provenance/v1`), GitHub Release `v0.4.2`(draft/prerelease 아님, 본문
@@ -144,6 +153,22 @@ versioned envelope를 stdout에 내고, event는 stderr 정책을 따른다. 상
   추가한다. `--diagnostic-log`가 지정되면 자동 로그를 만들지 않으며 기록·retention 실패는 redaction된
   warning만 남기고 원래 exit code/결과를 바꾸지 않는다.
 
+### Recursive upload checkpoint
+
+- `upload`의 `--checkpoint <file>`는 directory source + `--recursive`에서만 허용되며 새 checkpoint를
+  exclusive create(0600, parent는 실제 directory)한다. `--resume <file>`은 기존 checkpoint를 열어 local
+  manifest/root realpath/identity가 일치하는지 확인하고 remote root path/ID와 완료 entry의
+  ID/parent/name/size/modifiedAt을 재검증한 뒤 checkpoint가 소유한 완료 entry만 건너뛴다.
+- mutation 전에 단일 `inFlight` intent를 atomic commit하고 POST는 정확히 한 번 수행한다. `inFlight`가
+  남은 상태에서 재개하면 같은 path의 resource 존재만으로 소유권을 추정하지 않고 `RESUME_UNCERTAIN`
+  (`api-unavailable`)으로 중단하며, checkpoint commit이 mutation 뒤에 실패하면 다음 mutation을 시작하지
+  않는다. checkpoint가 소유하지 않은 remote entry나 mismatch는 `conflict`로 실패한다.
+- checkpoint는 checkpoint 옆의 `.lock`으로 동시 실행을 막고 owner host와 process 생존이 증명될 때만
+  stale lock을 회수한다. PAT, Authorization, upload/download URL과 request/response body는 저장하지 않는다.
+- 성공 시 completed state를 durable commit한 뒤 checkpoint와 자신이 만든 lock만 지운다. 부분 실패는
+  checkpoint를 보존하고 JSON failure에 optional `resumeCheckpointPath`를 추가한다. 결과 data에는
+  `filesSkipped`/`foldersSkipped`/`bytesSkipped`, `checkpointPath`, `resumed`가 additive로 포함된다.
+
 ### Release notes와 배포
 
 - npm publish 대상 version의 본문은 `docs/releases/vX.Y.Z.md`에 두고 사용자 영향만 3~6개 bullet로
@@ -159,7 +184,9 @@ versioned envelope를 stdout에 내고, event는 stderr 정책을 따른다. 상
 
 ## 계획된 후속 로드맵
 
-1. Phase 20: explicit local checkpoint를 사용하는 recursive upload 재개
+1. Phase 20(local 구현 완료): push 후 3-OS `local-transfer-contract` matrix와 승인된 live acceptance
+   `MYBOX_INTEGRATION=1 bun test test/integration/recursive-upload-resume.test.ts`를 통과하면 `complete`로
+   바꾼다
 2. Phase 21: unknown-size stdin을 secure temp file에 spool한 뒤 단일 파일 업로드
 3. Phase 22: npm tarball과 Node를 사용하는 personal Homebrew tap
 
@@ -178,6 +205,10 @@ test/integration/rename-move.test.ts`(live acceptance, 6 pass)로 검증한다.
 - Phase 19 계약은 `src/failure-diagnostics.test.ts`, `src/config.test.ts`의 diagnostics test와
   `test/cli/failure-diagnostics.test.ts`(9 pass)로 검증한다. CI run 38747500959에서 Ubuntu check와
   macOS/Windows `local-transfer-contract` matrix까지 success를 확인했다.
+- Phase 20 계약은 `src/features/upload-checkpoint.test.ts`(9 pass), `src/features/recursive-upload-checkpoint.test.ts`
+  (9 pass), `test/cli/upload-checkpoint.test.ts`(3 pass)로 검증한다. live acceptance는
+  `MYBOX_INTEGRATION=1 bun test test/integration/recursive-upload-resume.test.ts`이고 mutation은
+  `/myboxctl-integration-test/` 아래 unique child로 제한한다. 아직 미실행이다.
 - 실제 MYBOX test는 `MYBOX_INTEGRATION=1 bun test test/integration`이며, mutation은
   `/myboxctl-integration-test/` 아래 unique child로 제한한다.
 - live mutation, credential 변경, commit, push, tag, npm publish와 GitHub Release 생성은 서로 다른
@@ -206,8 +237,9 @@ test/integration/rename-move.test.ts`(live acceptance, 6 pass)로 검증한다.
 - 최근 완료 phase: [`phases/19-automatic-failure-diagnostics.md`](phases/19-automatic-failure-diagnostics.md)
   (`complete`), [`phases/18-remote-rename-move.md`](phases/18-remote-rename-move.md) (`complete`),
   [`phases/17-github-release-notes.md`](phases/17-github-release-notes.md) (`complete`)
-- 다음 phase: [`phases/20-recursive-upload-resume.md`](phases/20-recursive-upload-resume.md),
-  [`phases/21-stdin-upload.md`](phases/21-stdin-upload.md),
+- 진행 중 phase: [`phases/20-recursive-upload-resume.md`](phases/20-recursive-upload-resume.md)
+  (`in_progress`)
+- 다음 phase: [`phases/21-stdin-upload.md`](phases/21-stdin-upload.md),
   [`phases/22-homebrew-tap.md`](phases/22-homebrew-tap.md)
 - 과거 결정/완료 phase 색인: [`reference/project-history.md`](reference/project-history.md)
 
@@ -221,6 +253,7 @@ bun install --frozen-lockfile
 bun run check
 ```
 
-Phase 00–19은 모두 `complete`이고 `v0.4.2`가 npm `latest`로 배포됐다. 다음 작업은 Phase 20 Recursive
-Upload Resume를 `in_progress`로 시작하는 것이다. 범위 변경이 있으면 `PLAN.md`와 해당 phase 문서를
-함께 갱신한다. 계획 문서 반영 자체는 구현, external publish, commit 또는 push를 의미하지 않는다.
+Phase 00–19은 모두 `complete`이고 `v0.4.2`가 npm `latest`로 배포됐다. Phase 20은 로컬 구현과 검증을
+마쳤고 push 후 3-OS CI와 승인된 live acceptance 확인만 남았다. 그 뒤 Phase 21 stdin Upload를 시작한다.
+범위 변경이 있으면 `PLAN.md`와 해당 phase 문서를 함께 갱신한다. 계획 문서 반영 자체는 구현,
+external publish, commit 또는 push를 의미하지 않는다.

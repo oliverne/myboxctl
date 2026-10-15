@@ -75,6 +75,10 @@ mutation이 시작됐거나 응답 유실로 결과가 불확실한 폴더 전�
 자동 실패 진단이 활성화된 경우 실패 envelope는 optional `diagnosticLogPath` field를 추가한다. 이 field는
 성공 envelope에는 존재하지 않는다.
 
+checkpoint를 사용하는 recursive upload가 실패해 checkpoint file이 남아 있으면 실패 envelope는 optional
+`resumeCheckpointPath` field를 추가한다. 이 path는 checkpoint와 local lock 중 checkpoint를 가리키며,
+`--resume <file>`로 재개할 때 그대로 사용한다.
+
 공통 resource shape는 다음과 같다.
 
 ```ts
@@ -127,6 +131,25 @@ local path가 directory이면 `--recursive`가 필수다. 전체 manifest와 por
 upload와 `--force`는 함께 쓸 수 없다. transfer root와 child folder는 exclusive create한다. macOS가
 생성하는 `._` 접두어의 AppleDouble metadata regular file은 recursive manifest에서 제외한다. 사용자가
 단일 local file로 명시한 경로에는 이 자동 제외를 적용하지 않는다.
+
+#### `--checkpoint <file>`와 `--resume <file>`
+
+directory source와 `--recursive`에서만 쓸 수 있고 서로 배타적이다. `--checkpoint`는 새 JSON checkpoint를
+exclusive create(0600)하고, `--resume`은 기존 checkpoint를 재개 상태로 열어 검증한 뒤에만 갱신한다.
+checkpoint parent는 기존 실제 directory여야 한다. 동시 실행은 checkpoint 옆의 local lock으로 막고,
+lock은 owner host와 process 생존이 증명될 때만 회수한다.
+
+checkpoint는 schema version, local root realpath/identity, manifest fingerprint, remote root path/ID, 생성한
+folder ID, 완료 file의 ID/parent/name/size/modified time과 단일 `inFlight` intent를 기록한다. PAT,
+Authorization, upload/download URL과 request/response body는 저장하지 않는다. mutation 전에 `inFlight`를
+commit하고 완료 결과를 확인한 뒤에만 completed set으로 옮긴다. 재개는 저장된 manifest/root ID가 모두
+일치하고 완료 entry의 remote ID/path/metadata가 재검증될 때만 그 entry를 건너뛴다. in-flight 결과를
+소유권으로 확정할 수 없거나 remote tree가 checkpoint 소유와 다르면 POST를 반복하지 않고
+`api-unavailable`/`RESUME_UNCERTAIN` 또는 `conflict`로 실패한다.
+
+성공하면 completed state를 commit한 뒤 checkpoint와 자신이 만든 lock만 지운다. 부분 실패는
+checkpoint를 보존하고 JSON failure에 optional `resumeCheckpointPath`를 추가한다. 결과 data에는 resumed
+실행의 `filesSkipped`/`foldersSkipped`/`bytesSkipped`, `checkpointPath`, `resumed`가 additive로 포함된다.
 
 ### `download <remote-path> [local-destination] [--recursive]`
 

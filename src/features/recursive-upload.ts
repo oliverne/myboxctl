@@ -5,6 +5,7 @@ import { parseRemoteDestination } from "../remote/destination.ts";
 import { parseRemotePath } from "../remote/path.ts";
 import type { RemoteResolver } from "../remote/resolver.ts";
 import { runEnsureDir } from "./ensure-dir.ts";
+import { runCheckpointedRecursiveUpload } from "./recursive-upload-checkpoint.ts";
 import {
   assertLocalTreeUnchanged,
   assertPortableName,
@@ -23,10 +24,15 @@ export type RecursiveUploadResult = {
     filesUploaded: number;
     foldersCreated: number;
     bytesUploaded: number;
+    filesSkipped?: number;
+    foldersSkipped?: number;
+    bytesSkipped?: number;
+    checkpointPath?: string;
+    resumed?: boolean;
   };
 };
 
-function withPartial(error: unknown, partial: PartialTransfer): DomainError {
+export function withPartial(error: unknown, partial: PartialTransfer): DomainError {
   const normalized = normalizeError(error);
   return new DomainError(normalized.kind, normalized.message, {
     retryable: normalized.retryable,
@@ -39,11 +45,11 @@ function withPartial(error: unknown, partial: PartialTransfer): DomainError {
   });
 }
 
-function remoteJoin(root: string, relativePath: string): string {
+export function remoteJoin(root: string, relativePath: string): string {
   return posix.join(root, ...relativePath.split("/"));
 }
 
-async function createExclusiveFolder(
+export async function createExclusiveFolder(
   path: string,
   parentId: string | undefined,
   resolver: RemoteResolver,
@@ -95,7 +101,7 @@ async function createExclusiveFolder(
   }
 }
 
-async function resolveRecursiveUploadRoot(
+export async function resolveRecursiveUploadRoot(
   localPath: string,
   remoteDestination: string | undefined,
   options: UploadCommandOptions,
@@ -139,6 +145,17 @@ export async function runRecursiveUpload(
       "invalid-arguments",
       "--force cannot be used for recursive folder upload.",
     );
+  const checkpointPath = options.checkpoint ?? options.resume;
+  if (checkpointPath !== undefined) {
+    return runCheckpointedRecursiveUpload(
+      checkpointPath,
+      options.resume !== undefined,
+      localPath,
+      remoteDestination,
+      options,
+      dependencies,
+    );
+  }
   const manifest = await buildLocalTreeManifest(localPath);
   const remoteRoot = await resolveRecursiveUploadRoot(
     localPath,

@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 
+import { lstat } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { Command, CommanderError, Option } from "commander";
@@ -54,6 +55,8 @@ type UploadCommandOptions = OutputOptions & {
   force?: boolean;
   mkdir?: boolean;
   recursive?: boolean;
+  checkpoint?: string;
+  resume?: string;
 };
 type MkdirCommandOptions = OutputOptions & { parents?: boolean };
 type DeleteCommandOptions = OutputOptions & { ignoreMissing?: boolean };
@@ -463,6 +466,8 @@ export function createProgram(
         .option("--force", "Overwrite regardless of file metadata")
         .option("--mkdir", "Create a missing remote directory destination or parent")
         .option("--recursive", "Upload a local directory recursively")
+        .option("--checkpoint <file>", "Create this exclusive recursive upload checkpoint")
+        .option("--resume <file>", "Resume a recursive upload from an existing checkpoint")
         .action(
           async (
             localPath: string,
@@ -487,6 +492,8 @@ export function createProgram(
                   ...(options.force === undefined ? {} : { force: options.force }),
                   ...(options.mkdir === undefined ? {} : { mkdir: options.mkdir }),
                   ...(options.recursive === undefined ? {} : { recursive: options.recursive }),
+                  ...(options.checkpoint === undefined ? {} : { checkpoint: options.checkpoint }),
+                  ...(options.resume === undefined ? {} : { resume: options.resume }),
                 },
                 { ...commandDependencies(runtime), signal: interrupt.signal },
               );
@@ -498,7 +505,7 @@ export function createProgram(
             }
           },
         ),
-      "Destination defaults to / and uses the local basename. An existing directory also gets the basename.\nA trailing / means directory intent; a missing intended directory needs --mkdir.\nMetadata (size + modified time) is compared: matching files are skipped, newer remote files conflict, and --force overrides.\nUse --json for one result envelope or --json --verbose for JSON Lines progress on stderr.",
+      "Destination defaults to / and uses the local basename. An existing directory also gets the basename.\nA trailing / means directory intent; a missing intended directory needs --mkdir.\nMetadata (size + modified time) is compared: matching files are skipped, newer remote files conflict, and --force overrides.\n--checkpoint creates an exclusive JSON resume checkpoint; --resume continues it after verifying local and remote state, and only checkpoint-owned entries are skipped.\nUse --json for one result envelope or --json --verbose for JSON Lines progress on stderr.",
     ),
   );
 
@@ -662,6 +669,33 @@ function wantsJson(argv: readonly string[]): boolean {
   return argv.includes("--json");
 }
 
+function optionValue(argv: readonly string[], name: string): string | undefined {
+  for (let index = 2; index < argv.length; index += 1) {
+    const argument = argv[index] ?? "";
+    if (argument === name) {
+      const value = argv[index + 1];
+      return value === undefined || value.length === 0 ? undefined : value;
+    }
+    if (argument.startsWith(`${name}=`)) {
+      const value = argument.slice(name.length + 1);
+      return value.length === 0 ? undefined : value;
+    }
+  }
+  return undefined;
+}
+
+/** Existing checkpoint file referenced by the failing upload, when one is on disk. */
+async function existingCheckpointPath(argv: readonly string[]): Promise<string | undefined> {
+  const candidate = optionValue(argv, "--checkpoint") ?? optionValue(argv, "--resume");
+  if (candidate === undefined) return undefined;
+  try {
+    const stats = await lstat(candidate);
+    return stats.isFile() && !stats.isSymbolicLink() ? candidate : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function runCli(
   argv: readonly string[] = process.argv,
   runtimeFactory: RuntimeFactory = defaultRuntimeFactory,
@@ -728,7 +762,10 @@ export async function runCli(
     const cause = cliError instanceof Error ? (cliError.cause ?? cliError) : cliError;
     const baseResult = failure(command, cliError);
     diagnostics?.complete(exitCode, baseResult, cause);
-    let result: FailureEnvelope & { diagnosticLogPath?: string } = baseResult;
+    let result: FailureEnvelope & {
+      diagnosticLogPath?: string;
+      resumeCheckpointPath?: string;
+    } = baseResult;
     if (automatic !== undefined && diagnosticsOnError) {
       const path = persistFailureDiagnosticLog(
         automatic.failureRecords(exitCode, baseResult, cause),
@@ -739,6 +776,12 @@ export async function runCli(
         },
       );
       if (path !== undefined) result = { ...baseResult, diagnosticLogPath: path };
+    }
+    if (command === "upload") {
+      const resumeCheckpointPath = await existingCheckpointPath(argv);
+      if (resumeCheckpointPath !== undefined) {
+        result = { ...result, resumeCheckpointPath };
+      }
     }
     if (wantsJson(argv)) {
       writeJson(result);

@@ -100,6 +100,13 @@ limiter의 `quota` 대기로 확인됐다. 따라서 bucket을 완화하지 않�
   canonical resolver로 해석해 Unicode-equivalent fallback과 canonical 충돌 검사를 적용하고 실제 folder
   spelling을 사용하며, descendant 검사도 resolver가 선택한 실제 component spelling으로 다시 확인한다.
   `renameResource`의 `{name}` 응답은 schema로 검증한다.
+- checkpoint recursive upload: mutation 전에 단일 `inFlight` intent를 checkpoint file에 durable commit하고,
+  resource ID/path/metadata postcondition을 확인한 뒤에만 completed set으로 옮긴다. `inFlight`가 남은
+  상태에서 재개하면 원래 resource ID를 확인할 수 없으므로 같은 path의 resource 존재만으로 소유권을
+  추정하지 않고 `RESUME_UNCERTAIN`으로 중단한다. checkpoint commit이 remote mutation 뒤에 실패하면 다음
+  mutation을 시작하지 않고 partial failure로 돌아간다. 완료 entry는 checkpoint의 manifest/root ID와
+  remote tree traversal이 모두 일치할 때만 skip하고, checkpoint가 소유하지 않은 remote entry는 merge하지
+  않는다.
 
 400, 401, 403, 409, 422, 507은 자동 재시도하지 않는다. 423은 live 해제 특성이 미확정이므로
 자동 재시도하지 않는다. 실제 command에서 자연 발생해 정책이 필요해질 때 별도 targeted probe로

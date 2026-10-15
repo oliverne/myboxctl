@@ -46,6 +46,8 @@ myboxctl mkdir -p /agents/output
 myboxctl upload ./report.md /agents/output/ --mkdir
 myboxctl download /agents/output/report.md ./report.md
 myboxctl upload ./reports /agents/ --recursive --mkdir
+myboxctl upload ./reports /agents/ --recursive --checkpoint ./reports.upload.json
+myboxctl upload ./reports /agents/ --recursive --resume ./reports.upload.json
 myboxctl download /agents/reports ./reports-copy --recursive
 myboxctl delete /agents/output/report.md
 myboxctl rename /agents/output/draft.md final.md
@@ -75,6 +77,11 @@ myboxctl download "/Team Files/big report.zip" ".\Local Files\big report.zip"
 - 폴더 전송에는 `--recursive`가 필요합니다. 기존 destination tree와 병합하지 않습니다. symlink와 macOS,
   Linux, Windows에서 이식할 수 없는 이름은 거부하고, macOS의 `._` AppleDouble metadata 파일은
   업로드하지 않습니다.
+- `--checkpoint <file>`은 recursive 업로드 진행 상황을 exclusive local JSON 파일에 기록하고,
+  `--resume <file>`은 저장된 manifest와 remote root를 재검증한 뒤 checkpoint가 소유한 완료 entry만
+  건너뜁니다. 실패한 실행은 checkpoint를 보존하고 `resumeCheckpointPath`를 알려 주며, 성공한 실행은
+  checkpoint를 삭제합니다. 소유권을 확정할 수 없는 in-flight mutation은 POST를 반복하지 않고
+  `RESUME_UNCERTAIN`으로 중단합니다.
 - `delete`는 대상 파일을 MYBOX 휴지통으로 이동합니다. 암호 폴더, 공유 폴더는 지원하지 않습니다.
 - `rename`과 `move`는 `resourceId`를 유지하고 endpoint 하나만 호출합니다. destination에 같은 이름의
   resource가 있으면 변경 전에 중단합니다. `move`는 기존 folder만 destination으로 받고, 자기 자신이나

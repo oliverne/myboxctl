@@ -46,6 +46,8 @@ myboxctl mkdir -p /agents/output
 myboxctl upload ./report.md /agents/output/ --mkdir
 myboxctl download /agents/output/report.md ./report.md
 myboxctl upload ./reports /agents/ --recursive --mkdir
+myboxctl upload ./reports /agents/ --recursive --checkpoint ./reports.upload.json
+myboxctl upload ./reports /agents/ --recursive --resume ./reports.upload.json
 myboxctl download /agents/reports ./reports-copy --recursive
 myboxctl delete /agents/output/report.md
 myboxctl rename /agents/output/draft.md final.md
@@ -75,6 +77,11 @@ Important behavior:
 - Folder transfer requires `--recursive`, never merges an existing destination tree, and rejects
   symlinks and names that are not portable across macOS, Linux, and Windows. It excludes macOS
   AppleDouble metadata files whose names start with `._`.
+- `--checkpoint <file>` records recursive upload progress in an exclusive local JSON file and
+  `--resume <file>` re-verifies the saved manifest and remote root before skipping only the
+  checkpoint-owned completed entries. A failed run keeps the checkpoint and reports
+  `resumeCheckpointPath`; a successful run removes it. An uncertain in-flight mutation fails closed
+  with `RESUME_UNCERTAIN` instead of repeating a POST.
 - `delete` moves resources to the MYBOX trash. Root, encrypted folders, and shared-with-me folders
   are unsupported.
 - `rename` and `move` keep the resource ID, call exactly one mutation endpoint, and fail before
