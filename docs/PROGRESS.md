@@ -76,36 +76,36 @@
   완료 entry 재검증 skip과 `inFlight` reconcile을 포함한 재개 orchestration, 성공 시 checkpoint 정리,
   실패 envelope `resumeCheckpointPath`를 구현했다. 신규 test 21개(checkpoint storage/lock 9, fake remote
   orchestration 9, CLI subprocess 3)와 gate된 live acceptance test를 추가했고, `bun run check` 355 pass,
-  57 skip, 0 fail과 `bun run build`, `git diff --check`를 통과했다. 3-OS CI matrix와 live
-  interruption/resume은 아직 미실행이다.
+  57 skip, 0 fail과 `bun run build`, `git diff --check`를 통과했다. CI run 38753313182에서 Ubuntu check와
+  macOS/Windows `local-transfer-contract` matrix가 success였고, live interruption/resume은 미실행이다.
 
 ## Phase 상태
 
-| Phase                             | 상태        | 현재 근거                                                                                      | 문서                                                                                             |
-| --------------------------------- | ----------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| 00 API contract                   | complete    | contract probe와 API ledger 완료                                                               | [`phases/00-api-contract.md`](phases/00-api-contract.md)                                         |
-| 01 Foundation                     | complete    | config/error/output/client와 fake HTTP 검증 완료                                               | [`phases/01-foundation.md`](phases/01-foundation.md)                                             |
-| 02 Read commands                  | complete    | path, resolver, stat, list 검증 완료                                                           | [`phases/02-read-commands.md`](phases/02-read-commands.md)                                       |
-| 03 Ensure directory               | complete    | ensure-dir와 shared search limiter 검증 완료                                                   | [`phases/03-ensure-dir.md`](phases/03-ensure-dir.md)                                             |
-| 04 Upload                         | complete    | streaming, resume, overwrite와 acceptance 완료                                                 | [`phases/04-upload.md`](phases/04-upload.md)                                                     |
-| 05 Put                            | complete    | decision policy와 metadata flow 검증 완료                                                      | [`phases/05-put.md`](phases/05-put.md)                                                           |
-| 06 Delete                         | complete    | delete, ID reconcile와 limiter 검증 완료                                                       | [`phases/06-delete.md`](phases/06-delete.md)                                                     |
-| 07 Hardening                      | complete    | CI와 통합 live acceptance 완료                                                                 | [`phases/07-hardening.md`](phases/07-hardening.md)                                               |
-| 08 Official API alignment         | complete    | 공식 API correction과 live acceptance 완료                                                     | [`phases/08-official-api-alignment.md`](phases/08-official-api-alignment.md)                     |
-| 09 Download                       | complete    | targeted probe, 3-OS 검증과 live acceptance 완료                                               | [`phases/09-download.md`](phases/09-download.md)                                                 |
-| 10 Cross-implementation hardening | complete    | path/delete/Unicode hardening과 live probe 완료                                                | [`phases/10-cross-implementation-hardening.md`](phases/10-cross-implementation-hardening.md)     |
-| 11 Distribution & Release         | complete    | native smoke와 release 경계 검증 완료                                                          | [`phases/11-distribution-release.md`](phases/11-distribution-release.md)                         |
-| 12 Cross-platform Unicode names   | complete    | 3-OS local 검증과 Unicode live probe 완료                                                      | [`phases/12-cross-platform-unicode-filenames.md`](phases/12-cross-platform-unicode-filenames.md) |
-| 13 Observability & test latency   | complete    | event 출력, limiter 계측과 live acceptance 완료                                                | [`phases/13-observability-and-test-latency.md`](phases/13-observability-and-test-latency.md)     |
-| 14 CLI UX & Agent Contract        | complete    | canonical surface와 versioned output contract 완료                                             | [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)               |
-| 15 Recursive folder transfer      | complete    | local 구현, 3-OS matrix, live round-trip과 failure-path 회귀 완료                              | [`phases/15-recursive-folder-transfer.md`](phases/15-recursive-folder-transfer.md)               |
-| 16 npm Trusted Publishing         | complete    | Trusted Publisher 등록, 첫 OIDC publish·provenance·설치 smoke 및 기존 token 폐기 완료          | [`phases/16-npm-trusted-publishing.md`](phases/16-npm-trusted-publishing.md)                     |
-| 17 GitHub Release Notes           | complete    | `v0.4.0` 배포에서 note 검증, npm publish와 GitHub Release 생성·본문 일치 확인 완료             | [`phases/17-github-release-notes.md`](phases/17-github-release-notes.md)                         |
-| 18 Remote Rename & Move           | complete    | probe·fake HTTP/CLI 회귀·live acceptance 통과; live root destination 미검증                    | [`phases/18-remote-rename-move.md`](phases/18-remote-rename-move.md)                             |
-| 19 Automatic Failure Diagnostics  | complete    | config opt-in, bounded buffer, retention과 Ubuntu/macOS/Windows CI matrix 통과                 | [`phases/19-automatic-failure-diagnostics.md`](phases/19-automatic-failure-diagnostics.md)       |
-| 20 Recursive Upload Resume        | in_progress | checkpoint schema·lock·재개 orchestration과 CLI 구현; 로컬 검증 완료, 3-OS CI·live resume 대기 | [`phases/20-recursive-upload-resume.md`](phases/20-recursive-upload-resume.md)                   |
-| 21 stdin Upload                   | pending     | unknown-size stdin의 secure temp spool과 기존 uploader 재사용 계획                             | [`phases/21-stdin-upload.md`](phases/21-stdin-upload.md)                                         |
-| 22 Homebrew Tap                   | pending     | standalone 없는 npm tarball 기반 Node formula 계획                                             | [`phases/22-homebrew-tap.md`](phases/22-homebrew-tap.md)                                         |
+| Phase                             | 상태        | 현재 근거                                                                                | 문서                                                                                             |
+| --------------------------------- | ----------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 00 API contract                   | complete    | contract probe와 API ledger 완료                                                         | [`phases/00-api-contract.md`](phases/00-api-contract.md)                                         |
+| 01 Foundation                     | complete    | config/error/output/client와 fake HTTP 검증 완료                                         | [`phases/01-foundation.md`](phases/01-foundation.md)                                             |
+| 02 Read commands                  | complete    | path, resolver, stat, list 검증 완료                                                     | [`phases/02-read-commands.md`](phases/02-read-commands.md)                                       |
+| 03 Ensure directory               | complete    | ensure-dir와 shared search limiter 검증 완료                                             | [`phases/03-ensure-dir.md`](phases/03-ensure-dir.md)                                             |
+| 04 Upload                         | complete    | streaming, resume, overwrite와 acceptance 완료                                           | [`phases/04-upload.md`](phases/04-upload.md)                                                     |
+| 05 Put                            | complete    | decision policy와 metadata flow 검증 완료                                                | [`phases/05-put.md`](phases/05-put.md)                                                           |
+| 06 Delete                         | complete    | delete, ID reconcile와 limiter 검증 완료                                                 | [`phases/06-delete.md`](phases/06-delete.md)                                                     |
+| 07 Hardening                      | complete    | CI와 통합 live acceptance 완료                                                           | [`phases/07-hardening.md`](phases/07-hardening.md)                                               |
+| 08 Official API alignment         | complete    | 공식 API correction과 live acceptance 완료                                               | [`phases/08-official-api-alignment.md`](phases/08-official-api-alignment.md)                     |
+| 09 Download                       | complete    | targeted probe, 3-OS 검증과 live acceptance 완료                                         | [`phases/09-download.md`](phases/09-download.md)                                                 |
+| 10 Cross-implementation hardening | complete    | path/delete/Unicode hardening과 live probe 완료                                          | [`phases/10-cross-implementation-hardening.md`](phases/10-cross-implementation-hardening.md)     |
+| 11 Distribution & Release         | complete    | native smoke와 release 경계 검증 완료                                                    | [`phases/11-distribution-release.md`](phases/11-distribution-release.md)                         |
+| 12 Cross-platform Unicode names   | complete    | 3-OS local 검증과 Unicode live probe 완료                                                | [`phases/12-cross-platform-unicode-filenames.md`](phases/12-cross-platform-unicode-filenames.md) |
+| 13 Observability & test latency   | complete    | event 출력, limiter 계측과 live acceptance 완료                                          | [`phases/13-observability-and-test-latency.md`](phases/13-observability-and-test-latency.md)     |
+| 14 CLI UX & Agent Contract        | complete    | canonical surface와 versioned output contract 완료                                       | [`phases/14-cli-ux-and-agent-contract.md`](phases/14-cli-ux-and-agent-contract.md)               |
+| 15 Recursive folder transfer      | complete    | local 구현, 3-OS matrix, live round-trip과 failure-path 회귀 완료                        | [`phases/15-recursive-folder-transfer.md`](phases/15-recursive-folder-transfer.md)               |
+| 16 npm Trusted Publishing         | complete    | Trusted Publisher 등록, 첫 OIDC publish·provenance·설치 smoke 및 기존 token 폐기 완료    | [`phases/16-npm-trusted-publishing.md`](phases/16-npm-trusted-publishing.md)                     |
+| 17 GitHub Release Notes           | complete    | `v0.4.0` 배포에서 note 검증, npm publish와 GitHub Release 생성·본문 일치 확인 완료       | [`phases/17-github-release-notes.md`](phases/17-github-release-notes.md)                         |
+| 18 Remote Rename & Move           | complete    | probe·fake HTTP/CLI 회귀·live acceptance 통과; live root destination 미검증              | [`phases/18-remote-rename-move.md`](phases/18-remote-rename-move.md)                             |
+| 19 Automatic Failure Diagnostics  | complete    | config opt-in, bounded buffer, retention과 Ubuntu/macOS/Windows CI matrix 통과           | [`phases/19-automatic-failure-diagnostics.md`](phases/19-automatic-failure-diagnostics.md)       |
+| 20 Recursive Upload Resume        | in_progress | checkpoint schema·lock·재개 orchestration 구현; 로컬·3-OS CI 검증 완료, live resume 대기 | [`phases/20-recursive-upload-resume.md`](phases/20-recursive-upload-resume.md)                   |
+| 21 stdin Upload                   | pending     | unknown-size stdin의 secure temp spool과 기존 uploader 재사용 계획                       | [`phases/21-stdin-upload.md`](phases/21-stdin-upload.md)                                         |
+| 22 Homebrew Tap                   | pending     | standalone 없는 npm tarball 기반 Node formula 계획                                       | [`phases/22-homebrew-tap.md`](phases/22-homebrew-tap.md)                                         |
 
 ## 검증 경계
 
@@ -115,8 +115,9 @@
   macOS/Windows `local-transfer-contract` matrix까지 success를 확인했다(Windows는 기존 npm-package
   timeout flake 1회 후 재실행 success).
 - Phase 20 로컬: checkpoint storage/lock unit test 9개, fake remote orchestration test 9개, CLI
-  subprocess test 3개가 통과했고 `bun run check` 355 pass, 57 skip, 0 fail을 확인했다. CI matrix와 live
-  acceptance(`test/integration/recursive-upload-resume.test.ts`)는 미실행이다.
+  subprocess test 3개가 통과했고 `bun run check` 355 pass, 57 skip, 0 fail을 확인했다. CI run
+  38753313182에서 Ubuntu check와 macOS/Windows matrix success를 확인했고, live acceptance
+  (`test/integration/recursive-upload-resume.test.ts`)는 미실행이다.
 - 3-OS/CI: Phase 15 local contract matrix와 일반 Ubuntu check가 성공했다. CI 증거는 Phase 15 문서와
   GitHub Actions history에 둔다.
 - live: recursive transfer는 `/myboxctl-integration-test/` 아래 unique child만 사용한 왕복 acceptance와
@@ -142,7 +143,7 @@
 
 ## 다음 작업
 
-1. Phase 20의 3-OS CI(`local-transfer-contract` matrix)와 승인된 live acceptance
+1. Phase 20의 승인된 live acceptance
    (`MYBOX_INTEGRATION=1 bun test test/integration/recursive-upload-resume.test.ts`)를 실행하고 통과하면
    Phase 20을 `complete`로 바꾼다.
 2. Phase 21–22는 Phase 20 완료 뒤 순서대로 진행한다.
