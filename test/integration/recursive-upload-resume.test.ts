@@ -19,6 +19,7 @@ if (integrationEnabled) setDefaultTimeout(900_000);
 
 let temporaryDirectory = "";
 let sourceRoot = "";
+let uniqueName = "";
 let remoteRoot = "";
 let checkpointPath = "";
 let unreadablePath = "";
@@ -63,14 +64,15 @@ async function cleanupRemote(): Promise<void> {
 beforeAll(async () => {
   if (!integrationEnabled) return;
   temporaryDirectory = await mkdtemp(join(tmpdir(), "myboxctl-resume-"));
-  sourceRoot = join(temporaryDirectory, "payload");
+  uniqueName = `recursive-upload-resume-${crypto.randomUUID()}`;
+  sourceRoot = join(temporaryDirectory, uniqueName);
   checkpointPath = join(temporaryDirectory, "payload.upload.json");
   unreadablePath = join(sourceRoot, "b.txt");
   await mkdir(join(sourceRoot, "nested", "empty"), { recursive: true });
   await writeFile(join(sourceRoot, "a.txt"), "alpha");
   await writeFile(unreadablePath, "bravo");
   await writeFile(join(sourceRoot, "nested", "c.txt"), "charlie");
-  remoteRoot = `${PREFIX_PATH}recursive-upload-resume-${crypto.randomUUID()}`;
+  remoteRoot = `${PREFIX_PATH}${uniqueName}`;
   await cleanupRemote();
 });
 
@@ -86,7 +88,7 @@ describeIntegration("MYBOX recursive upload resume acceptance", () => {
     const failed = await runCli([
       "upload",
       sourceRoot,
-      remoteRoot,
+      PREFIX_PATH,
       "--recursive",
       "--mkdir",
       "--checkpoint",
@@ -115,14 +117,18 @@ describeIntegration("MYBOX recursive upload resume acceptance", () => {
     const resumed = await runCli([
       "upload",
       sourceRoot,
-      remoteRoot,
+      PREFIX_PATH,
       "--recursive",
       "--resume",
       checkpointPath,
       "--json",
     ]);
 
-    expect(resumed.exitCode).toBe(0);
+    if (resumed.exitCode !== 0) {
+      throw new Error(
+        `resume failed with exit ${resumed.exitCode}: ${resumed.stdout.trim()} ${resumed.stderr.trim()}`,
+      );
+    }
     expect(resumed.stderr).toBe("");
     expect(output(resumed.stdout)).toMatchObject({
       ok: true,

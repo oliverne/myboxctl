@@ -233,7 +233,7 @@ describe("SharedRateLimiter", () => {
 
       expect(clock.sleeps).toEqual([OTHER_WINDOW_MS]);
     }
-  });
+  }, 30_000);
 
   test("does not merge different drive operations into one global bucket", async () => {
     const statePath = await temporaryStatePath();

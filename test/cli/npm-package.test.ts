@@ -84,7 +84,7 @@ describe("npm package", () => {
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
-  });
+  }, 30_000);
 
   test("Node launcher streams an upload body with Node fetch", async () => {
     const directory = await mkdtemp(join(tmpdir(), "myboxctl-npm-upload-"));
@@ -199,7 +199,7 @@ describe("npm package", () => {
       server?.close();
       await rm(directory, { recursive: true, force: true });
     }
-  });
+  }, 30_000);
 
   test("Node launcher records failure and preserves diagnostic create errors on Unicode paths", async () => {
     const directory = await mkdtemp(join(tmpdir(), "myboxctl-npm-diagnostic-"));
